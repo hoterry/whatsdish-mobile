@@ -30,18 +30,14 @@ const MenuSection = ({ restaurantId, restaurants }) => {
   });
 
   const handleDataFetched = (data) => {
-    if (!data || !data.data || !data.data.menu || !Array.isArray(data.data.menu.categories) || !Array.isArray(data.data.menu.groupedItems)) {
-      console.error('Invalid menu data structure:', data);
-      return;
-    }
 
-    const firstFoodItem = data.data.menu.groupedItems[50];
+    const firstFoodItem = data.groupedItems[50];
     if (__DEV__) {
       console.log('[Menu Section Log] Log 1 food item:', JSON.stringify(firstFoodItem, null, 2));
     }
 
-    const categories = data.data.menu.categories;
-    const groupedItems = data.data.menu.groupedItems;
+    const categories = data.categories;
+    const groupedItems = data.groupedItems;
 
     const groupedItemsMap = new Map(groupedItems.map(item => [item.id, item]));
 
@@ -161,6 +157,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
               onPress={() => {
                 if (hasOptions) {
                   navigation.navigate('ProductDetail', { menuItem, restaurantId, restaurants });
+
                 } else {
                   handleAddToCart(menuItem);
                 }

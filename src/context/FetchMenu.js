@@ -3,12 +3,12 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { View, Text } from 'react-native';
 
-const FetchMenu = ({ restaurantId, onSuccess, onError }) => {
+const FetchMenu = ({ orderId, lang, onSuccess, onError }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [menu, setMenu] = useState([]);
   
-  const { API_URL } = Constants.expoConfig.extra; 
+  const { API_URL } = Constants.expoConfig.extra;
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -19,12 +19,13 @@ const FetchMenu = ({ restaurantId, onSuccess, onError }) => {
         }
 
         if (__DEV__) {
-          console.log('[Fetched Menu Log] Fetching menu with API URL:', `${API_URL}/fetch-menu?restaurantId=${restaurantId}`);
+          console.log('[Fetched Menu Log] Fetching menu with API URL:', `${API_URL}/fetch-menu?orderId=${orderId}&lang=${lang}`);
           console.log('[Fetched Menu Log] Authorization Header:', `Bearer ${token}`);
         }
 
+        // API request with orderId and lang
         const response = await fetch(
-          `${API_URL}/fetch-menu?restaurantId=${restaurantId}`,
+          `${API_URL}/fetch-menu?orderId=${orderId}&lang=${lang}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -37,11 +38,11 @@ const FetchMenu = ({ restaurantId, onSuccess, onError }) => {
         }
 
         const data = await response.json();
-        setMenu(data);
+        setMenu(data.categories || []);  // Assuming 'categories' is the key in response
         onSuccess(data);
         
         if (__DEV__) {
-          console.log('[Fetched Menu Log] Data:', data); 
+          console.log('[Fetched Menu Log] Data:', data);
         }
       } catch (err) {
         console.error('Error fetching menu:', err.message);
@@ -52,23 +53,27 @@ const FetchMenu = ({ restaurantId, onSuccess, onError }) => {
       }
     };
 
-    if (restaurantId) {
+    if (orderId && lang) {
       fetchMenu();
     }
-  }, [restaurantId, onSuccess, onError, API_URL]);
+  }, [orderId, lang, onSuccess, onError, API_URL]);
 
   if (loading) {
-    return null; 
+    return null; // Or add a loading spinner
   }
 
   if (error) {
-    return null; 
+    return <Text>{error}</Text>; // Display error message
   }
 
   return (
     <View>
-      {menu.map((item, index) => (
-        <Text key={index}>{item.name}</Text> 
+      {menu.map((category, index) => (
+        <View key={index}>
+          <Text>{category.name}</Text>
+          <Text>{category.description}</Text>
+
+        </View>
       ))}
     </View>
   );

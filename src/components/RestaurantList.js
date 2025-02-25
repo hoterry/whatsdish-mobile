@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, ScrollView, Pressable, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LanguageContext } from '../context/LanguageContext';
-import Distance from '../context/DistanceCalculator'; 
+import Distance from '../context/DistanceCalculator';
+import * as SecureStore from 'expo-secure-store';
 
 const translations = {
   EN: {
@@ -22,12 +23,14 @@ const RestaurantList = ({ restaurants, userLocation }) => {
   const [bookmarkedRestaurants, setBookmarkedRestaurants] = useState([]);
   const { language } = useContext(LanguageContext);
 
+  const t = (key) => translations[language][key] || key;
+
   useEffect(() => {
     if (__DEV__) {
       if (restaurants && Array.isArray(restaurants.data) && restaurants.data.length > 0) {
         console.log('[Restaurant List Log] Fetched data:', restaurants.data);
       } else {
-        console.log('[Restaurant List Log] Invalid restaurants data:', restaurants);
+        console.warn('[Restaurant List Log] Invalid restaurants data:', restaurants);
       }
     }
   }, [restaurants]);
@@ -36,23 +39,73 @@ const RestaurantList = ({ restaurants, userLocation }) => {
     return <Text>No restaurants available</Text>;
   }
 
-  const t = (key) => translations[language][key] || key;
-
   const toggleBookmark = (restaurant) => {
     setBookmarkedRestaurants((prev) => {
-      if (prev.some((item) => item.gid === restaurant.gid)) {
-        return prev.filter((item) => item.gid !== restaurant.gid);
-      } else {
-        return [...prev, restaurant];
-      }
+      const exists = prev.find((item) => item.gid === restaurant.gid);
+      return exists ? prev.filter((item) => item.gid !== restaurant.gid) : [...prev, restaurant];
     });
+  };
+
+  const handlePressRestaurant = async (restaurant) => {
+    const restaurantId = restaurant.gid;
+    if (__DEV__) {
+      console.log(`[Restaurant List Log] Attempting to fetch restaurant details for ID: ${restaurantId}`);
+    }
+
+    try {
+      const token = await SecureStore.getItemAsync('token');
+      if (!token) {
+        console.error('Token not found in SecureStore');
+        return;
+      }
+      if (__DEV__) {
+        console.log('[Restaurant List Log] Token retrieved from SecureStore:', token);
+      }
+
+      const url = `https://dev.whatsdish.com/api/rn/merchants/${restaurantId}`;
+      if (__DEV__) {
+        console.log(`[Restaurant List Log] Fetching restaurant details from: ${url}`);
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error(`Failed to fetch restaurant details. Status: ${response.status}`);
+        return;
+      }
+
+      const data = await response.json();
+
+      const orderId = data?.data?.order?.order_id;
+      if (__DEV__) {
+        console.log('[Restaurant List Log] Extracted Order ID:', orderId || 'No Order ID found');
+      }
+
+      if (orderId) {
+        await SecureStore.setItemAsync('order_id', orderId);
+        if (__DEV__) {
+          console.log('[Restaurant List Log] Order ID stored in SecureStore:', orderId);
+        }
+
+        navigation.navigate('Details', { restaurant, data });
+      } else {
+        console.warn('[Restaurant List Log] No Order ID found for this restaurant.');
+      }
+    } catch (error) {
+      console.error('Error fetching restaurant details:', error);
+    }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {restaurants.data.map((item) => (
         <View key={item.gid} style={styles.restaurantCard}>
-          <Pressable onPress={() => navigation.navigate('Details', { restaurant: item, restaurants })}>
+          <Pressable onPress={() => handlePressRestaurant(item)}>
             <Image source={{ uri: item.banner_url }} style={styles.restaurantImage} />
             <View style={styles.restaurantInfo}>
               <Image source={{ uri: item.logo_url }} style={styles.restaurantLogo} />
@@ -65,10 +118,7 @@ const RestaurantList = ({ restaurants, userLocation }) => {
                 </Text>
               </View>
               <View style={styles.tagContainer}>
-                <Distance
-                  userLocation={userLocation} 
-                  restaurant={item}
-                />
+                <Distance userLocation={userLocation} restaurant={item} />
               </View>
             </View>
           </Pressable>
