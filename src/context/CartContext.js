@@ -13,9 +13,22 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = (restaurantId, item, quantity = 1) => {
     if (__DEV__) {
-      console.log("[CartContext Log] Received restaurantId in addToCart :", restaurantId); 
+      console.log("[CartContext Log] Received restaurantId in addToCart :", restaurantId);
     }
-
+  
+    if (!item) {
+      console.error("[CartContext ERROR] addToCart received an undefined item!");
+      return;
+    }
+  
+    if (!item.uniqueId) {
+      console.error("[CartContext ERROR] item is missing a uniqueId:", item);
+      return;
+    }
+  
+    const safeModifiers = item.selectedModifiers || [];
+    const safeOption = item.selectedOption || null;
+  
     setCartItems((prevState) => {
       const restaurantCart = prevState[restaurantId] || [];
       const existingItemIndex = restaurantCart.findIndex(cartItem => cartItem.uniqueId === item.uniqueId);
@@ -23,10 +36,10 @@ export const CartProvider = ({ children }) => {
       const updatedCart = [...restaurantCart];
       if (existingItemIndex >= 0) {
         updatedCart[existingItemIndex].quantity += quantity;
-        updatedCart[existingItemIndex].selectedModifiers = item.selectedModifiers;
-        updatedCart[existingItemIndex].selectedOption = item.selectedOption;
+        updatedCart[existingItemIndex].selectedModifiers = safeModifiers;
+        updatedCart[existingItemIndex].selectedOption = safeOption;
       } else {
-        updatedCart.push({ ...item, quantity });
+        updatedCart.push({ ...item, quantity, selectedModifiers: safeModifiers, selectedOption: safeOption });
       }
   
       return {
@@ -35,6 +48,7 @@ export const CartProvider = ({ children }) => {
       };
     });
   };
+  
   
 
   const removeFromCart = (restaurantId, uniqueId) => {

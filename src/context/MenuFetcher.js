@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import { ActivityIndicator, Text } from 'react-native';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';  // Import SecureStore
+import { LanguageContext } from '../context/LanguageContext'; // Import LanguageContext
 
 const MenuFetcher = ({ onDataFetched }) => {
   const [loading, setLoading] = useState(true);
@@ -11,7 +12,9 @@ const MenuFetcher = ({ onDataFetched }) => {
   const prevOrderIdRef = useRef();
   const { API_URL } = Constants.expoConfig.extra;
 
-  const lang = 'en';
+  // Use language context to determine the lang value
+  const { language } = useContext(LanguageContext);
+  const lang = language === 'ZH' ? 'zh-hant' : 'en'; // Set lang based on language context
 
   useEffect(() => {
     const fetchOrderIdFromSecureStore = async () => {
@@ -60,7 +63,7 @@ const MenuFetcher = ({ onDataFetched }) => {
           console.log('[MenuFetcher Log] Attempting to fetch menu for orderId:', orderId, 'with language:', lang);
         }
 
-        // API request with orderId and hardcoded lang
+        // API request with orderId and dynamic lang
         const apiUrl = `https://dev.whatsdish.com/api/orders/${orderId}/items?language=${lang}`;
 
         if (__DEV__) {
@@ -80,7 +83,7 @@ const MenuFetcher = ({ onDataFetched }) => {
 
         const data = await response.json();
         if (__DEV__) {
-          console.log('[MenuFetcher Log] Fetched menu data:', data);
+          //console.log('[MenuFetcher Log] Fetched menu data:', data);
         }
 
         onDataFetched(data); // Pass the fetched data to the parent component
@@ -99,7 +102,7 @@ const MenuFetcher = ({ onDataFetched }) => {
 
     prevOrderIdRef.current = orderId; // Update the previous orderId to the current one
 
-  }, [orderId, onDataFetched]);
+  }, [orderId, onDataFetched, lang]);  // Include lang in the dependency array
 
   if (loading) {
     if (__DEV__) {

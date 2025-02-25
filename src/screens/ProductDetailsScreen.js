@@ -16,7 +16,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
   const options = menuItem.option_groups
     ? menuItem.option_groups.flatMap(group =>
         group.options.map(option => {
-          const name = language === 'ZH' && option.name_zh ? option.name_zh : option.name;
+          const name = language === 'ZH' && option.name_zh ? option.name : option.name;
           if (__DEV__) {
             console.log(`[Product Detail Screen Log] Option name for language ${language}:`, name); // Log the selected name
           }
@@ -31,7 +31,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
   const modifiers = (menuItem.modifier_groups || []).flatMap(group =>
       group.modifiers
         ? group.modifiers.map(item => {
-            const name = language === 'ZH' && item.name_zh ? item.name_zh : item.name;
+            const name = language === 'ZH' && item.name_zh ? item.name : item.name;
             return {
               id: item.id,
               name: name,
@@ -102,7 +102,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
     if (__DEV__) {
       console.log("[Product Detail Screen Log] Item added to cart:", itemWithOptionAndModifiers);
     }
-
+    console.log("[DEBUG] Calling addToCart with:", restaurantId, itemWithOptionAndModifiers);
     addToCart(restaurantId, itemWithOptionAndModifiers, 1);
     navigation.goBack();
   };
@@ -135,8 +135,8 @@ const ProductDetailScreen = ({ route, navigation }) => {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
 
         <Image source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }} style={styles.largeImage} />
-        <Text style={styles.name}>{language === 'ZH' ? menuItem.name_zh : menuItem.name}</Text>
-        <Text style={styles.description}>{language === 'ZH' ? menuItem.description_zh : menuItem.description}</Text>
+        <Text style={styles.name}>{language === 'ZH' ? menuItem.name : menuItem.name}</Text>
+        <Text style={styles.description}>{language === 'ZH' ? menuItem.description : menuItem.description}</Text>
         <Text style={styles.price}>${currentPrice.toFixed(2)}</Text>
         <View style={styles.separator} />
 
@@ -165,14 +165,14 @@ const ProductDetailScreen = ({ route, navigation }) => {
               <View key={group.id}>
                 <View style={styles.modifierTitleContainer}>
                   <Text style={styles.modifiersTitle}>
-                    {language === 'ZH' ? group.name_zh : group.name}
+                    {language === 'ZH' ? group.name : group.name}
                   </Text>
 
                   <Text style={styles.modifierLimitText}>
                   {language === 'ZH'
                     ? (group.minRequired === 0 && group.maxAllowed === 0
                         ? ''
-                        : `最少选择 ${group.minRequired} 项，最多选择 ${group.maxAllowed} 项`)
+                        : ` (最少可選 ${group.minRequired}，最多可選 ${group.maxAllowed} )`)
                     : (group.minRequired === 0 && group.maxAllowed === 0
                         ? ''
                         : group.minRequired === 1

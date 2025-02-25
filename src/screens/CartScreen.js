@@ -36,6 +36,7 @@ function CartScreen({ route }) {
       console.log('[Cart Screen Log] Item:', item);
       console.log('[Cart Screen Log] Selected Option:', item.selectedOption);
       console.log('[Cart Screen Log] Selected Modifiers:', item.selectedModifiers);
+      console.log('[Cart Screen Log] Restaurants data:', restaurants);
     }
 
     const totalPrice = item.price * item.quantity;
@@ -45,14 +46,14 @@ function CartScreen({ route }) {
         <Image source={{ uri: item.image_url }} style={styles.cartItemImage} />
         <View style={styles.cartItemDetails}>
           <Text style={styles.cartItemName}>
-            {language === 'ZH' ? item.name_zh : item.name}
+            {language === 'ZH' ? item.name : item.name}
           </Text>
   
           {item.selectedOption && (
             <View style={styles.selectedOptionContainer}>
               <Text style={styles.selectedOptionText}>
                 {language === 'ZH'
-                  ? (item.selectedOption.name_zh || item.selectedOption.name)
+                  ? (item.selectedOption.name || item.selectedOption.name)
                   : item.selectedOption.name}
                 {item.selectedOption.price ? ` ($${(item.selectedOption.price / 100).toFixed(2)})` : ''}
               </Text>
@@ -63,7 +64,7 @@ function CartScreen({ route }) {
             <View style={styles.modifiersContainer}>
               {item.selectedModifiers.map((modifier, index) => (
                 <Text key={index} style={styles.modifierText}>
-                  {language === 'ZH' ? modifier.name_zh : modifier.name} (+${(modifier.price / 100).toFixed(2)})
+                  {language === 'ZH' ? modifier.name : modifier.name} (+${(modifier.price / 100).toFixed(2)})
                 </Text>
               ))}
             </View>

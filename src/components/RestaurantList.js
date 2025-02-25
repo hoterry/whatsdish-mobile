@@ -4,6 +4,9 @@ import { useNavigation } from '@react-navigation/native';
 import { LanguageContext } from '../context/LanguageContext';
 import Distance from '../context/DistanceCalculator';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
+
+const { API_URL } = Constants.expoConfig.extra;
 
 const translations = {
   EN: {
@@ -29,6 +32,7 @@ const RestaurantList = ({ restaurants, userLocation }) => {
     if (__DEV__) {
       if (restaurants && Array.isArray(restaurants.data) && restaurants.data.length > 0) {
         console.log('[Restaurant List Log] Fetched data:', restaurants.data);
+        console.log('[Restaurant List Log] Fetched data:', restaurants);
       } else {
         console.warn('[Restaurant List Log] Invalid restaurants data:', restaurants);
       }
@@ -49,57 +53,49 @@ const RestaurantList = ({ restaurants, userLocation }) => {
   const handlePressRestaurant = async (restaurant) => {
     const restaurantId = restaurant.gid;
     if (__DEV__) {
-      console.log(`[Restaurant List Log] Attempting to fetch restaurant details for ID: ${restaurantId}`);
+        console.log(`[Restaurant List Log] Fetching restaurant details for ID: ${restaurantId}`);
     }
 
     try {
-      const token = await SecureStore.getItemAsync('token');
-      if (!token) {
-        console.error('Token not found in SecureStore');
-        return;
-      }
-      if (__DEV__) {
-        console.log('[Restaurant List Log] Token retrieved from SecureStore:', token);
-      }
-
-      const url = `https://dev.whatsdish.com/api/rn/merchants/${restaurantId}`;
-      if (__DEV__) {
-        console.log(`[Restaurant List Log] Fetching restaurant details from: ${url}`);
-      }
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        console.error(`Failed to fetch restaurant details. Status: ${response.status}`);
-        return;
-      }
-
-      const data = await response.json();
-
-      const orderId = data?.data?.order?.order_id;
-      if (__DEV__) {
-        console.log('[Restaurant List Log] Extracted Order ID:', orderId || 'No Order ID found');
-      }
-
-      if (orderId) {
-        await SecureStore.setItemAsync('order_id', orderId);
+        const token = await SecureStore.getItemAsync('token');
+        if (!token) {
+            console.error('Token not found in SecureStore');
+            return;
+        }
+        const backendUrl = `${API_URL}/api/restaurants/${restaurantId}`; // 你的後端 API
         if (__DEV__) {
-          console.log('[Restaurant List Log] Order ID stored in SecureStore:', orderId);
+            console.log(`[Restaurant List Log] Fetching from backend: ${backendUrl}`);
         }
 
-        navigation.navigate('Details', { restaurant, data });
-      } else {
-        console.warn('[Restaurant List Log] No Order ID found for this restaurant.');
-      }
+        const response = await fetch(backendUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            console.error(`Failed to fetch restaurant details. Status: ${response.status}`);
+            return;
+        }
+
+        const data = await response.json();
+        const orderId = data?.data?.order?.order_id;
+
+        if (orderId) {
+            await SecureStore.setItemAsync('order_id', orderId);
+            if (__DEV__) {
+                console.log('[Restaurant List Log] Order ID stored in SecureStore:', orderId);
+            }
+            navigation.navigate('Details', { restaurant, data, restaurants });
+        } else {
+            console.warn('[Restaurant List Log] No Order ID found for this restaurant.');
+        }
     } catch (error) {
-      console.error('Error fetching restaurant details:', error);
+        console.error('Error fetching restaurant details:', error);
     }
-  };
+};
+
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

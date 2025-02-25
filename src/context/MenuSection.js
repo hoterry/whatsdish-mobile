@@ -34,6 +34,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     const firstFoodItem = data.groupedItems[50];
     if (__DEV__) {
       console.log('[Menu Section Log] Log 1 food item:', JSON.stringify(firstFoodItem, null, 2));
+      console.log('[Menu Section Log] Restaurants data:', restaurants);
     }
 
     const categories = data.categories;
@@ -43,7 +44,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
 
     const grouped = categories.map(category => ({
       category_name: category.name,
-      category_name_zh: category.alternate_name || category.name, 
+      category_name_zh: category.name || category.name, 
       items: category.items
         .map(item => groupedItemsMap.get(item.id))
         .filter(item => item),
@@ -110,7 +111,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       onLayout={(event) => handleCategoryLayout(event, index)}
     >
       <Text style={styles.categoryHeader}>
-        {language === 'ZH' ? category.category_name_zh : category.category_name}
+        {language === 'ZH' ? category.category_name : category.category_name}
       </Text>
       <View style={styles.separator} />
   
@@ -144,9 +145,9 @@ const MenuSection = ({ restaurantId, restaurants }) => {
             onPress={() => navigation.navigate('ProductDetail', { menuItem, restaurantId, restaurants  })}
           >
             <View style={styles.info}>
-              <Text style={styles.name}>{language === 'ZH' ? menuItem.name_zh : menuItem.name}</Text>
+              <Text style={styles.name}>{language === 'ZH' ? menuItem.name : menuItem.name}</Text>
               <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
-                {language === 'ZH' ? menuItem.description_zh : menuItem.description}
+                {language === 'ZH' ? menuItem.description : menuItem.description}
               </Text>
               <Text style={styles.price}>{menuItem.price_formatted}</Text>
             </View>
@@ -189,7 +190,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
             onPress={() => handleCategoryClick(category.category_name, index)}
           >
             <Text style={styles.categoryText}>
-              {language === 'ZH' ? category.category_name_zh : category.category_name}
+              {language === 'ZH' ? category.category_name : category.category_name}
             </Text>
           </TouchableOpacity>
         ))}

@@ -38,12 +38,12 @@ const OrderSummary = ({ cart, subtotal, showDeliveryFee, deliveryFee, taxes, tot
       <View style={styles.orderItem} key={key}>
         <Image source={{ uri: item.image_url }} style={styles.itemImage} />
         <View style={styles.itemInfo}>
-          <Text style={styles.itemName}>{language === 'ZH' ? item.name_zh : item.name}</Text>
+          <Text style={styles.itemName}>{language === 'ZH' ? item.name : item.name}</Text>
           <Text style={styles.itemQuantity}>{`x${item.quantity}`}</Text>
   
           {item.selectedOption && (
             <View style={styles.optionContainer}>
-              <Text style={styles.optionText}>{`${language === 'ZH' ? item.selectedOption.name_zh : item.selectedOption.name}`}</Text>
+              <Text style={styles.optionText}>{`${language === 'ZH' ? item.selectedOption.name : item.selectedOption.name}`}</Text>
               {item.selectedOption.price && (
                 <Text style={styles.optionText}>+${(item.selectedOption.price / 100).toFixed(2)}</Text>
               )}
@@ -54,7 +54,7 @@ const OrderSummary = ({ cart, subtotal, showDeliveryFee, deliveryFee, taxes, tot
             <View style={styles.modifierContainer}>
               {item.selectedModifiers.map((modifier, index) => (
                 <Text key={index} style={styles.modifierText}>
-                  {language === 'ZH' ? modifier.name_zh : modifier.name} (+${(modifier.price / 100).toFixed(2)})
+                  {language === 'ZH' ? modifier.name : modifier.name} (+${(modifier.price / 100).toFixed(2)})
                 </Text>
               ))}
             </View>

@@ -19,7 +19,7 @@ const FetchMenu = ({ orderId, lang, onSuccess, onError }) => {
         }
 
         if (__DEV__) {
-          console.log('[Fetched Menu Log] Fetching menu with API URL:', `${API_URL}/fetch-menu?orderId=${orderId}&lang=${lang}`);
+          //console.log('[Fetched Menu Log] Fetching menu with API URL:', `${API_URL}/fetch-menu?orderId=${orderId}&lang=${lang}`);
           console.log('[Fetched Menu Log] Authorization Header:', `Bearer ${token}`);
         }
 
