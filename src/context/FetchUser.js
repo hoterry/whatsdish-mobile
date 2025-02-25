@@ -7,8 +7,8 @@ const useUserFetcher = () => {
     name: '',
     phone: '',
     email: '',
-    accountId: '', // Added accountId
-    languagePreference: '', // Added languagePreference
+    accountId: '',
+    languagePreference: '',
   });
   const [error, setError] = useState(null);
 
@@ -35,21 +35,27 @@ const useUserFetcher = () => {
         const data = await response.json();
 
         if (__DEV__) {
-          console.log('[Fetch User Log] Fetched Data:', data);  // Log the raw data from the response in development mode
+          console.log('[Fetch User Log] Fetched Data:', data);
         }
 
         if (response.ok) {
+          const languageMapping = {
+            'zh-hant': '中文',
+            'en': 'English'
+          };
+
           const user = {
             name: `${data.data.given_name} ${data.data.family_name}` || '',
             phone: data.data.phone_number || '',
             email: data.data.email || '',
-            accountId: data.data.sub || '', // Add accountId from the response
-            languagePreference: data.data.language_preference || '', // Add languagePreference from the response
+            accountId: data.data.sub || '',
+            languagePreference: languageMapping[data.data.language_preference] || 'Unknown', 
           };
+
           setUserData(user);
 
           if (__DEV__) {
-            console.log('[Fetch User Log] Updated user data:', user);  // Log the updated user data in development mode
+            console.log('[Fetch User Log] Updated user data:', user);
           }
         } else {
           setError('Failed to fetch user data');
@@ -58,13 +64,13 @@ const useUserFetcher = () => {
         setError(error.message);
 
         if (__DEV__) {
-          console.error('Error fetching data:', error);  // Log error in development mode
+          console.error('Error fetching data:', error);
         }
       }
     };
 
     fetchUserData();
-  }, [API_URL]);  
+  }, [API_URL]);
 
   return { userData, setUserData, error };
 };

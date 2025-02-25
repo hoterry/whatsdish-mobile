@@ -21,6 +21,7 @@ import { CartProvider } from './src/context/CartContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import HistoryDetailScreen from './src/screens/HistoryDetail';
 import { AppLoading } from 'expo';
+import { Platform } from 'react-native'
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -58,7 +59,8 @@ function HomeTabs({ setIsAuthenticated }) {
         },
         tabBarActiveTintColor: 'tomato',
         tabBarInactiveTintColor: 'gray',
-        tabBarStyle: { paddingBottom: 5, paddingTop: 5 },
+        paddingBottom: Platform.OS === 'android' ? 10 : 0,
+        paddingTop: 5,
         headerShown: false,
       })}
     >

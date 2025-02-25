@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants'; 
+import { Ionicons } from '@expo/vector-icons'; // 引入图标库
 
 export default function LoginScreen({ setIsAuthenticated }) {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -21,6 +22,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
   const [isCodeSent, setIsCodeSent] = useState(false);
   const navigation = useNavigation();
   const codeInputs = useRef([]);
+  const [resendTimer, setResendTimer] = useState(0);
   
   const { API_URL } = Constants.expoConfig.extra; 
 
@@ -32,7 +34,19 @@ export default function LoginScreen({ setIsAuthenticated }) {
     }
   }, []); 
 
+  useEffect(() => {
+    let timer;
+    if (isCodeSent && resendTimer > 0) {
+      timer = setInterval(() => {
+        setResendTimer((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isCodeSent, resendTimer]);
+
   const handleSendCode = async () => {
+    if (resendTimer > 0) return; // 如果還在倒數，禁止發送
+    
     setErrorMessage('');
     if (!phoneNumber) {
       setErrorMessage('Please enter your phone number.');
@@ -42,11 +56,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
     setLoading(true);
 
     try {
-      if (__DEV__) {
-        console.log('[Login Screen Log] Sending verification code for phone number:', phoneNumber);
-      }
-
-      const response = await fetch(`${API_URL}/api/send-code`, { 
+      const response = await fetch(`${API_URL}/api/send-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,27 +66,19 @@ export default function LoginScreen({ setIsAuthenticated }) {
 
       const data = await response.json();
 
-      if (__DEV__) {
-        console.log('[Login Screen Log] Response from send-code:', data);
-      }
-
       if (response.ok) {
         setIsCodeSent(true);
-        if (__DEV__) {
-          console.log('[Login Screen Log] Verification code sent successfully');
-        }
+        setResendTimer(20); // 設置 60 秒倒數
       } else {
-        setErrorMessage(data.error || ' Failed to send verification code.');
+        setErrorMessage(data.error || 'Failed to send verification code.');
       }
     } catch (err) {
-      if (__DEV__) {
-        console.error('[Login Screen Log] Error during send-code request:', err);
-      }
       setErrorMessage('Unexpected error during sending code.');
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleVerifyCode = async () => {
     setErrorMessage('');
@@ -177,22 +179,34 @@ export default function LoginScreen({ setIsAuthenticated }) {
           />
         </View>
       ) : (
-        <View style={styles.codeContainer}>
-          {code.map((digit, index) => (
-            <TextInput
-              key={index}
-              style={styles.codeInput}
-              placeholder="•"
-              placeholderTextColor="#999"
-              value={digit}
-              onChangeText={(text) => handleCodeChange(text, index)}
-              keyboardType="number-pad"
-              maxLength={1}
-              ref={(ref) => (codeInputs.current[index] = ref)}
-              textContentType="oneTimeCode"  // Ensures auto-fill works for the verification code
-              onKeyPress={(e) => handleKeyPress(e, index)} 
-            />
-          ))}
+        <View>
+          <TouchableOpacity onPress={() => setIsCodeSent(false)} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+          <View style={styles.codeContainer}>
+            {code.map((digit, index) => (
+              <TextInput
+                key={index}
+                style={styles.codeInput}
+                placeholder="•"
+                placeholderTextColor="#999"
+                value={digit}
+                onChangeText={(text) => handleCodeChange(text, index)}
+                keyboardType="number-pad"
+                maxLength={1}
+                ref={(ref) => (codeInputs.current[index] = ref)}
+                textContentType="oneTimeCode"  // Ensures auto-fill works for the verification code
+                onKeyPress={(e) => handleKeyPress(e, index)} 
+              />
+            ))}
+          </View>
+          {isCodeSent && (
+        <TouchableOpacity onPress={handleSendCode} style={styles.resendButton} disabled={resendTimer > 0}>
+          <Text style={styles.resendButtonText}>
+            {resendTimer > 0 ? `Resend Code (${resendTimer}s)` : 'Resend Code'}
+          </Text>
+        </TouchableOpacity>
+      )}
         </View>
       )}
 
@@ -343,5 +357,21 @@ const styles = StyleSheet.create({
     height: 50,
     fontSize: 16,
     paddingLeft: 10,
+  },
+  backButton: {
+    position: 'absolute',
+    top: -200,
+    left: 10,
+    zIndex: 1,
+  },
+  resendButton: {
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 30
+  },
+  resendButtonText: {
+    color: '#000',
+    fontSize: 18,
+    textDecorationLine: 'underline',
   },
 });

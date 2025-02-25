@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Image, Platform  } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import useUserFetcher from '../context/FetchUser';
 import { LanguageManager } from '../components/LanguageManager'; 
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const AccountScreen = ({ setIsAuthenticated }) => {
   const { userData, setUserData } = useUserFetcher();
@@ -44,7 +45,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
   return (
     <LanguageManager>
       {({ language, setLanguage, showLanguageModal, setShowLanguageModal }) => (
-        <ScrollView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>  
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Icon name="arrow-back" size={28} color="#000" />
           </TouchableOpacity>
@@ -132,15 +133,19 @@ const InfoRow = ({ label, value, field, editingField, setEditingField, setUserDa
 );
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContent: {
     flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'android' ? 0 : 10,
   },
   backButton: {
     position: 'absolute',
-    top: 20,
+    top: 55,
     left: 16,
     zIndex: 10,
   },
