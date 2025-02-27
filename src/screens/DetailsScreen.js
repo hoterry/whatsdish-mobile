@@ -16,7 +16,7 @@ function DetailsScreen({ route, navigation }) {
   }, [restaurant]);
 
   useEffect(() => {
-    console.log('[Detail Screen Log] Restaurants Data in detail screen:', restaurants);
+    //console.log('[Detail Screen Log] Restaurants Data in detail screen:', restaurants);
     const currentMenu = restaurant.menu || [];
     setMenu(currentMenu);
   }, [restaurant]);

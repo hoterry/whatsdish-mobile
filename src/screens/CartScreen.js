@@ -3,83 +3,140 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from 'rea
 import { useCart } from '../context/CartContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LanguageContext } from '../context/LanguageContext';
-import { Ionicons } from '@expo/vector-icons'; 
+import { Ionicons } from '@expo/vector-icons';
 
 function CartScreen({ route }) {
-  const { cartItems, removeFromCart, addToCart, updateQuantity, getTotalItems, getTotalPrice } = useCart();
+  const { cartItems, setCartItems, removeFromCart, addToCart, updateQuantity, getTotalItems, getTotalPrice } = useCart();
   const navigation = useNavigation();
-  const { restaurantId, restaurants } = route.params;
+  const { restaurantId, restaurants, menuData } = route.params; 
   const { language } = useContext(LanguageContext);
-  const safeCart = cartItems[restaurantId] || [];
+  const safeCart = cartItems[restaurantId] || []; 
 
   useEffect(() => {
-  }, [language]);
+    console.log("[CartScreen] Cart items updated:", cartItems[restaurantId]);
+  }, [cartItems[restaurantId]]);
+  
+useEffect(() => {
+  if (!menuData || menuData.length === 0) return;
+
+  const enrichedCart = (cartItems[restaurantId] || []).map((cartItem) => {
+    const menuItem = menuData.find((item) => item.id === cartItem.item_id);
+    const enrichedModifiers = cartItem.selectedModifiers?.map((mod) => {
+      const group = menuItem?.modifier_groups?.find((group) =>
+        group.modifiers.some((modifier) => modifier.id === mod.mod_id)
+      );
+
+      const modifier = group?.modifiers.find((modifier) => modifier.id === mod.mod_id);
+
+      return modifier
+        ? {
+            mod_id: mod.mod_id,
+            mod_group_id: group?.id,
+            name: language === 'ZH' && modifier.name_zh ? modifier.name_zh : modifier.name,
+            price: modifier.price,
+            count: mod.count,
+          }
+        : mod;
+    });
+
+    return {
+      ...cartItem,
+      name: menuItem ? menuItem.name : cartItem.name || 'Unnamed Item',
+      price: menuItem ? menuItem.price_in_cents / 100 : cartItem.price || 0,
+      image_url: menuItem ? menuItem.image_url : cartItem.image_url || '',
+      selectedModifiers: enrichedModifiers || [],
+    };
+  });
+
+  console.log("Enriched Cart with Modifiers:", enrichedCart);
+
+  if (JSON.stringify(cartItems[restaurantId]) !== JSON.stringify(enrichedCart)) {
+    setCartItems((prevState) => ({
+      ...prevState,
+      [restaurantId]: enrichedCart,
+    }));
+  }
+}, [menuData, cartItems[restaurantId], language]); // 添加 cartItems[restaurantId] 和 language 作为依赖项
 
   const handleIncreaseQuantity = (uniqueId) => {
     const item = safeCart.find((item) => item.uniqueId === uniqueId);
     if (item) {
-      addToCart(restaurantId, item, 1);
+      const formattedModifiers = item.selectedModifiers.map((modifier) => ({
+        mod_id: modifier.mod_id,
+        mod_group_id: modifier.mod_group_id,
+        count: modifier.count,
+      }));
+  
+      const updatedItem = {
+        ...item,
+        selectedModifiers: formattedModifiers,
+        quantity: item.quantity + 1, // Increase quantity
+        item_id: item.item_id || item.id, // Ensure item_id is set
+      };
+  
+      console.log("[CartScreen] Updated Item (Increase):", updatedItem);
+  
+      addToCart(restaurantId, updatedItem, 1); // 1 represents quantity increase
     }
   };
-
+  
   const handleDecreaseQuantity = (uniqueId) => {
     const item = safeCart.find((item) => item.uniqueId === uniqueId);
-    if (item && item.quantity > 1) {
-      updateQuantity(restaurantId, item.uniqueId, item.quantity - 1);
+    if (item) {
+      const formattedModifiers = item.selectedModifiers.map((modifier) => ({
+        mod_id: modifier.mod_id,
+        mod_group_id: modifier.mod_group_id,
+        count: modifier.count,
+      }));
+  
+      const updatedItem = {
+        ...item,
+        selectedModifiers: formattedModifiers,
+        quantity: item.quantity - 1, // Decrease quantity
+        item_id: item.item_id || item.id, // Ensure item_id is set
+      };
+  
+      console.log("[CartScreen] Updated Item (Decrease):", updatedItem);
+  
+      if (updatedItem.quantity > 0) {
+        addToCart(restaurantId, updatedItem, -1); // -1 represents quantity decrease
+      } else {
+        removeFromCart(restaurantId, item.uniqueId); // Remove if quantity is 0
+      }
     }
   };
 
   const renderCartItem = (item) => {
-    const key = item.uniqueId || `${item.name}-${item.price}-${item.quantity}`;
-    
-    if (__DEV__) {
-      console.log('[Cart Screen Log] Item:', item);
-      console.log('[Cart Screen Log] Selected Option:', item.selectedOption);
-      console.log('[Cart Screen Log] Selected Modifiers:', item.selectedModifiers);
-      console.log('[Cart Screen Log] Restaurants data:', restaurants);
-    }
-
-    const totalPrice = item.price * item.quantity;
+    const key = `${item.uniqueId}-${item.selectedModifiers.map(m => `${m.mod_id}-${m.count}`).join('-')}`;
+    const itemName = item.name || 'Unnamed Item';
+    const itemPrice = item.price || 0;
+    const totalPrice = itemPrice * item.quantity;
+  
+    const modifiers = item.selectedModifiers || [];
   
     return (
       <View style={styles.cartItem} key={key}>
         <Image source={{ uri: item.image_url }} style={styles.cartItemImage} />
         <View style={styles.cartItemDetails}>
-          <Text style={styles.cartItemName}>
-            {language === 'ZH' ? item.name : item.name}
-          </Text>
-  
-          {item.selectedOption && (
-            <View style={styles.selectedOptionContainer}>
-              <Text style={styles.selectedOptionText}>
-                {language === 'ZH'
-                  ? (item.selectedOption.name || item.selectedOption.name)
-                  : item.selectedOption.name}
-                {item.selectedOption.price ? ` ($${(item.selectedOption.price / 100).toFixed(2)})` : ''}
-              </Text>
-            </View>
-          )}
-  
-          {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+          <Text style={styles.cartItemName}>{language === 'ZH' ? itemName : itemName}</Text>
+          {modifiers.length > 0 && (
             <View style={styles.modifiersContainer}>
-              {item.selectedModifiers.map((modifier, index) => (
+              {modifiers.map((modifier, index) => (
                 <Text key={index} style={styles.modifierText}>
                   {language === 'ZH' ? modifier.name : modifier.name} (+${(modifier.price / 100).toFixed(2)})
                 </Text>
               ))}
             </View>
           )}
-  
           <Text style={styles.cartItemPrice}>${totalPrice.toFixed(2)}</Text>
         </View>
-  
         <View style={styles.quantityContainer}>
           <TouchableOpacity
             onPress={() => {
               if (item.quantity > 1) {
-                handleDecreaseQuantity(item.uniqueId); 
+                handleDecreaseQuantity(item.uniqueId);
               } else {
-                removeFromCart(restaurantId, item.uniqueId); 
+                removeFromCart(restaurantId, item.uniqueId);
               }
             }}
             style={styles.quantityButton}
@@ -87,12 +144,10 @@ function CartScreen({ route }) {
             {item.quantity > 1 ? (
               <Text style={styles.quantityButtonText}>-</Text>
             ) : (
-              <Ionicons name="trash-outline" size={16} color="#1238" /> 
+              <Ionicons name="trash-outline" size={16} color="#1238" />
             )}
           </TouchableOpacity>
-  
           <Text style={styles.quantityText}>{item.quantity}</Text>
-  
           <TouchableOpacity
             onPress={() => handleIncreaseQuantity(item.uniqueId)}
             style={styles.quantityButton}
@@ -103,10 +158,9 @@ function CartScreen({ route }) {
       </View>
     );
   };
-  
+
   return (
     <View style={styles.mainContainer}>
-
       <TouchableOpacity
         style={styles.backIcon}
         onPress={() => navigation.goBack()}
@@ -143,7 +197,6 @@ function CartScreen({ route }) {
     </View>
   );
 }
-
 
 
 const styles = StyleSheet.create({

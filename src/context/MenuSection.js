@@ -4,12 +4,15 @@ import { useCart } from './CartContext';
 import { useNavigation } from '@react-navigation/native';
 import ScrollHandler from './ScrollHandler';
 import MenuFetcher from './MenuFetcher';
+import FetchCartItems from './FetchCartItems';
 import { LanguageContext } from '../context/LanguageContext';
 import { Dimensions, PixelRatio } from 'react-native';
+
+
 const { width, height } = Dimensions.get('window');
-const scaleWidth = width / 375; 
-const scaleHeight = height / 812; 
-const fontScale = PixelRatio.getFontScale(); 
+const scaleWidth = width / 375;
+const scaleHeight = height / 812;
+const fontScale = PixelRatio.getFontScale();
 
 const MenuSection = ({ restaurantId, restaurants }) => {
   const [menu, setMenu] = useState([]);
@@ -19,7 +22,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
   const navigation = useNavigation();
   const flatListRef = useRef();
   const categoryListRef = useRef();
-  const { addToCart, getTotalItems } = useCart();
+  const { addToCart, getTotalItems, syncCartToContext, cartItems } = useCart();
   const { language } = useContext(LanguageContext);
   const { handleScroll, handleCategoryClick } = ScrollHandler({
     groupedMenu,
@@ -30,11 +33,15 @@ const MenuSection = ({ restaurantId, restaurants }) => {
   });
 
   const handleDataFetched = (data) => {
+    if (!data || !data.categories || !data.groupedItems) {
+      console.error('[Menu Section Error] Invalid data received:', data);
+      return;
+    }
 
     const firstFoodItem = data.groupedItems[50];
     if (__DEV__) {
       console.log('[Menu Section Log] Log 1 food item:', JSON.stringify(firstFoodItem, null, 2));
-      console.log('[Menu Section Log] Restaurants data:', restaurants);
+      //console.log('[Menu Section Log] Restaurants data:', restaurants);
     }
 
     const categories = data.categories;
@@ -44,23 +51,30 @@ const MenuSection = ({ restaurantId, restaurants }) => {
 
     const grouped = categories.map(category => ({
       category_name: category.name,
-      category_name_zh: category.name || category.name, 
+      category_name_zh: category.name || category.name,
       items: category.items
         .map(item => groupedItemsMap.get(item.id))
         .filter(item => item),
     }));
 
     setGroupedMenu(grouped);
+    setMenu(data.groupedItems); 
   };
 
+
+  const handleCartFetched = (fetchedCartItems) => {
+    syncCartToContext(restaurantId, fetchedCartItems); 
+  };
+
+  
   const getItemLayout = (data, index) => {
     let offset = 0;
     for (let i = 0; i < index; i++) {
       offset += categoryHeights[i] || 0;
     }
     return {
-      length: categoryHeights[index] || 0, 
-      offset, 
+      length: categoryHeights[index] || 0,
+      offset,
       index,
     };
   };
@@ -75,7 +89,6 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       });
     }
 
-    // Log environment information
     if (__DEV__) {
       console.log('[Menu Section Log] Running in development environment');
     } else {
@@ -94,87 +107,102 @@ const MenuSection = ({ restaurantId, restaurants }) => {
 
   const handleAddToCart = (item) => {
     const uniqueId = `${restaurantId}-${item.id}`;
-    const updatedItem = { ...item, uniqueId };
+    const updatedItem = {
+      ...item,
+      uniqueId,
+      price: item.price || parseFloat(item.price_formatted.replace('$', '')),
+    };
     addToCart(restaurantId, updatedItem);
   };
 
   const handleViewCart = () => {
-    navigation.navigate('Cart', { restaurantId, restaurants });
+    navigation.navigate('Cart', { 
+      restaurantId, 
+      restaurants, 
+      menuData: menu,
+    });
   };
 
   const cartItemCount = getTotalItems(restaurantId);
 
-  const renderCategory = ({ item: category, index }) => (
-    <View
-      style={styles.categorySection}
-      key={category.category_name}
-      onLayout={(event) => handleCategoryLayout(event, index)}
-    >
-      <Text style={styles.categoryHeader}>
-        {language === 'ZH' ? category.category_name : category.category_name}
-      </Text>
-      <View style={styles.separator} />
-  
-      {category.items.map((menuItem, itemIndex) => {
-        if (index === 30 && itemIndex === 30) {
-          if (__DEV__) {
-            console.log('[Menu Section Log] First Menu Item in MenuSection:', menuItem);
-          }
+  const renderCategory = ({ item: category, index }) => {
+    if (!category) {
+      return null;
+    }
 
-          if (menuItem.option_groups && menuItem.option_groups.length > 0) {
+    return (
+      <View
+        style={styles.categorySection}
+        key={category.category_name}
+        onLayout={(event) => handleCategoryLayout(event, index)}
+      >
+        <Text style={styles.categoryHeader}>
+          {language === 'ZH' ? category.category_name : category.category_name}
+        </Text>
+        <View style={styles.separator} />
+
+        {category.items.map((menuItem, itemIndex) => {
+          if (index === 30 && itemIndex === 30) {
             if (__DEV__) {
-              console.log('[Menu Section Log] Option Groups in MenuSection:', menuItem.option_groups);
+              console.log('[Menu Section Log] First Menu Item in MenuSection:', menuItem);
+            }
+
+            if (menuItem.option_groups && menuItem.option_groups.length > 0) {
+              if (__DEV__) {
+                console.log('[Menu Section Log] Option Groups in MenuSection:', menuItem.option_groups);
+              }
+            }
+
+            if (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) {
+              if (__DEV__) {
+                console.log('[Menu Section Log] Modifier Groups in MenuSection:', menuItem.modifier_groups);
+              }
             }
           }
 
-          if (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) {
-            if (__DEV__) {
-              console.log('[Menu Section Log] Modifier Groups in MenuSection:', menuItem.modifier_groups);
-            }
-          }
-        }
+          const hasOptions =
+            (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) ||
+            (menuItem.option_groups && menuItem.option_groups.length > 0);
 
-        const hasOptions = 
-          (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) || 
-          (menuItem.option_groups && menuItem.option_groups.length > 0);
-
-        return (
-          <TouchableOpacity
-            key={menuItem.id}
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('ProductDetail', { menuItem, restaurantId, restaurants  })}
-          >
-            <View style={styles.info}>
-              <Text style={styles.name}>{language === 'ZH' ? menuItem.name : menuItem.name}</Text>
-              <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
-                {language === 'ZH' ? menuItem.description : menuItem.description}
-              </Text>
-              <Text style={styles.price}>{menuItem.price_formatted}</Text>
-            </View>
-
-            <Image source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }} style={styles.image} />
+          return (
             <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => {
-                if (hasOptions) {
-                  navigation.navigate('ProductDetail', { menuItem, restaurantId, restaurants });
-
-                } else {
-                  handleAddToCart(menuItem);
-                }
-              }}
+              key={menuItem.id}
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('ProductDetail', { menuItem, restaurantId, restaurants })}
             >
-              <Text style={styles.addButtonText}>
-                {hasOptions ? (language === 'ZH' ? '+' : '+') : '+'}
-              </Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
+              <View style={styles.info}>
+                <Text style={styles.name}>{language === 'ZH' ? menuItem.name : menuItem.name}</Text>
+                <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
+                  {language === 'ZH' ? menuItem.description : menuItem.description}
+                </Text>
+                <Text style={styles.price}>{menuItem.price_formatted}</Text>
+              </View>
 
-  
+              <Image
+                source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }}
+                style={styles.image}
+              />
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => {
+                  if (hasOptions) {
+                    navigation.navigate('ProductDetail', { menuItem, restaurantId, restaurants });
+                  } else {
+                    handleAddToCart(menuItem);
+                  }
+                }}
+              >
+                <Text style={styles.addButtonText}>
+                  {hasOptions ? (language === 'ZH' ? '+' : '+') : '+'}
+                </Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -196,22 +224,25 @@ const MenuSection = ({ restaurantId, restaurants }) => {
         ))}
       </ScrollView>
 
-      <FlatList
-        ref={flatListRef}
-        data={groupedMenu}
-        keyExtractor={(item) => item.category_name}
-        renderItem={renderCategory}
-        style={styles.flatList}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingBottom: 750 * scaleHeight }}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        removeClippedSubviews={true}
-        getItemLayout={getItemLayout} 
-      />
-
+      {groupedMenu.length > 0 ? (
+        <FlatList
+          ref={flatListRef}
+          data={groupedMenu}
+          keyExtractor={(item) => item.category_name}
+          renderItem={renderCategory}
+          style={styles.flatList}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingBottom: 750 * scaleHeight }}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
+          getItemLayout={getItemLayout}
+        />
+      ) : (
+        <Text style={styles.emptyMessage}>No menu items available.</Text>
+      )}
 
       {cartItemCount > 0 && (
         <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
@@ -222,6 +253,8 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       )}
 
       <MenuFetcher restaurantId={restaurantId} onDataFetched={handleDataFetched} />
+      <FetchCartItems onCartFetched={handleCartFetched} /> 
+
     </View>
   );
 };

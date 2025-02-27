@@ -72,40 +72,51 @@ const ProductDetailScreen = ({ route, navigation }) => {
     if (__DEV__) {
       console.log("[Product Detail Screen Log] Handling Add to Cart...");
     }
-    
-    const unmetRequirements = menuItem.modifier_groups.some(group => 
+  
+    const unmetRequirements = menuItem.modifier_groups.some(group =>
       group.minRequired > 0 &&
       selectedModifiers.filter(m => group.modifiers.some(gm => gm.id === m.id)).length < group.minRequired
     );
-
+  
     if (unmetRequirements) {
       setErrorMessage(language === 'ZH' ? '請至少選取一個選項' : 'Please select at least one option');
       return;
     }
-
+  
     setErrorMessage('');
     const selectedOptionId = selectedOption ? selectedOption.id : 'no-option';
     const selectedOptionName = selectedOption ? selectedOption.name : undefined;
-
+  
     const selectedModifiersIds = selectedModifiers.length > 0
       ? selectedModifiers.map(m => m.id).join('-')
       : 'no-modifiers';
-
+  
+    const formattedModifiers = selectedModifiers.map((modifier) => ({
+      mod_id: modifier.id,
+      mod_group_id: menuItem.modifier_groups.find(group =>
+        group.modifiers.some(m => m.id === modifier.id)
+      )?.id,
+      count: 1,
+    }));
+  
     const itemWithOptionAndModifiers = {
       ...menuItem,
       selectedOption: selectedOption ? { ...selectedOption, name: selectedOptionName } : undefined,
-      selectedModifiers: selectedModifiers.length > 0 ? selectedModifiers : undefined,
+      selectedModifiers: formattedModifiers.length > 0 ? formattedModifiers : undefined,
       price: currentPrice,
       uniqueId: `${menuItem.id}-${selectedOptionId}-${selectedModifiersIds}-${Date.now()}`,
+      note: note, 
     };
-
+  
     if (__DEV__) {
       console.log("[Product Detail Screen Log] Item added to cart:", itemWithOptionAndModifiers);
     }
+  
     console.log("[DEBUG] Calling addToCart with:", restaurantId, itemWithOptionAndModifiers);
     addToCart(restaurantId, itemWithOptionAndModifiers, 1);
     navigation.goBack();
   };
+  
 
   const toggleModifier = (modifier, group) => {
     if (__DEV__) {

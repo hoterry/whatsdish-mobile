@@ -1,90 +1,153 @@
 import React, { createContext, useContext, useState } from 'react';
+import * as SecureStore from 'expo-secure-store';
 
-// Create CartContext
 const CartContext = createContext();
 
-// CartProvider component
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState({});
 
-  const getCart = (restaurantId) => {
-    return cartItems[restaurantId] || [];
+  const syncCartToContext = (restaurantId, fetchedCartItems) => {
+    setCartItems((prevState) => {
+      const updatedCart = fetchedCartItems.map((item) => {
+        const uniqueId = item.uniqueId || `${restaurantId}-${item.item_id || item.id}`;
+        return {
+          ...item,
+          uniqueId,
+          name: item.name || 'Unnamed Item',
+          price: item.price || 0,
+          quantity: item.quantity || item.count || 1,
+          image_url: item.image_url || '',
+          selectedModifiers: item.modifications?.map(mod => ({
+            mod_id: mod.mod_id || mod.id,
+            mod_group_id: mod.mod_group_id || mod.groupId,
+            count: mod.count || 1,
+          })) || [], 
+          selectedOption: null,
+        };
+      });
+      return { ...prevState, [restaurantId]: updatedCart };
+    });
   };
+  
 
-  const addToCart = (restaurantId, item, quantity = 1) => {
-    if (__DEV__) {
-      console.log("[CartContext Log] Received restaurantId in addToCart :", restaurantId);
-    }
+  const getCart = (restaurantId) => cartItems[restaurantId] || [];
+
+  const syncCartToDatabase = async (item, quantity, mode) => {
+    try {
+      console.log(`[CartContext Log] Sync Start - Mode: ${mode}`, { item, quantity });
   
-    if (!item) {
-      console.error("[CartContext ERROR] addToCart received an undefined item!");
+      const order_id = await SecureStore.getItemAsync('order_id');
+      const accountId = await SecureStore.getItemAsync('accountId');
+  
+      if (!order_id || !accountId) {
+        console.error("[CartContext ERROR] Missing order_id or accountId in SecureStore");
+        return;
+      }
+  
+      const payload = {
+        item_id: item.item_id || item.id, // Ensure item_id is included
+        gid: item.gid,
+        order_id,
+        sub: accountId,
+        count: quantity,
+        note: item.note || '',
+        modifications: item.selectedModifiers?.map((modifier) => ({
+          mod_id: modifier.mod_id,
+          mod_group_id: modifier.mod_group_id,
+          count: modifier.count || 1,
+        })) || [],
+      };
+  
+      console.log("[CartContext Log] Payload:", JSON.stringify(payload, null, 2));
+  
+      const url = `https://dev.whatsdish.com/api/orders/${order_id}/items/set?mode=${mode}`;
+  
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to sync cart');
+      }
+  
+      console.log("[CartContext Log] API Response:", data);
+    } catch (error) {
+      console.error("[CartContext ERROR] Failed to sync cart to database:", error);
+    }
+  };
+  
+  const addToCart = async (restaurantId, item, quantity = 1) => {
+    console.log("[CartContext Log] addToCart called with:", { restaurantId, item, quantity });
+  
+    if (!item || !item.uniqueId) {
+      console.error("[CartContext ERROR] Invalid item:", item);
       return;
     }
   
-    if (!item.uniqueId) {
-      console.error("[CartContext ERROR] item is missing a uniqueId:", item);
-      return;
-    }
-  
-    const safeModifiers = item.selectedModifiers || [];
-    const safeOption = item.selectedOption || null;
+    const safeModifiers = (item.selectedModifiers || []).map(modifier => ({
+      mod_id: modifier.mod_id || modifier.id,
+      mod_group_id: modifier.mod_group_id || modifier.groupId,
+      count: modifier.count || 1,
+    }));
   
     setCartItems((prevState) => {
       const restaurantCart = prevState[restaurantId] || [];
       const existingItemIndex = restaurantCart.findIndex(cartItem => cartItem.uniqueId === item.uniqueId);
-  
       const updatedCart = [...restaurantCart];
+  
       if (existingItemIndex >= 0) {
         updatedCart[existingItemIndex].quantity += quantity;
         updatedCart[existingItemIndex].selectedModifiers = safeModifiers;
-        updatedCart[existingItemIndex].selectedOption = safeOption;
       } else {
-        updatedCart.push({ ...item, quantity, selectedModifiers: safeModifiers, selectedOption: safeOption });
+        updatedCart.push({ ...item, quantity, selectedModifiers: safeModifiers });
       }
   
-      return {
-        ...prevState,
-        [restaurantId]: updatedCart,
-      };
+      return { ...prevState, [restaurantId]: updatedCart };
     });
+  
+    // 确保状态更新完成后再进行其他操作
+    await new Promise((resolve) => setTimeout(resolve, 0)); // 等待状态更新
   };
-  
-  
 
   const removeFromCart = (restaurantId, uniqueId) => {
-    if (__DEV__) {
-      console.log("[CartContext Log] Removing item with uniqueId:", uniqueId, "from restaurantId:", restaurantId);
-    }
+    console.log("[CartContext Log] removeFromCart called with:", { restaurantId, uniqueId });
 
     setCartItems((prevState) => {
       const updatedCart = getCart(restaurantId).filter(item => item.uniqueId !== uniqueId);
-      return {
-        ...prevState,
-        [restaurantId]: updatedCart,
-      };
+      const removedItem = getCart(restaurantId).find(item => item.uniqueId === uniqueId);
+
+      if (removedItem) {
+        syncCartToDatabase(removedItem, removedItem.quantity, 'SUBTRACT');
+      }
+
+      return { ...prevState, [restaurantId]: updatedCart };
     });
   };
 
   const updateQuantity = (restaurantId, uniqueId, quantity) => {
-    if (__DEV__) {
-      console.log("[CartContext Log] Updating quantity for uniqueId:", uniqueId, "to:", quantity);
-    }
+    console.log("[CartContext Log] updateQuantity called with:", { restaurantId, uniqueId, quantity });
 
     setCartItems((prevState) => {
-      const updatedCart = getCart(restaurantId).map(item =>
-        item.uniqueId === uniqueId ? { ...item, quantity } : item
-      );
-      return {
-        ...prevState,
-        [restaurantId]: updatedCart,
-      };
+      const updatedCart = getCart(restaurantId).map((item) => {
+        if (item.uniqueId === uniqueId) {
+          syncCartToDatabase(item, quantity, quantity > item.quantity ? 'ADD' : 'SUBTRACT');
+          return { ...item, quantity };
+        }
+        return item;
+      });
+
+      return { ...prevState, [restaurantId]: updatedCart };
     });
   };
 
   const clearCart = (restaurantId) => {
-    if (__DEV__) {
-      console.log("[CartContext Log] Clearing cart for restaurantId:", restaurantId);
-    }
+    console.log("[CartContext Log] clearCart called for restaurantId:", restaurantId);
 
     setCartItems((prevState) => {
       const updatedCarts = { ...prevState };
@@ -94,33 +157,19 @@ export const CartProvider = ({ children }) => {
   };
 
   const getTotalItems = (restaurantId) => {
-    const cart = getCart(restaurantId);
-    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
-
-    if (__DEV__) {
-      console.log("[CartContext Log] Total items in cart for restaurantId:", restaurantId, "is:", totalItems);
-    }
-
+    const restaurantCart = cartItems[restaurantId] || [];
+    const totalItems = restaurantCart.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    console.log("[CartContext Log] getTotalItems result:", totalItems);
     return totalItems;
   };
 
   const getTotalPrice = (restaurantId) => {
-    const cart = getCart(restaurantId);
-    const totalPrice = cart.reduce((total, item) => {
-      const basePrice = item.price || 0; 
-      const itemTotal = basePrice * item.quantity; 
-      
-      if (isNaN(itemTotal)) {
-        console.warn('Invalid price calculation for item:', item);
-        return total;
-      }
-      return total + itemTotal;
-    }, 0);
-
-    if (__DEV__) {
-      console.log("[CartContext Log] Total price for cart in restaurantId:", restaurantId, "is:", totalPrice);
-    }
-
+    const restaurantCart = cartItems[restaurantId] || [];
+    const totalPrice = restaurantCart.reduce(
+      (total, item) => total + (item.price || 0) * item.quantity,
+      0
+    );
+    console.log("[CartContext Log] getTotalPrice result:", totalPrice);
     return totalPrice;
   };
 
@@ -134,6 +183,8 @@ export const CartProvider = ({ children }) => {
         clearCart,
         getTotalItems,
         getTotalPrice,
+        syncCartToContext,
+        setCartItems 
       }}
     >
       {children}
@@ -141,11 +192,10 @@ export const CartProvider = ({ children }) => {
   );
 };
 
-// useCart custom hook
 export const useCart = () => {
   const context = useContext(CartContext);
   if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
+    throw new Error("useCart must be used within a CartProvider");
   }
   return context;
 };

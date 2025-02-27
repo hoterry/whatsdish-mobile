@@ -28,17 +28,6 @@ const RestaurantList = ({ restaurants, userLocation }) => {
 
   const t = (key) => translations[language][key] || key;
 
-  useEffect(() => {
-    if (__DEV__) {
-      if (restaurants && Array.isArray(restaurants.data) && restaurants.data.length > 0) {
-        console.log('[Restaurant List Log] Fetched data:', restaurants.data);
-        console.log('[Restaurant List Log] Fetched data:', restaurants);
-      } else {
-        console.warn('[Restaurant List Log] Invalid restaurants data:', restaurants);
-      }
-    }
-  }, [restaurants]);
-
   if (!restaurants || !Array.isArray(restaurants.data)) {
     return <Text>No restaurants available</Text>;
   }
@@ -51,87 +40,84 @@ const RestaurantList = ({ restaurants, userLocation }) => {
   };
 
   const handlePressRestaurant = async (restaurant) => {
+    if (!restaurant.is_active) return; 
     const restaurantId = restaurant.gid;
-    if (__DEV__) {
-        console.log(`[Restaurant List Log] Fetching restaurant details for ID: ${restaurantId}`);
-    }
-
     try {
-        const token = await SecureStore.getItemAsync('token');
-        if (!token) {
-            console.error('Token not found in SecureStore');
-            return;
-        }
-        const backendUrl = `${API_URL}/api/restaurants/${restaurantId}`; // 你的後端 API
-        if (__DEV__) {
-            console.log(`[Restaurant List Log] Fetching from backend: ${backendUrl}`);
-        }
+      const token = await SecureStore.getItemAsync('token');
+      if (!token) {
+        console.error('Token not found in SecureStore');
+        return;
+      }
 
-        const response = await fetch(backendUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        });
+      const backendUrl = `${API_URL}/api/restaurants/${restaurantId}`;
+      const response = await fetch(backendUrl, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
 
-        if (!response.ok) {
-            console.error(`Failed to fetch restaurant details. Status: ${response.status}`);
-            return;
-        }
+      if (!response.ok) {
+        console.error(`Failed to fetch restaurant details. Status: ${response.status}`);
+        return;
+      }
 
-        const data = await response.json();
-        const orderId = data?.data?.order?.order_id;
+      const data = await response.json();
+      const orderId = data?.data?.order?.order_id;
 
-        if (orderId) {
-            await SecureStore.setItemAsync('order_id', orderId);
-            if (__DEV__) {
-                console.log('[Restaurant List Log] Order ID stored in SecureStore:', orderId);
-            }
-            navigation.navigate('Details', { restaurant, data, restaurants });
-        } else {
-            console.warn('[Restaurant List Log] No Order ID found for this restaurant.');
-        }
+      if (orderId) {
+        await SecureStore.setItemAsync('order_id', orderId);
+        navigation.navigate('Details', { restaurant, data, restaurants });
+      }
     } catch (error) {
-        console.error('Error fetching restaurant details:', error);
+      console.error('Error fetching restaurant details:', error);
     }
-};
-
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {restaurants.data.map((item) => (
-        <View key={item.gid} style={styles.restaurantCard}>
-          <Pressable onPress={() => handlePressRestaurant(item)}>
-            <Image source={{ uri: item.banner_url }} style={styles.restaurantImage} />
-            <View style={styles.restaurantInfo}>
-              <Image source={{ uri: item.logo_url }} style={styles.restaurantLogo} />
-              <View style={styles.textContainer}>
-                <Text style={styles.restaurantName} numberOfLines={1} ellipsizeMode="tail">
-                  {item.name}
-                </Text>
-                <Text style={styles.restaurantAddress} numberOfLines={1} ellipsizeMode="tail">
-                  {item.formatted_address}
-                </Text>
+      {restaurants.data
+        .filter((item) => item.is_shown) 
+        .map((item) => (
+          <View key={item.gid} style={styles.restaurantCard}>
+            <Pressable onPress={() => handlePressRestaurant(item)}>
+              <View style={styles.imageContainer}>
+                <Image
+                  source={{ uri: item.banner_url }}
+                  style={[styles.restaurantImage, !item.is_active && styles.inactiveBanner]}
+                />
+                {!item.is_active && (
+                  <View style={styles.unavailableOverlay}>
+                    <Text style={styles.unavailableText}>Currently Not Available</Text>
+                  </View>
+                )}
               </View>
-              <View style={styles.tagContainer}>
-                <Distance userLocation={userLocation} restaurant={item} />
+              <View style={styles.restaurantInfo}>
+                <Image source={{ uri: item.logo_url }} style={styles.restaurantLogo} />
+                <View style={styles.textContainer}>
+                  <Text style={styles.restaurantName} numberOfLines={1} ellipsizeMode="tail">
+                    {item.name}
+                  </Text>
+                  <Text style={styles.restaurantAddress} numberOfLines={1} ellipsizeMode="tail">
+                    {item.formatted_address}
+                  </Text>
+                </View>
+                <View style={styles.tagContainer}>
+                  <Distance userLocation={userLocation} restaurant={item} />
+                </View>
               </View>
-            </View>
-          </Pressable>
-          <TouchableOpacity onPress={() => toggleBookmark(item)} style={styles.bookmarkIcon}>
-            <Image
-              source={bookmarkedRestaurants.some((res) => res.gid === item.gid)
-                ? require('../../assets/mark.png')
-                : require('../../assets/unmark.png')}
-              style={styles.bookmarkIcon}
-            />
-          </TouchableOpacity>
-        </View>
-      ))}
+            </Pressable>
+            <TouchableOpacity onPress={() => toggleBookmark(item)} style={styles.bookmarkIcon}>
+              <Image
+                source={bookmarkedRestaurants.some((res) => res.gid === item.gid)
+                  ? require('../../assets/mark.png')
+                  : require('../../assets/unmark.png')}
+                style={styles.bookmarkIcon}
+              />
+            </TouchableOpacity>
+          </View>
+        ))}
     </ScrollView>
   );
 };
-
 
 const styles = StyleSheet.create({
   container: {
@@ -142,14 +128,39 @@ const styles = StyleSheet.create({
   },
   restaurantCard: {
     marginBottom: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#fff', // 確保整體顏色不變
     borderRadius: 8,
     overflow: 'hidden',
+  },
+  imageContainer: {
+    position: 'relative',
   },
   restaurantImage: {
     width: '100%',
     height: 150,
-    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  inactiveBanner: {
+    opacity: 0.4, // 讓 Banner 變灰
+  },
+  unavailableOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // 半透明黑色遮罩
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unavailableText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // 讓文字有個黑色底，確保可讀性
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   restaurantInfo: {
     padding: 10,
@@ -169,7 +180,7 @@ const styles = StyleSheet.create({
   restaurantName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#333', // 確保文字顏色不變
   },
   restaurantAddress: {
     fontSize: 14,

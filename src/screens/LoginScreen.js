@@ -12,7 +12,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants'; 
-import { Ionicons } from '@expo/vector-icons'; // 引入图标库
+import { Ionicons } from '@expo/vector-icons';
+import useUserFetcher from '../context/FetchUser';
 
 export default function LoginScreen({ setIsAuthenticated }) {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -25,6 +26,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
   const [resendTimer, setResendTimer] = useState(0);
   
   const { API_URL } = Constants.expoConfig.extra; 
+  const { fetchUserData } = useUserFetcher(); // 使用 useUserFetcher 钩子
 
   useEffect(() => {
     if (__DEV__) {
@@ -68,7 +70,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
 
       if (response.ok) {
         setIsCodeSent(true);
-        setResendTimer(20); // 設置 60 秒倒數
+        setResendTimer(20);
       } else {
         setErrorMessage(data.error || 'Failed to send verification code.');
       }
@@ -78,7 +80,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
       setLoading(false);
     }
   };
-
 
   const handleVerifyCode = async () => {
     setErrorMessage('');
@@ -110,6 +111,13 @@ export default function LoginScreen({ setIsAuthenticated }) {
       if (response.ok) {
         await SecureStore.setItemAsync('token', data.token);
         console.log('[Login Screen Log] Stored userPhoneNumber:', phoneNumber);
+
+        const accountId = await fetchUserData();
+        if (accountId) {
+          await SecureStore.setItemAsync('accountId', accountId);
+          console.log('[Login Screen Log] Stored accountId:', accountId);
+        }
+
         setIsAuthenticated(true);
         if (__DEV__) {
           console.log('[Login Screen Log] User authenticated successfully');
@@ -126,6 +134,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
       setLoading(false);
     }
   };
+
 
   const handleCodeChange = (text, index) => {
     const newCode = [...code];
