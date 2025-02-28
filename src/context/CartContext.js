@@ -20,6 +20,8 @@ export const CartProvider = ({ children }) => {
           selectedModifiers: item.modifications?.map(mod => ({
             mod_id: mod.mod_id || mod.id,
             mod_group_id: mod.mod_group_id || mod.groupId,
+            name: mod.name || '',
+            price: mod.price || 0, 
             count: mod.count || 1,
           })) || [], 
           selectedOption: null,
@@ -93,6 +95,8 @@ export const CartProvider = ({ children }) => {
     const safeModifiers = (item.selectedModifiers || []).map(modifier => ({
       mod_id: modifier.mod_id || modifier.id,
       mod_group_id: modifier.mod_group_id || modifier.groupId,
+      name: modifier.name || '', 
+      price: modifier.price || 0, 
       count: modifier.count || 1,
     }));
   
@@ -111,10 +115,12 @@ export const CartProvider = ({ children }) => {
       return { ...prevState, [restaurantId]: updatedCart };
     });
   
-    // 确保状态更新完成后再进行其他操作
-    await new Promise((resolve) => setTimeout(resolve, 0)); // 等待状态更新
+    // 確保狀態更新完成後再進行其他操作
+    await new Promise((resolve) => setTimeout(resolve, 0)); // 等待狀態更新
+  
+    // 明確傳遞 mode 參數
+    await syncCartToDatabase(item, quantity, 'ADD');
   };
-
   const removeFromCart = (restaurantId, uniqueId) => {
     console.log("[CartContext Log] removeFromCart called with:", { restaurantId, uniqueId });
 

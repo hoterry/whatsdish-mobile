@@ -96,6 +96,8 @@ const ProductDetailScreen = ({ route, navigation }) => {
       mod_group_id: menuItem.modifier_groups.find(group =>
         group.modifiers.some(m => m.id === modifier.id)
       )?.id,
+      name: modifier.name, // 保留 name
+      price: modifier.price, // 保留 price
       count: 1,
     }));
   
