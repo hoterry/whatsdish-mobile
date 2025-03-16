@@ -3,8 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from './supabase';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Platform } from 'react-native';
+import * as Font from 'expo-font'; 
+import * as SecureStore from 'expo-secure-store';
+
+// Screens
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -14,14 +17,13 @@ import CartScreen from './src/screens/CartScreen';
 import ProductDetailsScreen from './src/screens/ProductDetailsScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
 import OrderHistoryScreen from './src/screens/OrderHistoryScreen';
-import * as Font from 'expo-font'; 
 import ExploreScreen from './src/screens/ExploreScreen';
 import AccountScreen from './src/screens/AccountScreen';
+import HistoryDetailScreen from './src/screens/HistoryDetail';
+
+// Context Providers
 import { CartProvider } from './src/context/CartContext';
 import { LanguageProvider } from './src/context/LanguageContext';
-import HistoryDetailScreen from './src/screens/HistoryDetail';
-import { AppLoading } from 'expo';
-import { Platform } from 'react-native'
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -39,8 +41,9 @@ function AuthStack({ setIsAuthenticated }) {
 
 function HomeTabs({ setIsAuthenticated }) {
   if (__DEV__) {
-    console.log("[App.js Log] setIsAuthenticated in HomeTabs:", setIsAuthenticated);  // Log setIsAuthenticated in HomeTabs
+    console.log("[App.js Log] setIsAuthenticated in HomeTabs:", setIsAuthenticated);
   }
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -70,7 +73,7 @@ function HomeTabs({ setIsAuthenticated }) {
       <Tab.Screen name="Account">
         {props => {
           if (__DEV__) {
-            console.log("[App.js Log] setIsAuthenticated in AccountScreen:", setIsAuthenticated);  // Log setIsAuthenticated in AccountScreen
+            console.log("[App.js Log] setIsAuthenticated in AccountScreen:", setIsAuthenticated);
           }
           return <AccountScreen {...props} setIsAuthenticated={setIsAuthenticated} />;
         }}
@@ -99,27 +102,48 @@ function AppStack({ setIsAuthenticated }) {
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadFonts() {
-      await Font.loadAsync({
-        'Quicksand-Bold': require('./assets/fonts/Quicksand-Bold.ttf'),
-      });
-      setFontsLoaded(true);  
+      try {
+        await Font.loadAsync({
+          'Quicksand-Bold': require('./assets/fonts/Quicksand-Bold.ttf'),
+        });
+        setFontsLoaded(true);
+      } catch (error) {
+        if (__DEV__) {
+          console.error("Font loading error:", error);
+        }
+
+        setFontsLoaded(true);
+      }
     }
     loadFonts();
   }, []);
 
+
   useEffect(() => {
     const checkAuth = async () => {
-      const token = await SecureStore.getItemAsync('token');
-      setIsAuthenticated(!!token);
+      try {
+        const token = await SecureStore.getItemAsync('token');
+        setIsAuthenticated(!!token);
+      } catch (error) {
+        if (__DEV__) {
+          console.error("Auth check error:", error);
+        }
+
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     checkAuth();
   }, []);
 
-  if (isAuthenticated === null) {
+
+  if (isLoading || !fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#0000ff" />

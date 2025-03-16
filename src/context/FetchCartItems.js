@@ -40,7 +40,6 @@ const FetchCartItems = ({ onCartFetched }) => {
 
   return (
     <View>
-      <Text>Fetching cart items...</Text>
     </View>
   );
 };

@@ -29,7 +29,7 @@ const RestaurantList = ({ restaurants, userLocation }) => {
   const t = (key) => translations[language][key] || key;
 
   if (!restaurants || !Array.isArray(restaurants.data)) {
-    return <Text>No restaurants available</Text>;
+    return <Text> </Text>;
   }
 
   const toggleBookmark = (restaurant) => {
@@ -101,7 +101,7 @@ const RestaurantList = ({ restaurants, userLocation }) => {
                   </Text>
                 </View>
                 <View style={styles.tagContainer}>
-                  <Distance userLocation={userLocation} restaurant={item} />
+                  {/*<Distance userLocation={userLocation} restaurant={item} />*/}
                 </View>
               </View>
             </Pressable>
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   restaurantCard: {
     marginBottom: 12,
-    backgroundColor: '#fff', // 確保整體顏色不變
+    backgroundColor: '#fff',
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   inactiveBanner: {
-    opacity: 0.4, // 讓 Banner 變灰
+    opacity: 0.4,
   },
   unavailableOverlay: {
     position: 'absolute',
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // 半透明黑色遮罩
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)', // 讓文字有個黑色底，確保可讀性
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', 
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   restaurantName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333', // 確保文字顏色不變
+    color: '#333', 
   },
   restaurantAddress: {
     fontSize: 14,

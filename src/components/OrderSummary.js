@@ -33,10 +33,10 @@ const OrderSummary = ({ cart, subtotal, showDeliveryFee, deliveryFee, taxes, tot
 
     const totalPrice = item.price * item.quantity;
 
-  
+
     return (
       <View style={styles.orderItem} key={key}>
-        <Image source={{ uri: item.image_url }} style={styles.itemImage} />
+        <Image source={{ uri: item.image_url  || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png'}} style={styles.itemImage} />
         <View style={styles.itemInfo}>
           <Text style={styles.itemName}>{language === 'ZH' ? item.name : item.name}</Text>
           <Text style={styles.itemQuantity}>{`x${item.quantity}`}</Text>

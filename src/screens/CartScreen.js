@@ -1,5 +1,6 @@
 import React, { useContext, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { Image } from 'expo-image'; 
 import { useCart } from '../context/CartContext';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LanguageContext } from '../context/LanguageContext';
@@ -15,48 +16,48 @@ function CartScreen({ route }) {
   useEffect(() => {
     console.log("[CartScreen] Cart items updated:", cartItems[restaurantId]);
   }, [cartItems[restaurantId]]);
-  
-useEffect(() => {
-  if (!menuData || menuData.length === 0) return;
 
-  const enrichedCart = (cartItems[restaurantId] || []).map((cartItem) => {
-    const menuItem = menuData.find((item) => item.id === cartItem.item_id);
-    const enrichedModifiers = cartItem.selectedModifiers?.map((mod) => {
-      const group = menuItem?.modifier_groups?.find((group) =>
-        group.modifiers.some((modifier) => modifier.id === mod.mod_id)
-      );
+  useEffect(() => {
+    if (!menuData || menuData.length === 0) return;
 
-      const modifier = group?.modifiers.find((modifier) => modifier.id === mod.mod_id);
+    const enrichedCart = (cartItems[restaurantId] || []).map((cartItem) => {
+      const menuItem = menuData.find((item) => item.id === cartItem.item_id);
+      const enrichedModifiers = cartItem.selectedModifiers?.map((mod) => {
+        const group = menuItem?.modifier_groups?.find((group) =>
+          group.modifiers.some((modifier) => modifier.id === mod.mod_id)
+        );
 
-      return modifier
-        ? {
-            mod_id: mod.mod_id,
-            mod_group_id: group?.id,
-            name: language === 'ZH' && modifier.name_zh ? modifier.name_zh : modifier.name,
-            price: modifier.price,
-            count: mod.count,
-          }
-        : mod;
+        const modifier = group?.modifiers.find((modifier) => modifier.id === mod.mod_id);
+
+        return modifier
+          ? {
+              mod_id: mod.mod_id,
+              mod_group_id: group?.id,
+              name: language === 'ZH' && modifier.name_zh ? modifier.name_zh : modifier.name,
+              price: modifier.price,
+              count: mod.count,
+            }
+          : mod;
+      });
+
+      return {
+        ...cartItem,
+        name: menuItem ? menuItem.name : cartItem.name || 'Unnamed Item',
+        price: menuItem ? menuItem.price_in_cents / 100 : cartItem.price || 0,
+        image_url: menuItem ? menuItem.image_url : cartItem.image_url || '',
+        selectedModifiers: enrichedModifiers || [],
+      };
     });
 
-    return {
-      ...cartItem,
-      name: menuItem ? menuItem.name : cartItem.name || 'Unnamed Item',
-      price: menuItem ? menuItem.price_in_cents / 100 : cartItem.price || 0,
-      image_url: menuItem ? menuItem.image_url : cartItem.image_url || '',
-      selectedModifiers: enrichedModifiers || [],
-    };
-  });
+    console.log("Enriched Cart with Modifiers:", enrichedCart);
 
-  console.log("Enriched Cart with Modifiers:", enrichedCart);
-
-  if (JSON.stringify(cartItems[restaurantId]) !== JSON.stringify(enrichedCart)) {
-    setCartItems((prevState) => ({
-      ...prevState,
-      [restaurantId]: enrichedCart,
-    }));
-  }
-}, [menuData, cartItems[restaurantId], language]); // 添加 cartItems[restaurantId] 和 language 作为依赖项
+    if (JSON.stringify(cartItems[restaurantId]) !== JSON.stringify(enrichedCart)) {
+      setCartItems((prevState) => ({
+        ...prevState,
+        [restaurantId]: enrichedCart,
+      }));
+    }
+  }, [menuData, cartItems[restaurantId], language]);
 
   const handleIncreaseQuantity = (uniqueId) => {
     const item = safeCart.find((item) => item.uniqueId === uniqueId);
@@ -66,20 +67,20 @@ useEffect(() => {
         mod_group_id: modifier.mod_group_id,
         count: modifier.count,
       }));
-  
+
       const updatedItem = {
         ...item,
         selectedModifiers: formattedModifiers,
         quantity: item.quantity + 1, // Increase quantity
         item_id: item.item_id || item.id, // Ensure item_id is set
       };
-  
+
       console.log("[CartScreen] Updated Item (Increase):", updatedItem);
-  
+
       addToCart(restaurantId, updatedItem, 1); // 1 represents quantity increase
     }
   };
-  
+
   const handleDecreaseQuantity = (uniqueId) => {
     const item = safeCart.find((item) => item.uniqueId === uniqueId);
     if (item) {
@@ -88,16 +89,16 @@ useEffect(() => {
         mod_group_id: modifier.mod_group_id,
         count: modifier.count,
       }));
-  
+
       const updatedItem = {
         ...item,
         selectedModifiers: formattedModifiers,
         quantity: item.quantity - 1, // Decrease quantity
         item_id: item.item_id || item.id, // Ensure item_id is set
       };
-  
+
       console.log("[CartScreen] Updated Item (Decrease):", updatedItem);
-  
+
       if (updatedItem.quantity > 0) {
         addToCart(restaurantId, updatedItem, -1); // -1 represents quantity decrease
       } else {
@@ -111,12 +112,16 @@ useEffect(() => {
     const itemName = item.name || 'Unnamed Item';
     const itemPrice = item.price || 0;
     const totalPrice = itemPrice * item.quantity;
-  
+
     const modifiers = item.selectedModifiers || [];
-  
+
     return (
       <View style={styles.cartItem} key={key}>
-        <Image source={{ uri: item.image_url }} style={styles.cartItemImage} />
+        <Image
+          source={{ uri: item.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }}
+          style={styles.cartItemImage}
+          cachePolicy="memory-disk" 
+        />
         <View style={styles.cartItemDetails}>
           <Text style={styles.cartItemName}>{language === 'ZH' ? itemName : itemName}</Text>
           {modifiers.length > 0 && (
@@ -197,7 +202,6 @@ useEffect(() => {
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   mainContainer: {

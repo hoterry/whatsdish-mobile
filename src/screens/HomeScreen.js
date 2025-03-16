@@ -63,10 +63,10 @@ const HomeScreen = () => {
                 </TouchableOpacity>
               </View>
 
-              <SearchBar
+              {/*<SearchBar
                 onSearchChange={handleSearchChange}
                 placeholder={t('searchPlaceholder')}
-              />
+              />*/}
             </View>
           </View>
 

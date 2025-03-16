@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { View, Text } from 'react-native';
 
-const FetchMenu = ({ orderId, lang, onSuccess, onError }) => {
+const FetchMenu = ({ orderId, lang, onSuccess, onError, onLoading }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [menu, setMenu] = useState([]);
@@ -19,7 +19,7 @@ const FetchMenu = ({ orderId, lang, onSuccess, onError }) => {
         }
 
         if (__DEV__) {
-          //console.log('[Fetched Menu Log] Fetching menu with API URL:', `${API_URL}/fetch-menu?orderId=${orderId}&lang=${lang}`);
+          console.log('[Fetched Menu Log] Fetching menu with API URL:', `${API_URL}/fetch-menu?orderId=${orderId}&lang=${lang}`);
           console.log('[Fetched Menu Log] Authorization Header:', `Bearer ${token}`);
         }
 
@@ -50,13 +50,15 @@ const FetchMenu = ({ orderId, lang, onSuccess, onError }) => {
         onError(err.message);
       } finally {
         setLoading(false);
+        onLoading(false); // Notify parent that loading is complete
       }
     };
 
     if (orderId && lang) {
+      onLoading(true); // Notify parent that loading has started
       fetchMenu();
     }
-  }, [orderId, lang, onSuccess, onError, API_URL]);
+  }, [orderId, lang, onSuccess, onError, onLoading, API_URL]);
 
   if (loading) {
     return null; // Or add a loading spinner
@@ -72,7 +74,6 @@ const FetchMenu = ({ orderId, lang, onSuccess, onError }) => {
         <View key={index}>
           <Text>{category.name}</Text>
           <Text>{category.description}</Text>
-
         </View>
       ))}
     </View>

@@ -96,8 +96,8 @@ const ProductDetailScreen = ({ route, navigation }) => {
       mod_group_id: menuItem.modifier_groups.find(group =>
         group.modifiers.some(m => m.id === modifier.id)
       )?.id,
-      name: modifier.name, // 保留 name
-      price: modifier.price, // 保留 price
+      name: modifier.name,
+      price: modifier.price, 
       count: 1,
     }));
   
@@ -235,7 +235,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
         />
       </ScrollView>
 
-      <View style={styles.fixedBottomContainer}>
+      <View style={[styles.fixedBottomContainer, { paddingBottom: Platform.OS === 'android' ? 0 : 20 }]}>
       <TouchableOpacity 
         style={styles.addToCartButton} 
         onPress={handleAddToCart}
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     borderRadius: 10,
     alignItems: 'center',
-    marginBottom: 50
+    marginBottom: 20
   },
   addToCartButtonText: {
     fontSize: 18,
@@ -374,19 +374,19 @@ const styles = StyleSheet.create({
   },
   modifierTitleContainer: {
     flexDirection: 'row',
-    justifyContent: 'left', // Aligns the title and the limit text on the same row
-    alignItems: 'center', // Vertically centers both items
+    justifyContent: 'left', 
+    alignItems: 'center', 
     marginTop: 12,
   },
   modifiersTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333', // Adjust the color as needed
+    color: '#333', 
     marginVertical: 12,
   },
   modifierLimitText: {
     fontSize: 18,
-    color: '#333', // Adjust the color as needed
+    color: '#333', 
     fontWeight: 'bold',
   },
   errorText: {

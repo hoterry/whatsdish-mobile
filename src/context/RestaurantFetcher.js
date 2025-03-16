@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { ActivityIndicator, Text } from 'react-native';
-import Constants from 'expo-constants'; // 引入 Expo Constants
+import { Text, View, StyleSheet } from 'react-native';
+import Constants from 'expo-constants';
+import LottieView from 'lottie-react-native';
 
 const RestaurantFetcher = ({ onDataFetched }) => {
   const [loading, setLoading] = useState(true);
@@ -10,32 +11,19 @@ const RestaurantFetcher = ({ onDataFetched }) => {
 
   useEffect(() => {
     const fetchRestaurants = async () => {
-      const { API_URL } = Constants.expoConfig.extra; // 從環境變量獲取 API URL
-
-      if (__DEV__) {
-        console.log('[Restaurant Fetcher Log] __DEV__:', __DEV__);
-        console.log('[Restaurant Fetcher Log] Fetching restaurants from:', API_URL); // 只在 DEV 環境中顯示
-      }
+      const { API_URL } = Constants.expoConfig.extra;
 
       try {
-        const response = await fetch(`${API_URL}/api/restaurants`); // 使用環境變量
+        const response = await fetch(`${API_URL}/api/restaurants`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch restaurants');
         }
 
         const data = await response.json();
-        
-        if (__DEV__) {
-          console.log('[Restaurant Fetcher Log] Fetched data:', data); // 只在 DEV 環境中顯示
-        }
-
-        stableOnDataFetched(data); 
+        stableOnDataFetched(data);
       } catch (err) {
         setError(err.message);
-        if (__DEV__) {
-          console.error('Error fetching restaurants:', err); // 只在 DEV 環境中顯示
-        }
       } finally {
         setLoading(false);
       }
@@ -45,14 +33,45 @@ const RestaurantFetcher = ({ onDataFetched }) => {
   }, [stableOnDataFetched]);
 
   if (loading) {
-    return <ActivityIndicator size="large" color="#0000ff" />;
+    return (
+      <View style={styles.loadingContainer}>
+        <LottieView
+          source={require('../../assets/loading-animation.json')}
+          autoPlay
+          loop
+          style={styles.loadingAnimation}
+        />
+      </View>
+    );
   }
 
   if (error) {
-    return <Text>Error: {error}</Text>;
+    return <Text style={styles.errorText}>Error: {error}</Text>;
   }
 
   return null;
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingAnimation: {
+    width: 200,
+    height: 200,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#000',
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 16,
+  },
+});
 
 export default RestaurantFetcher;

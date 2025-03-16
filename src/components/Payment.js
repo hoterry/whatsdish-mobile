@@ -1,11 +1,12 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView } from 'react-native';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import PaymentMethod from './PaymentMethod';
 import PaymentDisclaimer from './PaymentDisclaimer';
 import { LanguageContext } from '../context/LanguageContext'; 
 import Constants from 'expo-constants';
+import LottieView from 'lottie-react-native'; // Import your custom animation component
 
 const Payment = () => {
   const { language } = useContext(LanguageContext);
@@ -72,7 +73,13 @@ const Payment = () => {
         <Text style={styles.title}>{language === 'ZH' ? '付款' : 'Payment'}</Text>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#0000ff" />
+          // Replace ActivityIndicator with your custom animation
+          <LottieView
+            source={require('../../assets/loading-animation.json')} // Path to your animation file
+            autoPlay
+            loop
+            style={styles.loadingAnimation}
+          />
         ) : (
           <TouchableOpacity style={styles.paymentContainer} onPress={() => setModalVisible(true)}>
             <View style={styles.paymentInfo}>
@@ -149,10 +156,11 @@ const styles = StyleSheet.create({
   modalContainer: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' },
   modalContent: { backgroundColor: '#fff', borderRadius: 10, padding: 20, marginHorizontal: 20 },
   divider: { marginTop: 10, borderBottomWidth: 1, borderBottomColor: '#ccc', marginBottom: 10 },
-  buttonContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: '#ddd' },
-  placeOrderButton: { backgroundColor: '#ff6600', paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
-  placeOrderText: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
+  loadingAnimation: {
+    width: 100, // Adjust size as needed
+    height: 100, // Adjust size as needed
+    alignSelf: 'center',
+  },
 });
 
 export default Payment;
-

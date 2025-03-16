@@ -8,7 +8,6 @@ import FetchCartItems from './FetchCartItems';
 import { LanguageContext } from '../context/LanguageContext';
 import { Dimensions, PixelRatio } from 'react-native';
 
-
 const { width, height } = Dimensions.get('window');
 const scaleWidth = width / 375;
 const scaleHeight = height / 812;
@@ -19,6 +18,8 @@ const MenuSection = ({ restaurantId, restaurants }) => {
   const [groupedMenu, setGroupedMenu] = useState([]);
   const [categoryHeights, setCategoryHeights] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [loading, setLoading] = useState(true); // Track loading state
+  const [menuLoaded, setMenuLoaded] = useState(false); // Track if menu data is loaded
   const navigation = useNavigation();
   const flatListRef = useRef();
   const categoryListRef = useRef();
@@ -41,7 +42,6 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     const firstFoodItem = data.groupedItems[50];
     if (__DEV__) {
       console.log('[Menu Section Log] Log 1 food item:', JSON.stringify(firstFoodItem, null, 2));
-      //console.log('[Menu Section Log] Restaurants data:', restaurants);
     }
 
     const categories = data.categories;
@@ -58,15 +58,19 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     }));
 
     setGroupedMenu(grouped);
-    setMenu(data.groupedItems); 
+    setMenu(data.groupedItems);
+    setMenuLoaded(true); // Mark menu data as loaded
   };
-
 
   const handleCartFetched = (fetchedCartItems) => {
-    syncCartToContext(restaurantId, fetchedCartItems); 
+    syncCartToContext(restaurantId, fetchedCartItems);
+    setLoading(false); // Mark overall loading as complete
   };
 
-  
+  const handleLoading = (isLoading) => {
+    setLoading(isLoading); // Update loading state
+  };
+
   const getItemLayout = (data, index) => {
     let offset = 0;
     for (let i = 0; i < index; i++) {
@@ -205,56 +209,65 @@ const MenuSection = ({ restaurantId, restaurants }) => {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        style={styles.categoryList}
-        ref={categoryListRef}
-        showsHorizontalScrollIndicator={false}
-      >
-        {groupedMenu.map((category, index) => (
-          <TouchableOpacity
-            key={category.category_name}
-            style={[styles.categoryItem, selectedCategory === category.category_name && styles.selectedCategory]}
-            onPress={() => handleCategoryClick(category.category_name, index)}
-          >
-            <Text style={styles.categoryText}>
-              {language === 'ZH' ? category.category_name : category.category_name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {groupedMenu.length > 0 ? (
-        <FlatList
-          ref={flatListRef}
-          data={groupedMenu}
-          keyExtractor={(item) => item.category_name}
-          renderItem={renderCategory}
-          style={styles.flatList}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={{ paddingBottom: 750 * scaleHeight }}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews={true}
-          getItemLayout={getItemLayout}
+      <MenuFetcher
+        restaurantId={restaurantId}
+        onDataFetched={handleDataFetched}
+        onLoading={handleLoading} // Pass loading callback
+      />
+      {menuLoaded && ( // Only render FetchCartItems after menu data is loaded
+        <FetchCartItems
+          restaurantId={restaurantId}
+          onCartFetched={handleCartFetched}
         />
-      ) : (
-        <Text style={styles.emptyMessage}>No menu items available.</Text>
       )}
-
-      {cartItemCount > 0 && (
+      {groupedMenu.length > 0 ? (
+        <>
+          <ScrollView
+            horizontal
+            style={styles.categoryList}
+            ref={categoryListRef}
+            showsHorizontalScrollIndicator={false}
+          >
+            {groupedMenu.map((category, index) => (
+              <TouchableOpacity
+                key={category.category_name}
+                style={[styles.categoryItem, selectedCategory === category.category_name && styles.selectedCategory]}
+                onPress={() => handleCategoryClick(category.category_name, index)}
+              >
+                <Text style={styles.categoryText}>
+                  {language === 'ZH' ? category.category_name : category.category_name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+  
+          <FlatList
+            ref={flatListRef}
+            data={groupedMenu}
+            keyExtractor={(item) => item.category_name}
+            renderItem={renderCategory}
+            style={styles.flatList}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{ paddingBottom: 750 * scaleHeight }}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={true}
+            getItemLayout={getItemLayout}
+          />
+        </>
+      ) : (
+        <Text style={styles.emptyMessage}> </Text>
+      )}
+  
+      {menuLoaded && cartItemCount > 0 && ( // Only show View Cart button after menu is loaded and there are items in the cart
         <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
           <Text style={styles.viewCartButtonText}>
             View Cart ({cartItemCount})
           </Text>
         </TouchableOpacity>
       )}
-
-      <MenuFetcher restaurantId={restaurantId} onDataFetched={handleDataFetched} />
-      <FetchCartItems onCartFetched={handleCartFetched} /> 
-
     </View>
   );
 };
@@ -366,6 +379,12 @@ const styles = StyleSheet.create({
     fontSize: 18 * fontScale,
     textAlign: 'center',
   },
+    emptyMessage: {
+      textAlign: 'center',
+      marginTop: 20,
+      fontSize: 16,
+      color: '#666',
+    },
 });
 
   

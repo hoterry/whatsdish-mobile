@@ -50,7 +50,9 @@
     "react-native-skeleton-placeholder": "^5.2.4",
     "react-native-text-input-mask": "^3.2.0",
     "react-native-vector-icons": "^10.2.0",
-    "react-native-wheel-picker": "^1.2.0"
+    "react-native-wheel-picker": "^1.2.0",
+    "expo-image": "~2.0.6",
+    "expo-blur": "~14.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

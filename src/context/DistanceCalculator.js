@@ -33,21 +33,26 @@ const Distance = ({ restaurant }) => {
     useEffect(() => {
       if (restaurant && restaurant.formatted_address) {
         const fetchLatLng = async () => {
-          let location = await getLatLngFromAddress(restaurant.formatted_address);
+          let location = null;
 
-          if (!location) {
-            if (__DEV__) {
-              console.log('[Distance Calculator Log] Address lookup failed, trying postal code...');
-            }
-            const postalCode = extractPostalCode(restaurant.formatted_address);
-            if (postalCode) {
-              location = await getLatLngFromAddress(postalCode);
-            }
+          // First, try to extract and use the postal code
+          const postalCode = extractPostalCode(restaurant.formatted_address);
+          if (postalCode) {
+            location = await getLatLngFromAddress(postalCode);
           }
 
+          // If postal code lookup fails, try the full address
           if (!location) {
             if (__DEV__) {
-              console.log('[Distance Calculator Log] Postal code lookup failed, trying restaurant name...');
+              console.log('[Distance Calculator Log] Postal code lookup failed, trying full address...');
+            }
+            location = await getLatLngFromAddress(restaurant.formatted_address);
+          }
+
+          // If still no location found, try the restaurant name
+          if (!location) {
+            if (__DEV__) {
+              console.log('[Distance Calculator Log] Address lookup failed, trying restaurant name...');
             }
             location = await getLatLngFromAddress(restaurant.name);
           }
@@ -115,32 +120,24 @@ const Distance = ({ restaurant }) => {
         </View>
     );
 };
-  
-  const styles = StyleSheet.create({
-    tag: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 4,
-      paddingHorizontal: 10,
-      borderRadius: 20,
-      minWidth: 80,
-      justifyContent: 'center',
-    },
-    icon: {
-      width: 18,
-      height: 18,
-      marginRight: 5,
-    },
-    tagText: {
-      fontSize: 18,
-      color: '#575757',
-    },
-    errorText: {
-      color: 'red',  // Style the error message
-      marginTop: 10,
-      fontSize: 14,
-    },
-  });
-  
-  export default Distance;
-  
+
+const styles = StyleSheet.create({
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  icon: {
+    width: 18,
+    height: 18,
+    marginRight: 5,
+  },
+  tagText: {
+    fontSize: 16,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+  },
+});
+
+export default Distance;

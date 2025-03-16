@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -8,10 +8,12 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
-import Constants from 'expo-constants'; 
+import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import useUserFetcher from '../context/FetchUser';
 
@@ -24,9 +26,8 @@ export default function LoginScreen({ setIsAuthenticated }) {
   const navigation = useNavigation();
   const codeInputs = useRef([]);
   const [resendTimer, setResendTimer] = useState(0);
-  
   const { API_URL } = Constants.expoConfig.extra; 
-  const { fetchUserData } = useUserFetcher(); // 使用 useUserFetcher 钩子
+  const { fetchUserData } = useUserFetcher();
 
   useEffect(() => {
     if (__DEV__) {
@@ -46,15 +47,27 @@ export default function LoginScreen({ setIsAuthenticated }) {
     return () => clearInterval(timer);
   }, [isCodeSent, resendTimer]);
 
-  const handleSendCode = async () => {
-    if (resendTimer > 0) return; // 如果還在倒數，禁止發送
+  const isValidPhoneNumber = useMemo(() => {
+    return /^\d{10}$/.test(phoneNumber.replace(/\D/g, ''));
+  }, [phoneNumber]);
+
+
+  const handleSendCode = useCallback(async () => {
+    if (resendTimer > 0) return;
     
     setErrorMessage('');
+
     if (!phoneNumber) {
       setErrorMessage('Please enter your phone number.');
       return;
     }
+    
+    if (!isValidPhoneNumber) {
+      setErrorMessage('Please enter a valid phone number.');
+      return;
+    }
 
+    Keyboard.dismiss();
     setLoading(true);
 
     try {
@@ -71,24 +84,36 @@ export default function LoginScreen({ setIsAuthenticated }) {
       if (response.ok) {
         setIsCodeSent(true);
         setResendTimer(20);
+        
+        setTimeout(() => {
+          if (codeInputs.current[0]) {
+            codeInputs.current[0].focus();
+          }
+        }, 100);
       } else {
         setErrorMessage(data.error || 'Failed to send verification code.');
       }
     } catch (err) {
+      if (__DEV__) {
+        console.error('[Login Screen Log] Send code error:', err);
+      }
       setErrorMessage('Unexpected error during sending code.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [phoneNumber, resendTimer, API_URL, isValidPhoneNumber]);
 
-  const handleVerifyCode = async () => {
+  const handleVerifyCode = useCallback(async () => {
     setErrorMessage('');
+    
     if (code.some(digit => !digit)) {
-      setErrorMessage('Please enter the verification code.');
+      setErrorMessage('Please enter the complete verification code.');
       return;
     }
 
+    Keyboard.dismiss();
     setLoading(true);
+    
     try {
       if (__DEV__) {
         console.log('[Login Screen Log] Verifying code:', code.join(''));
@@ -99,7 +124,10 @@ export default function LoginScreen({ setIsAuthenticated }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phoneNumber, code: code.join('') }),
+        body: JSON.stringify({ 
+          phoneNumber, 
+          code: code.join('') 
+        }),
       });
 
       const data = await response.json();
@@ -110,20 +138,32 @@ export default function LoginScreen({ setIsAuthenticated }) {
 
       if (response.ok) {
         await SecureStore.setItemAsync('token', data.token);
-        console.log('[Login Screen Log] Stored userPhoneNumber:', phoneNumber);
+        
+        if (__DEV__) {
+          console.log('[Login Screen Log] Stored userPhoneNumber:', phoneNumber);
+        }
 
-        const accountId = await fetchUserData();
-        if (accountId) {
-          await SecureStore.setItemAsync('accountId', accountId);
-          console.log('[Login Screen Log] Stored accountId:', accountId);
+        try {
+          const accountId = await fetchUserData();
+          if (accountId) {
+            await SecureStore.setItemAsync('accountId', accountId);
+            if (__DEV__) {
+              console.log('[Login Screen Log] Stored accountId:', accountId);
+            }
+          }
+        } catch (userError) {
+          if (__DEV__) {
+            console.error('[Login Screen Log] Error fetching user data:', userError);
+          }
         }
 
         setIsAuthenticated(true);
+        
         if (__DEV__) {
           console.log('[Login Screen Log] User authenticated successfully');
         }
       } else {
-        setErrorMessage(data.error || ' Invalid verification code.');
+        setErrorMessage(data.error || 'Invalid verification code.');
       }
     } catch (err) {
       if (__DEV__) {
@@ -133,41 +173,60 @@ export default function LoginScreen({ setIsAuthenticated }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [code, phoneNumber, API_URL, fetchUserData, setIsAuthenticated]);
 
+  const handleCodeChange = useCallback((text, index) => {
+    const numericText = text.replace(/[^0-9]/g, '');
+    
+    if (numericText || text === '') {
+      const newCode = [...code];
+      newCode[index] = numericText;
+      setCode(newCode);
 
-  const handleCodeChange = (text, index) => {
-    const newCode = [...code];
-    newCode[index] = text;
-    setCode(newCode);
-
-    if (text && index < 5) {
-      codeInputs.current[index + 1].focus();
+      if (numericText && index < 5) {
+        codeInputs.current[index + 1].focus();
+      }
     }
-  };
+  }, [code]);
 
-  const handleKeyPress = ({ nativeEvent }, index) => {
+  const handleKeyPress = useCallback(({ nativeEvent }, index) => {
     if (nativeEvent.key === 'Backspace') {
       const newCode = [...code];
+
       if (index > 0 && !newCode[index]) {
         newCode[index - 1] = '';
         setCode(newCode);
         codeInputs.current[index - 1].focus();
-      } else if (newCode[index]) {
+      } 
+      else if (newCode[index]) {
         newCode[index] = '';
         setCode(newCode);
       }
     }
-  };
-
-  useEffect(() => {
-    if (code.every(digit => digit !== '') && isCodeSent) {
-      handleVerifyCode();
-    }
   }, [code]);
 
+  const handleBack = useCallback(() => {
+    setIsCodeSent(false);
+    setResendTimer(0);
+    setCode(['', '', '', '', '', '']);
+    setErrorMessage('');
+  }, []);
+
+  useEffect(() => {
+    const allDigitsFilled = code.every(digit => digit !== '');
+    if (allDigitsFilled && isCodeSent) {
+      const timer = setTimeout(() => {
+        handleVerifyCode();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [code, isCodeSent, handleVerifyCode]);
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView 
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <Image source={require('../../assets/logo.png')} style={styles.logo} />
       <Text style={styles.header}>Welcome Back</Text>
       <Text style={styles.subHeader}>Login to your account</Text>
@@ -185,18 +244,29 @@ export default function LoginScreen({ setIsAuthenticated }) {
             value={phoneNumber}
             onChangeText={setPhoneNumber}
             keyboardType="phone-pad"
+            returnKeyType="send"
+            onSubmitEditing={handleSendCode}
+            maxLength={12}
           />
         </View>
       ) : (
         <View>
-          <TouchableOpacity onPress={() => setIsCodeSent(false)} style={styles.backButton}>
+          <TouchableOpacity 
+            onPress={handleBack} 
+            style={styles.backButton}
+            accessibilityLabel="Go back to phone number"
+          >
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
+          
           <View style={styles.codeContainer}>
             {code.map((digit, index) => (
               <TextInput
                 key={index}
-                style={styles.codeInput}
+                style={[
+                  styles.codeInput,
+                  digit ? styles.codeInputFilled : null
+                ]}
                 placeholder="•"
                 placeholderTextColor="#999"
                 value={digit}
@@ -204,25 +274,43 @@ export default function LoginScreen({ setIsAuthenticated }) {
                 keyboardType="number-pad"
                 maxLength={1}
                 ref={(ref) => (codeInputs.current[index] = ref)}
-                textContentType="oneTimeCode"  // Ensures auto-fill works for the verification code
-                onKeyPress={(e) => handleKeyPress(e, index)} 
+                textContentType="oneTimeCode"
+                onKeyPress={(e) => handleKeyPress(e, index)}
+                accessibilityLabel={`Verification code digit ${index + 1}`}
               />
             ))}
           </View>
+          
           {isCodeSent && (
-        <TouchableOpacity onPress={handleSendCode} style={styles.resendButton} disabled={resendTimer > 0}>
-          <Text style={styles.resendButtonText}>
-            {resendTimer > 0 ? `Resend Code (${resendTimer}s)` : 'Resend Code'}
-          </Text>
-        </TouchableOpacity>
-      )}
+            <TouchableOpacity 
+              onPress={handleSendCode} 
+              style={styles.resendButton} 
+              disabled={resendTimer > 0}
+            >
+              <Text style={[
+                styles.resendButtonText,
+                resendTimer > 0 ? styles.resendButtonTextDisabled : null
+              ]}>
+                {resendTimer > 0 ? `Resend Code (${resendTimer}s)` : 'Resend Code'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
-      {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+      {errorMessage ? (
+        <Text style={styles.errorText}>{errorMessage}</Text>
+      ) : null}
 
       {!isCodeSent ? (
-        <TouchableOpacity style={styles.button} onPress={handleSendCode} disabled={loading}>
+        <TouchableOpacity 
+          style={[
+            styles.button,
+            !isValidPhoneNumber && phoneNumber ? styles.buttonDisabled : null
+          ]} 
+          onPress={handleSendCode} 
+          disabled={loading || (!isValidPhoneNumber && phoneNumber.length > 0)}
+        >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -230,7 +318,11 @@ export default function LoginScreen({ setIsAuthenticated }) {
           )}
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity style={styles.button} onPress={handleVerifyCode} disabled={loading}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={handleVerifyCode} 
+          disabled={loading || code.some(digit => !digit)}
+        >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -248,7 +340,7 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'center',
     backgroundColor: '#fff',
-    paddingBottom: 80,
+    paddingBottom: Platform.OS === 'ios' ? 80 : 60,
   },
   logo: {
     width: 80,
@@ -267,7 +359,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     color: '#bbb',
-    marginBottom: 10,
+    marginBottom: 30,
   },
   input: {
     height: 50,
@@ -302,6 +394,10 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 3,
   },
+  codeInputFilled: {
+    backgroundColor: '#f0f8ff',
+    borderColor: '#007bff',
+  },
   errorText: {
     color: '#ff4d4d',
     fontSize: 14,
@@ -320,20 +416,14 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
   },
+  buttonDisabled: {
+    backgroundColor: '#666',
+    shadowOpacity: 0.4,
+  },
   buttonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  footerText: {
-    textAlign: 'center',
-    color: '#000',
-    marginTop: 20,
-    fontSize: 16,
-  },
-  link: {
-    color: '#000',
-    textDecorationLine: 'underline',
   },
   phoneInputContainer: {
     flexDirection: 'row',
@@ -343,7 +433,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#fff',
     paddingHorizontal: 10,
-    marginBottom: 10,
+    marginBottom: 30,
   },
   countryCodeContainer: {
     flexDirection: 'row',
@@ -366,21 +456,27 @@ const styles = StyleSheet.create({
     height: 50,
     fontSize: 16,
     paddingLeft: 10,
+    color: '#000',
   },
   backButton: {
     position: 'absolute',
     top: -200,
     left: 10,
     zIndex: 1,
+    padding: 10, 
   },
   resendButton: {
     alignSelf: 'center',
     marginTop: 10,
-    marginBottom: 30
+    marginBottom: 30,
+    padding: 8, 
   },
   resendButtonText: {
     color: '#000',
     fontSize: 18,
     textDecorationLine: 'underline',
+  },
+  resendButtonTextDisabled: {
+    color: '#999',
   },
 });
