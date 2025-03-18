@@ -1,10 +1,13 @@
-import React, { useContext } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LanguageContext } from '../context/LanguageContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const translations = {
   EN: {
     title: "Payment Security & Disclaimer",
+    collapse: "Show less",
+    expand: "Show more",
     sections: [
       {
         heading: "Payment Security",
@@ -37,7 +40,9 @@ const translations = {
     ],
   },
   ZH: {
-    title: "⚠ 付款安全提示與免責聲明",
+    title: "付款安全提示與免責聲明",
+    collapse: "收起",
+    expand: "展開更多",
     sections: [
       {
         heading: "付款安全",
@@ -74,46 +79,124 @@ const translations = {
 const PaymentDisclaimer = () => {
   const { language } = useContext(LanguageContext);
   const t = translations[language] || translations.EN;
+  const [expanded, setExpanded] = useState(false);
+
+  // 只顯示第一部分，或根據用戶選擇顯示全部
+  const sectionsToShow = expanded ? t.sections : [t.sections[0]];
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t.title}</Text>
-      {t.sections.map((section, index) => (
-        <View key={index} style={styles.section}>
-          <Text style={styles.heading}>{section.heading}</Text>
-          {section.details.map((detail, i) => (
-            <Text key={i} style={styles.content}>{detail}</Text>
-          ))}
+      <View style={styles.headerContainer}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="shield-checkmark" size={16} color="#4CAF50" />
         </View>
-      ))}
+        <Text style={styles.title}>{t.title}</Text>
+      </View>
+      
+      <View style={styles.contentContainer}>
+        {sectionsToShow.map((section, index) => (
+          <View key={index} style={styles.section}>
+            <Text style={styles.heading}>{section.heading}</Text>
+            {section.details.map((detail, i) => (
+              <View key={i} style={styles.bulletRow}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.content}>{detail}</Text>
+              </View>
+            ))}
+          </View>
+        ))}
+      </View>
+      
+      <TouchableOpacity 
+        style={styles.toggleButton}
+        onPress={() => setExpanded(!expanded)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.toggleText}>
+          {expanded ? t.collapse : t.expand}
+        </Text>
+        <Ionicons 
+          name={expanded ? "chevron-up" : "chevron-down"} 
+          size={16} 
+          color="#555555" 
+          style={styles.toggleIcon}
+        />
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 10,
-
+    marginTop: 16,
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  iconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   title: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333333',
+  },
+  contentContainer: {
+    marginBottom: 12,
   },
   section: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
   heading: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555555',
     marginBottom: 6,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+    paddingRight: 6,
+  },
+  bullet: {
+    fontSize: 12,
+    color: '#999999',
+    marginRight: 6,
+    marginTop: 1,
   },
   content: {
     fontSize: 12,
-    color: '#777',
-    marginBottom: 3,
+    color: '#777777',
+    flex: 1,
+    lineHeight: 16,
   },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  toggleText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#555555',
+  },
+  toggleIcon: {
+    marginLeft: 4,
+  }
 });
 
 export default PaymentDisclaimer;

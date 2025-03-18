@@ -43,7 +43,7 @@ function CartScreen({ route }) {
       return {
         ...cartItem,
         name: menuItem ? menuItem.name : cartItem.name || 'Unnamed Item',
-        price: menuItem ? menuItem.price_in_cents / 100 : cartItem.price || 0,
+        price: menuItem ? menuItem.fee_in_cents / 100 : cartItem.price || 0,
         image_url: menuItem ? menuItem.image_url : cartItem.image_url || '',
         selectedModifiers: enrichedModifiers || [],
       };

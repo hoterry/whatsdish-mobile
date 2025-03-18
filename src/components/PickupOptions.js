@@ -1,21 +1,30 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { 
+  View, 
+  Text, 
+  ScrollView, 
+  StyleSheet, 
+  TouchableOpacity, 
+  Platform
+} from 'react-native';
 import ScheduleModal from './ScheduleModal';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { Ionicons } from '@expo/vector-icons';
 import { LanguageContext } from '../context/LanguageContext';
 
 const translations = {
   EN: {
-    pickupTime: "Pickup Time:",
+    pickupTime: "Pickup Time",
     standard: "Standard",
     schedule: "Schedule",
     selectTime: "Select a time",
+    estimatedTime: "Estimated pickup time"
   },
   ZH: {
-    pickupTime: "取餐時間:",
+    pickupTime: "取餐時間",
     standard: "立即",
     schedule: "預約",
     selectTime: "選擇時間",
+    estimatedTime: "預計取餐時間"
   },
 };
 
@@ -34,14 +43,17 @@ const PickupOptions = ({
   const [isScheduleModalVisible, setIsScheduleModalVisible] = useState(false);
   const [selectedTime, setSelectedTime] = useState(null);
 
-  const restaurant = Array.isArray(restaurants?.data) ? restaurants.data.find(r => r.gid === restaurantId) : null;
+  const restaurant = Array.isArray(restaurants?.data) 
+    ? restaurants.data.find(r => r.gid === restaurantId) 
+    : null;
+  
   const restaurantName = restaurant ? restaurant.name : "Restaurant not found";
   const restaurantAddress = restaurant ? restaurant.formatted_address : "Address not available";
   
   useEffect(() => {
     if (__DEV__) {
-      console.log("[Pick-up Option Log] Received restaurantId :", restaurantId); // Log restaurantId
-      console.log("[Pick-up Option Log] Received restaurants :", restaurants); // Log the entire restaurants array
+      console.log("[Pick-up Option Log] Received restaurantId :", restaurantId);
+      console.log("[Pick-up Option Log] Received restaurants :", restaurants);
     }
     if (pickupScheduledTime) {
       setSelectedTime(pickupScheduledTime);
@@ -79,11 +91,11 @@ const PickupOptions = ({
     });
   };
 
-
   return (
-    <View>
+    <View style={styles.container}>
+
       <View style={styles.restaurantInfoContainer}>
-        <Icon name="store" size={32} color="#000" style={styles.storeIcon} />
+        <Ionicons name="storefront" size={32} color="#000" style={styles.storeIcon} />
         <View style={styles.restaurantDetails}>
           <Text style={styles.restaurantName}>{restaurantName}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -95,85 +107,105 @@ const PickupOptions = ({
       </View>
       <View style={styles.divider} />
 
-      <View style={styles.pickupTimeContainer}>
-        <Icon name="access-time" size={24} color="#000" style={styles.clockIcon} />
-        <View style={styles.pickupTimeTextContainer}>
-          <Text style={styles.pickupTimeText}>{translations[language].pickupTime}</Text>
-          <Text style={styles.pickupTime}>
-            {pickupOption === 'immediate'
-              ? '15-25min'
-              : formatSelectedTime(selectedTime || pickupScheduledTime)}
-          </Text>
+
+      <View style={styles.pickupTimeSection}>
+        <Text style={styles.sectionTitle}>{translations[language].pickupTime}</Text>
+        
+        <View style={styles.timeOptionContainer}>
+          <TouchableOpacity
+            style={[
+              styles.timeOption, 
+              pickupOption === 'immediate' ? styles.selectedTime : styles.deselectedTime,
+              { marginRight: 8 }
+            ]}
+            onPress={() => onPickupOptionChange('immediate')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.timeOptionContent}>
+              <View style={styles.timeIconContainer}>
+                <Ionicons 
+                  name="flash" 
+                  size={16} 
+                  color={pickupOption === 'immediate' ? "#000" : "#777777"} 
+                />
+              </View>
+              <View style={styles.timeTextContainer}>
+                <Text style={[
+                  styles.timeText,
+                  pickupOption === 'immediate' ? styles.selectedTimeText : styles.deselectedTimeText
+                ]}>
+                  {translations[language].standard}
+                </Text>
+                <Text style={styles.timeSubText}>15-25min</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.timeOption, 
+              pickupOption === 'scheduled' ? styles.selectedTime : styles.deselectedTime,
+              { marginLeft: 8 }
+            ]}
+            onPress={() => {
+              onPickupOptionChange('scheduled');
+              openScheduleModal();
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.timeOptionContent}>
+              <View style={styles.timeIconContainer}>
+                <Ionicons 
+                  name="calendar" 
+                  size={16} 
+                  color={pickupOption === 'scheduled' ? "#000" : "#777777"} 
+                />
+              </View>
+              <View style={styles.timeTextContainer}>
+                <Text style={[
+                  styles.timeText,
+                  pickupOption === 'scheduled' ? styles.selectedTimeText : styles.deselectedTimeText
+                ]}>
+                  {translations[language].schedule}
+                </Text>
+                <Text style={styles.timeSubText} numberOfLines={1}>
+                  {pickupOption === 'scheduled'
+                    ? formatSelectedTime(selectedTime || pickupScheduledTime)
+                    : translations[language].selectTime}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.estimatedTimeContainer}>
+          <Ionicons name="time-outline" size={20} color="#666666" style={styles.estimatedTimeIcon} />
+          <View>
+            <Text style={styles.estimatedTimeLabel}>{translations[language].estimatedTime}</Text>
+            <Text style={styles.estimatedTimeValue}>
+              {pickupOption === 'immediate' ? '15-25min' : formatSelectedTime(selectedTime || pickupScheduledTime)}
+            </Text>
+          </View>
         </View>
       </View>
 
-      <View style={styles.timeOptionContainer}>
-        <TouchableOpacity
-          style={[styles.timeOption, pickupOption === 'immediate' ? styles.selectedTime : styles.deselectedTime]}
-          onPress={() => onPickupOptionChange('immediate')}
-        >
-          <Text style={styles.timeText}>{translations[language].standard}</Text>
-          <Text style={styles.timeSubText}>15-25min</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.timeOption, pickupOption === 'scheduled' ? styles.selectedTime : styles.deselectedTime]}
-          onPress={() => {
-            onPickupOptionChange('scheduled');
-            openScheduleModal();
-          }}
-        >
-          <Text style={styles.timeText}>{translations[language].schedule}</Text>
-          <Text style={styles.timeSubText}>
-            {pickupOption === 'scheduled'
-              ? formatSelectedTime(selectedTime || pickupScheduledTime)
-              : translations[language].selectTime}
-          </Text>
-        </TouchableOpacity>
-        <ScheduleModal
-          isVisible={isScheduleModalVisible}
-          onClose={closeScheduleModal}
-          onConfirm={handlePickupTimeConfirm}
-          currentTime={currentTime}
-          scheduleTimes={scheduleTimes}
-          formatDate={formatDate}
-        />
-      </View>
+      <ScheduleModal
+        isVisible={isScheduleModalVisible}
+        onClose={closeScheduleModal}
+        onConfirm={handlePickupTimeConfirm}
+        currentTime={currentTime}
+        scheduleTimes={scheduleTimes}
+        formatDate={formatDate}
+      />
     </View>
   );
 };
 
-
 const styles = StyleSheet.create({
-  timeOptionContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+  container: {
+    marginTop: 8,
   },
-  timeOption: {
-    flex: 1,
-    padding: 16,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    marginHorizontal: 8,
-  },
-  selectedTime: {
-    borderColor: '#000', // Selected time with black border
-  },
-  deselectedTime: {
-    borderColor: '#ccc', // Unselected time with gray border
-  },
-  timeText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  timeSubText: {
-    fontSize: 16,
-    color: '#666', // Gray font
-    marginTop: 4,
-  },
+
   restaurantInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -205,27 +237,92 @@ const styles = StyleSheet.create({
     marginVertical: 5,
     marginBottom: 15,
   },
-  pickupTimeContainer: {
+  
+  // 新設計風格的時間選擇相關樣式
+  pickupTimeSection: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#333333',
+  },
+  timeOptionContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'left',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
-  pickupTimeTextContainer: {
-    flexDirection: 'column',
+  timeOption: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  clockIcon: {
-    marginRight: 15,
-    fontSize: 30,
+  selectedTime: {
+    borderColor: '#000000',
+    backgroundColor: '#FFFFFF',
   },
-  pickupTimeText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
+  deselectedTime: {
+    borderColor: '#EEEEEE',
+    backgroundColor: '#FAFAFA',
   },
-  pickupTime: {
-    fontSize: 18,
-    color: '#666',
+  timeOptionContent: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeIconContainer: {
+    marginRight: 12,
+  },
+  timeTextContainer: {
+    flex: 1,
+  },
+  timeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  selectedTimeText: {
+    color: '#000000',
+  },
+  deselectedTimeText: {
+    color: '#777777',
+  },
+  timeSubText: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  estimatedTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    padding: 16,
+    borderRadius: 10,
+  },
+  estimatedTimeIcon: {
+    marginRight: 12,
+  },
+  estimatedTimeLabel: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 4,
+  },
+  estimatedTimeValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
   },
 });
 

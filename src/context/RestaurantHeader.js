@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 
 function RestaurantHeader({ restaurant }) {
+  console.log("Restaurant Logo URL: ", restaurant.logo_url);
   return (
     <View style={styles.headerContainer}>
       <Image source={{ uri: restaurant.banner_url }} style={styles.restaurantImage} />
@@ -27,13 +28,13 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginTop: 10, 
+    marginTop: 10,
   },
   restaurantImage: {
     width: '100%',
     height: 200,
     borderRadius: 10,
-    marginBottom: 10, 
+    marginBottom: 10,
   },
   restaurantLogo: {
     width: 70,
@@ -42,21 +43,21 @@ const styles = StyleSheet.create({
     marginRight: 15,
     borderWidth: 1,
     borderColor: '#fff',
-    marginTop: -50,  
-    backgroundColor: '#fff', 
+    marginTop: -50,
+    backgroundColor: '#fff',
   },
   logoContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: -40, 
+    marginTop: -40,
   },
   centerAlignContainer: {
     width: '100%',
-    alignItems: 'center', 
-    marginTop: 20, 
+    alignItems: 'center',
+    marginTop: 20,
   },
   textContainer: {
-    alignItems: 'center',  
+    alignItems: 'center',
   },
   address: {
     fontSize: 19,

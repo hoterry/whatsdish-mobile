@@ -1,12 +1,30 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView } from 'react-native';
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  Modal, 
+  StyleSheet, 
+  ScrollView, 
+  Image, 
+  Platform, 
+  ActivityIndicator 
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import PaymentMethod from './PaymentMethod';
 import PaymentDisclaimer from './PaymentDisclaimer';
 import { LanguageContext } from '../context/LanguageContext'; 
 import Constants from 'expo-constants';
-import LottieView from 'lottie-react-native'; // Import your custom animation component
+import LottieView from 'lottie-react-native';
+
+// 信用卡品牌圖標映射
+const cardImages = {
+  VISA: require('../../assets/visa.png'),
+  MASTERCARD: require('../../assets/mastercard.png'),
+  AMEX: require('../../assets/amex.jpg'),
+
+};
 
 const Payment = () => {
   const { language } = useContext(LanguageContext);
@@ -15,6 +33,23 @@ const Payment = () => {
   const [loading, setLoading] = useState(true);
   const [savedCards, setSavedCards] = useState([]); 
   const { API_URL } = Constants.expoConfig.extra; 
+
+  const translations = {
+    EN: {
+      payment: "Payment Method",
+      selectPayment: "Select Payment Method",
+      addPayment: "Add Payment",
+      securePayment: "All transactions are secure and encrypted"
+    },
+    ZH: {
+      payment: "付款方式",
+      selectPayment: "選擇付款方式",
+      addPayment: "新增付款方式",
+      securePayment: "所有交易均安全加密"
+    }
+  };
+
+  const t = translations[language];
 
   const fetchSavedCards = async () => {
     try {
@@ -39,6 +74,7 @@ const Payment = () => {
         setSelectedMethod({
           type: defaultCard.data.bin.brand,
           last4: defaultCard.data.masked_pan.slice(-4),
+          expiryDate: defaultCard.data.expiry_date || "",
         });
       } else {
         setSavedCards([]);
@@ -59,6 +95,7 @@ const Payment = () => {
     setSelectedMethod({
       type: method.data.bin.brand,
       last4: method.data.masked_pan.slice(-4),
+      expiryDate: method.data.expiry_date || "",
     });
     setModalVisible(false);
   };
@@ -67,99 +104,210 @@ const Payment = () => {
     await fetchSavedCards(); 
   };
 
+  // 獲取卡品牌圖片
+  const getCardImage = (type) => {
+    if (type?.includes('VISA')) return cardImages.VISA;
+    if (type?.includes('MASTER')) return cardImages.MASTERCARD;
+    if (type?.includes('AMERICAN EXPRESS') || type?.includes('AMEX')) 
+      return cardImages.AMEX;
+    return cardImages.DEFAULT;
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <Text style={styles.title}>{language === 'ZH' ? '付款' : 'Payment'}</Text>
+      <View style={styles.header}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{t.payment}</Text>
+          <Ionicons name="shield-checkmark" size={16} color="#4CAF50" style={styles.secureIcon} />
+        </View>
+      </View>
 
-        {loading ? (
-          // Replace ActivityIndicator with your custom animation
-          <LottieView
-            source={require('../../assets/loading-animation.json')} // Path to your animation file
-            autoPlay
-            loop
-            style={styles.loadingAnimation}
-          />
-        ) : (
-          <TouchableOpacity style={styles.paymentContainer} onPress={() => setModalVisible(true)}>
-            <View style={styles.paymentInfo}>
-              {selectedMethod ? (
-                <>
-                  <FontAwesome
-                    name={
-                      selectedMethod.type.includes('VISA')
-                        ? 'cc-visa'
-                        : selectedMethod.type.includes('MASTER')
-                        ? 'cc-mastercard'
-                        : selectedMethod.type.includes('AMERICAN EXPRESS')
-                        ? 'cc-amex'
-                        : 'credit-card'
-                    }
-                    size={32}
-                    color={
-                      selectedMethod.type.includes('VISA')
-                        ? '#1a73e8'
-                        : selectedMethod.type.includes('MASTER')
-                        ? '#f79e1b'
-                        : selectedMethod.type.includes('AMERICAN EXPRESS')
-                        ? '#002663'
-                        : 'gray'
-                    }
-                  />
-                  <Text style={styles.paymentText}>
-                    {selectedMethod.type} **** {selectedMethod.last4}
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.paymentText}>
-                  {language === 'ZH' ? '選擇付款方式' : 'Select Payment Method'}
-                </Text>
-              )}
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="black" />
-          </TouchableOpacity>
-        )}
-
-        <Modal visible={modalVisible} transparent animationType="slide">
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <PaymentMethod
-                onSelectMethod={handleSelectMethod}
-                onClose={() => setModalVisible(false)}
-                onRemoveCard={handleRemoveCard} 
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          {Platform.OS === 'ios' ? (
+            <LottieView
+              source={require('../../assets/loading-animation.json')}
+              autoPlay
+              loop
+              style={styles.loadingAnimation}
+            />
+          ) : (
+            <ActivityIndicator size="large" color="#000000" />
+          )}
+        </View>
+      ) : (
+        <TouchableOpacity 
+          style={styles.paymentSelector} 
+          onPress={() => setModalVisible(true)}
+          activeOpacity={0.7}
+        >
+          {selectedMethod ? (
+            <View style={styles.selectedMethodContainer}>
+              <Image 
+                source={getCardImage(selectedMethod.type)}
+                style={styles.cardImage}
+                resizeMode="contain"
               />
+              <View style={styles.cardDetails}>
+                <Text style={styles.cardType}>
+                  {selectedMethod.type?.split(' ')[0] || 'Card'}
+                </Text>
+                <Text style={styles.cardNumber}>
+                  •••• •••• •••• {selectedMethod.last4}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9E9E9E" />
             </View>
+          ) : (
+            <View style={styles.addPaymentContainer}>
+              <Ionicons name="add-circle-outline" size={24} color="#000000" />
+              <Text style={styles.addPaymentText}>{t.addPayment}</Text>
+              <View style={styles.spacer} />
+              <Ionicons name="chevron-forward" size={20} color="#9E9E9E" />
+            </View>
+          )}
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.secureInfoContainer}>
+        <Ionicons name="lock-closed" size={12} color="#757575" />
+        <Text style={styles.secureInfoText}>{t.securePayment}</Text>
+      </View>
+
+      <Modal 
+        visible={modalVisible} 
+        transparent 
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <PaymentMethod
+              onSelectMethod={handleSelectMethod}
+              onClose={() => setModalVisible(false)}
+              onRemoveCard={handleRemoveCard} 
+            />
           </View>
-        </Modal>
+        </View>
+      </Modal>
 
-        <View style={styles.divider} />
-
-        <PaymentDisclaimer />
-      </ScrollView>
+      <PaymentDisclaimer />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollContainer: {},
-  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  paymentContainer: {
+  container: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  header: {
+    marginBottom: 16,
+  },
+  titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    width: '100%',
   },
-  paymentInfo: { flexDirection: 'row', alignItems: 'center' },
-  paymentText: { fontSize: 18, marginLeft: 10 },
-  modalContainer: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' },
-  modalContent: { backgroundColor: '#fff', borderRadius: 10, padding: 20, marginHorizontal: 20 },
-  divider: { marginTop: 10, borderBottomWidth: 1, borderBottomColor: '#ccc', marginBottom: 10 },
+  title: { 
+    fontSize: 18, 
+    fontWeight: '600', 
+    color: '#333333',
+    marginRight: 6,
+  },
+  secureIcon: {
+    marginTop: 2,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 70,
+    marginVertical: 8,
+  },
   loadingAnimation: {
-    width: 100, // Adjust size as needed
-    height: 100, // Adjust size as needed
+    width: 80,
+    height: 80,
+  },
+  paymentSelector: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 10,
+    backgroundColor: '#F8F8F8',
+    padding: 16,
+    marginBottom: 12,
+  },
+  selectedMethodContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardImage: {
+    width: 40,
+    height: 25,
+    marginRight: 12,
+  },
+  cardDetails: {
+    flex: 1,
+  },
+  cardType: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#424242',
+    marginBottom: 2,
+  },
+  cardNumber: {
+    fontSize: 14,
+    color: '#757575',
+  },
+  addPaymentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  addPaymentText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#424242',
+    marginLeft: 10,
+  },
+  spacer: {
+    flex: 1,
+  },
+  secureInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  secureInfoText: {
+    fontSize: 12,
+    color: '#757575',
+    marginLeft: 4,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    maxHeight: '90%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 3,
     alignSelf: 'center',
+    marginBottom: 16,
   },
 });
 

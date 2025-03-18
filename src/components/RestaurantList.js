@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, ScrollView, Pressable, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { View, Text, ScrollView, Pressable, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LanguageContext } from '../context/LanguageContext';
 import Distance from '../context/DistanceCalculator';
@@ -24,9 +24,27 @@ const translations = {
 const RestaurantList = ({ restaurants, userLocation }) => {
   const navigation = useNavigation();
   const [bookmarkedRestaurants, setBookmarkedRestaurants] = useState([]);
+  const [token, setToken] = useState(null);
   const { language } = useContext(LanguageContext);
+  const [loadingRestaurantId, setLoadingRestaurantId] = useState(null);
+  const abortControllerRef = useRef(null);
 
   const t = (key) => translations[language][key] || key;
+
+  useEffect(() => {
+    const fetchToken = async () => {
+      const storedToken = await SecureStore.getItemAsync('token');
+      setToken(storedToken);
+    };
+
+    fetchToken();
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   if (!restaurants || !Array.isArray(restaurants.data)) {
     return <Text> </Text>;
@@ -40,19 +58,44 @@ const RestaurantList = ({ restaurants, userLocation }) => {
   };
 
   const handlePressRestaurant = async (restaurant) => {
-    if (!restaurant.is_active) return; 
-    const restaurantId = restaurant.gid;
-    try {
-      const token = await SecureStore.getItemAsync('token');
-      if (!token) {
-        console.error('Token not found in SecureStore');
-        return;
-      }
+    if (!restaurant.is_active) return;
+    if (!token) {
+      console.log('Token not available yet');
+      navigation.navigate('Details', { 
+        restaurant, 
+        restaurants,
 
+      });
+      return;
+    }
+
+    const restaurantId = restaurant.gid;
+    
+
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    setLoadingRestaurantId(restaurantId);
+
+    navigation.navigate('Details', { 
+      restaurant, 
+      restaurants,
+
+    });
+    
+    try {
+      if (__DEV__) {
+        console.log(`[RestaurantList] Fetching details for restaurant: ${restaurantId}`);
+      }
+      
       const backendUrl = `${API_URL}/api/restaurants/${restaurantId}`;
       const response = await fetch(backendUrl, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
+        signal: abortControllerRef.current.signal
       });
 
       if (!response.ok) {
@@ -64,11 +107,27 @@ const RestaurantList = ({ restaurants, userLocation }) => {
       const orderId = data?.data?.order?.order_id;
 
       if (orderId) {
+
         await SecureStore.setItemAsync('order_id', orderId);
-        navigation.navigate('Details', { restaurant, data, restaurants });
+        await SecureStore.setItemAsync('current_restaurant_id', restaurantId);
+        
+        if (__DEV__) {
+          console.log(`[RestaurantList] Stored order_id: ${orderId} for restaurant: ${restaurantId}`);
+        }
+
       }
     } catch (error) {
+
+      if (error.name === 'AbortError') {
+        console.log('[RestaurantList] Fetch request was aborted');
+        return;
+      }
       console.error('Error fetching restaurant details:', error);
+    } finally {
+
+      if (loadingRestaurantId === restaurantId) { 
+        setLoadingRestaurantId(null);
+      }
     }
   };
 
@@ -78,7 +137,13 @@ const RestaurantList = ({ restaurants, userLocation }) => {
         .filter((item) => item.is_shown) 
         .map((item) => (
           <View key={item.gid} style={styles.restaurantCard}>
-            <Pressable onPress={() => handlePressRestaurant(item)}>
+            <Pressable 
+              onPress={() => handlePressRestaurant(item)}
+              android_ripple={{ color: 'rgba(0, 0, 0, 0.1)' }}
+              style={({pressed}) => [
+                pressed && styles.pressedCard
+              ]}
+            >
               <View style={styles.imageContainer}>
                 <Image
                   source={{ uri: item.banner_url }}
@@ -89,6 +154,7 @@ const RestaurantList = ({ restaurants, userLocation }) => {
                     <Text style={styles.unavailableText}>Currently Not Available</Text>
                   </View>
                 )}
+
               </View>
               <View style={styles.restaurantInfo}>
                 <Image source={{ uri: item.logo_url }} style={styles.restaurantLogo} />
@@ -101,7 +167,6 @@ const RestaurantList = ({ restaurants, userLocation }) => {
                   </Text>
                 </View>
                 <View style={styles.tagContainer}>
-                  {/*<Distance userLocation={userLocation} restaurant={item} />*/}
                 </View>
               </View>
             </Pressable>
@@ -131,6 +196,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  pressedCard: {
+    opacity: 0.8,
   },
   imageContainer: {
     position: 'relative',
@@ -161,6 +234,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+  },
+  loadingIndicator: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 8,
+    borderRadius: 20,
   },
   restaurantInfo: {
     padding: 10,

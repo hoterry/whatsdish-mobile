@@ -60,7 +60,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
     }
   }, [menuItem, options, modifiers]);  // Re-run effect when these values change
 
-  const basePrice = menuItem.price_in_cents ? menuItem.price_in_cents / 100 : 0;
+  const basePrice = menuItem.fee_in_cents ? menuItem.fee_in_cents / 100 : 0;
   const optionPrice = selectedOption ? (selectedOption.price ? selectedOption.price / 100 : 0) : 0;
   const totalModifiersPrice = selectedModifiers.reduce(
     (total, modifier) => total + (modifier.price / 100),

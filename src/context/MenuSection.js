@@ -111,10 +111,14 @@ const MenuSection = ({ restaurantId, restaurants }) => {
 
   const handleAddToCart = (item) => {
     const uniqueId = `${restaurantId}-${item.id}`;
+    const price = item.price || 
+                  (item.price_formatted ? parseFloat(item.price_formatted.replace('$', '')) : null) || 
+                  (item.fee_in_cents ? item.fee_in_cents / 100 : 0);
+    
     const updatedItem = {
       ...item,
       uniqueId,
-      price: item.price || parseFloat(item.price_formatted.replace('$', '')),
+      price
     };
     addToCart(restaurantId, updatedItem);
   };
@@ -179,7 +183,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
                 <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
                   {language === 'ZH' ? menuItem.description : menuItem.description}
                 </Text>
-                <Text style={styles.price}>{menuItem.price_formatted}</Text>
+                <Text style={styles.price}>{`$${(menuItem.fee_in_cents / 100).toFixed(2)}`}</Text>
               </View>
 
               <Image
@@ -369,7 +373,7 @@ const styles = StyleSheet.create({
     borderRadius: 6 * scaleWidth,
     zIndex: 999,
     width: '90%',
-    height: '4%',
+    height: '5%',
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',

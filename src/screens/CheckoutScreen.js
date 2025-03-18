@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useCart } from '../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
 import OrderSummary from '../components/OrderSummary';
@@ -8,6 +8,7 @@ import Payment from '../components/Payment';
 import DeliveryOptionsButton from '../components/DeliveryOptionsButton';
 import { Ionicons } from '@expo/vector-icons';
 import { LanguageContext } from '../context/LanguageContext';
+import * as SecureStore from 'expo-secure-store';
 
 function CheckoutScreen({ route }) {
   const { cartItems, getTotalPrice, clearCart } = useCart();
@@ -25,6 +26,7 @@ function CheckoutScreen({ route }) {
   const [cvv, setCvv] = useState('');
   const [showDeliveryFee, setShowDeliveryFee] = useState(false);
   const [calculatedTip, setCalculatedTip] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const cart = cartItems[restaurantId] || [];
   if (cart.length === 0) {
@@ -82,35 +84,113 @@ function CheckoutScreen({ route }) {
     return `${day}, ${month}/${dayOfMonth}`;
   };
 
-  const handlePlaceOrder = () => {
-    if (__DEV__) {
-      console.log('[Check Out Screen Log] Order Placed!');
+  const handlePlaceOrder = async () => {
+    try {
+      setIsProcessing(true);
+      
+      if (__DEV__) {
+        console.log('[Check Out Screen Log] Processing order...');
+      }
+
+      // Get order_id from SecureStore
+      let orderId;
+      try {
+        orderId = await SecureStore.getItemAsync('order_id');
+        if (!orderId) {
+          console.warn('[Check Out Screen Log] order_id not found in SecureStore');
+          throw new Error('Order ID not found');
+        }
+        
+        if (__DEV__) {
+          console.log('[Check Out Screen Log] Retrieved order_id from SecureStore:', orderId);
+        }
+      } catch (secureStoreError) {
+        console.error('[Check Out Screen Log] Failed to get order_id from SecureStore:', secureStoreError);
+        throw new Error('Failed to retrieve order ID');
+      }
+
+      const orderData = {
+        restaurantId,
+        items: cart,
+        totalPrice,
+        deliveryMethod,
+        deliveryOption,
+        deliveryScheduledTime,
+        pickupOption,
+        pickupScheduledTime,
+        address,
+        tip: calculatedTip,
+        payment: {
+          creditCardNumber,
+          expirationDate,
+          cvv
+        },
+        orderTime: new Date().toISOString(),
+        restaurants
+      };
+      
+      // Call the payment and print API
+      try {
+        // Get client IP address
+        const ipResponse = await fetch("https://checkip.amazonaws.com/");
+        const clientIp = (await ipResponse.text()).trim();
+        
+        // Log order ID and API details before making the request
+        console.log('==================== ORDER DETAILS ====================');
+        console.log(`[Check Out Screen Log] ORDER ID: ${orderId}`);
+        console.log(`[Check Out Screen Log] API URL: https://dev.whatsdish.com/api/orders/${orderId}/payment`);
+        console.log('[Check Out Screen Log] API METHOD: POST');
+        console.log('[Check Out Screen Log] API HEADERS:', JSON.stringify({
+          'Content-Type': 'application/json',
+        }, null, 2));
+        
+        const requestBody = {
+          ip: clientIp,
+        };
+        console.log('[Check Out Screen Log] API REQUEST BODY:', JSON.stringify(requestBody, null, 2));
+        console.log('======================================================');
+        
+        // Call the payment API with the orderId from SecureStore
+        const placeOrderResponse = await fetch(`https://dev.whatsdish.com/api/orders/${orderId}/payment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+        
+        if (!placeOrderResponse.ok) {
+          throw new Error('Failed to process payment');
+        }
+        
+        const responseData = await placeOrderResponse.json();
+
+        // Clear the cart once the order is successfully processed
+        clearCart();
+        
+        // Navigate to the HistoryDetailScreen and pass order data
+        navigation.navigate('HistoryDetail', { 
+          order: {
+            ...orderData,
+            orderId: orderId
+          }, 
+          restaurantId, 
+          restaurants 
+        });
+        
+      } catch (error) {
+        console.error('[Check Out Screen Log] API call failed:', error);
+        Alert.alert(
+          language === 'ZH' ? '訂單處理錯誤' : 'Order Processing Error',
+          language === 'ZH' ? '無法完成付款處理。請稍後再試。' : 'Unable to complete payment processing. Please try again later.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('[Check Out Screen Log] Order processing error:', error);
+    } finally {
+      setIsProcessing(false);
     }
-
-    const orderData = {
-      restaurantId,
-      items: cart,
-      totalPrice,
-      deliveryMethod,
-      deliveryOption,
-      deliveryScheduledTime,
-      pickupOption,
-      pickupScheduledTime,
-      address,
-      tip: calculatedTip,
-      payment: {
-        creditCardNumber,
-        expirationDate,
-        cvv
-      },
-      orderTime: new Date().toISOString(),
-      restaurants
-    };
-
-    clearCart();
-
-    // Navigate to the HistoryDetailScreen and pass order data
-    navigation.navigate('HistoryDetail', { order: orderData, restaurantId, restaurants });
   };
 
 
@@ -171,14 +251,19 @@ function CheckoutScreen({ route }) {
           setExpirationDate={setExpirationDate}
           cvv={cvv}
           setCvv={setCvv}
-          
         />
       </ScrollView>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.placeOrderButton} onPress={handlePlaceOrder}>
+        <TouchableOpacity 
+          style={[styles.placeOrderButton, isProcessing && styles.disabledButton]} 
+          onPress={handlePlaceOrder}
+          disabled={isProcessing}
+        >
           <Text style={styles.placeOrderText}>
-            {language === 'ZH' ? '確認下單' : 'Place Order'} 
+            {isProcessing 
+              ? (language === 'ZH' ? '處理中...' : 'Processing...') 
+              : (language === 'ZH' ? '確認下單' : 'Place Order')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -247,6 +332,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  disabledButton: {
+    backgroundColor: '#888',
+  },
   placeOrderText: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -255,4 +343,3 @@ const styles = StyleSheet.create({
 });
 
 export default CheckoutScreen;
-
