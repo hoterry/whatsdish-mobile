@@ -18,7 +18,6 @@ import { LanguageContext } from '../context/LanguageContext';
 import Constants from 'expo-constants';
 import LottieView from 'lottie-react-native';
 
-// 信用卡品牌圖標映射
 const cardImages = {
   VISA: require('../../assets/visa.png'),
   MASTERCARD: require('../../assets/mastercard.png'),
@@ -104,7 +103,6 @@ const Payment = () => {
     await fetchSavedCards(); 
   };
 
-  // 獲取卡品牌圖片
   const getCardImage = (type) => {
     if (type?.includes('VISA')) return cardImages.VISA;
     if (type?.includes('MASTER')) return cardImages.MASTERCARD;

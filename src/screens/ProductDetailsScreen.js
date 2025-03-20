@@ -1,11 +1,11 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../context/CartContext';
 import { LanguageContext } from '../context/LanguageContext';
 
 const ProductDetailScreen = ({ route, navigation }) => {
-  const { menuItem, restaurantId, restaurants  } = route.params;
+  const { menuItem, restaurantId, restaurants } = route.params;
   const { addToCart } = useCart();
   const [selectedOption, setSelectedOption] = useState(null);
   const [selectedModifiers, setSelectedModifiers] = useState([]);
@@ -18,29 +18,32 @@ const ProductDetailScreen = ({ route, navigation }) => {
         group.options.map(option => {
           const name = language === 'ZH' && option.name_zh ? option.name : option.name;
           if (__DEV__) {
-            console.log(`[Product Detail Screen Log] Option name for language ${language}:`, name); // Log the selected name
+            console.log(`[Product Detail Screen Log] Option name for language ${language}:`, name);
           }
           return {
             id: option.id,
             name: name,
             price: option.price,
+            groupId: group.id 
           };
         })
       )
     : [];
+
   const modifiers = (menuItem.modifier_groups || []).flatMap(group =>
-      group.modifiers
-        ? group.modifiers.map(item => {
-            const name = language === 'ZH' && item.name_zh ? item.name : item.name;
-            return {
-              id: item.id,
-              name: name,
-              price: item.price,
-              groupName: group.name,
-            };
-          })
-        : []
-    );
+    group.modifiers
+      ? group.modifiers.map(item => {
+          const name = language === 'ZH' && item.name_zh ? item.name : item.name;
+          return {
+            id: item.id,
+            name: name,
+            price: item.price,
+            groupName: group.name,
+            groupId: group.id 
+          };
+        })
+      : []
+  );
     
   useEffect(() => {
     if (__DEV__) {
@@ -50,15 +53,15 @@ const ProductDetailScreen = ({ route, navigation }) => {
   }, []); 
   
   useEffect(() => {
-    // Check if modifier_groups exist and log each modifier group's items
+
     if (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) {
       menuItem.modifier_groups.forEach((group, index) => {
         if (__DEV__) {
-          console.log(`[Product Detail Screen Log] Modifier Group in Product detail Screen ${index + 1}:`, group.modifier_items); // Log modifier_items array inside each group
+          console.log(`[Product Detail Screen Log] Modifier Group in Product detail Screen ${index + 1}:`, group.modifiers);
         }
       });
     }
-  }, [menuItem, options, modifiers]);  // Re-run effect when these values change
+  }, [menuItem]);  
 
   const basePrice = menuItem.fee_in_cents ? menuItem.fee_in_cents / 100 : 0;
   const optionPrice = selectedOption ? (selectedOption.price ? selectedOption.price / 100 : 0) : 0;
@@ -72,14 +75,27 @@ const ProductDetailScreen = ({ route, navigation }) => {
     if (__DEV__) {
       console.log("[Product Detail Screen Log] Handling Add to Cart...");
     }
-  
-    const unmetRequirements = menuItem.modifier_groups.some(group =>
-      group.minRequired > 0 &&
-      selectedModifiers.filter(m => group.modifiers.some(gm => gm.id === m.id)).length < group.minRequired
-    );
+
+    let unmetRequirements = false;
+    
+    if (menuItem.modifier_groups) {
+      unmetRequirements = menuItem.modifier_groups.some(group => {
+        if (!group.minRequired || group.minRequired <= 0) return false;
+
+        const selectedInGroup = selectedModifiers.filter(mod => 
+          mod.groupId === group.id
+        ).length;
+        
+        return selectedInGroup < group.minRequired;
+      });
+    }
   
     if (unmetRequirements) {
       setErrorMessage(language === 'ZH' ? '請至少選取一個選項' : 'Please select at least one option');
+      Alert.alert(
+        language === 'ZH' ? '選項不完整' : 'Incomplete Selection',
+        language === 'ZH' ? '請完成所有必選項' : 'Please complete all required selections'
+      );
       return;
     }
   
@@ -90,12 +106,10 @@ const ProductDetailScreen = ({ route, navigation }) => {
     const selectedModifiersIds = selectedModifiers.length > 0
       ? selectedModifiers.map(m => m.id).join('-')
       : 'no-modifiers';
-  
+
     const formattedModifiers = selectedModifiers.map((modifier) => ({
       mod_id: modifier.id,
-      mod_group_id: menuItem.modifier_groups.find(group =>
-        group.modifiers.some(m => m.id === modifier.id)
-      )?.id,
+      mod_group_id: modifier.groupId,
       name: modifier.name,
       price: modifier.price, 
       count: 1,
@@ -103,8 +117,8 @@ const ProductDetailScreen = ({ route, navigation }) => {
   
     const itemWithOptionAndModifiers = {
       ...menuItem,
-      selectedOption: selectedOption ? { ...selectedOption, name: selectedOptionName } : undefined,
-      selectedModifiers: formattedModifiers.length > 0 ? formattedModifiers : undefined,
+      selectedOption: selectedOption ? { ...selectedOption, name: selectedOptionName } : null,
+      selectedModifiers: formattedModifiers,
       price: currentPrice,
       uniqueId: `${menuItem.id}-${selectedOptionId}-${selectedModifiersIds}-${Date.now()}`,
       note: note, 
@@ -119,39 +133,55 @@ const ProductDetailScreen = ({ route, navigation }) => {
     navigation.goBack();
   };
   
-
   const toggleModifier = (modifier, group) => {
     if (__DEV__) {
       console.log("[Product Detail Screen Log] Toggling modifier in Product detail Screen:", modifier);
     }
+    
     setSelectedModifiers((prevModifiers) => {
-      const currentGroupModifiers = prevModifiers.filter(m => group.modifiers.some(gm => gm.id === m.id));
-      if (currentGroupModifiers.some(m => m.id === modifier.id)) {
+
+      const isAlreadySelected = prevModifiers.some(m => m.id === modifier.id);
+      
+      if (isAlreadySelected) {
+
         return prevModifiers.filter(m => m.id !== modifier.id);
       } else {
-        if (currentGroupModifiers.length >= group.maxAllowed) {
-          const updatedModifiers = prevModifiers.filter(m => !currentGroupModifiers.includes(m));
-          return [...updatedModifiers, modifier];
+
+        const selectedInGroup = prevModifiers.filter(m => m.groupId === group.id).length;
+
+        if (group.maxAllowed && selectedInGroup >= group.maxAllowed) {
+
+          const oldestInGroup = prevModifiers.find(m => m.groupId === group.id);
+
+          if (oldestInGroup) {
+            const withoutOldest = prevModifiers.filter(m => m.id !== oldestInGroup.id);
+            return [...withoutOldest, {...modifier, groupId: group.id}];
+          }
         }
-        return [...prevModifiers, modifier];
+
+        return [...prevModifiers, {...modifier, groupId: group.id}];
       }
     });
   };
   
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <View style={styles.backButtonContainer}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={28} color="black" />
-            </TouchableOpacity>
-          </View>
+      <View style={styles.backButtonContainer}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={28} color="black" />
+        </TouchableOpacity>
+      </View>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-
-        <Image source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }} style={styles.largeImage} />
+        <Image 
+          source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }} 
+          style={styles.largeImage} 
+        />
         <Text style={styles.name}>{language === 'ZH' ? menuItem.name : menuItem.name}</Text>
         <Text style={styles.description}>{language === 'ZH' ? menuItem.description : menuItem.description}</Text>
         <Text style={styles.price}>${currentPrice.toFixed(2)}</Text>
         <View style={styles.separator} />
+
+        {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
         {options.length > 0 && (
           <View style={styles.optionsContainer}>
@@ -161,7 +191,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
                 key={option.id}
                 style={[styles.optionRow, selectedOption?.id === option.id && styles.selectedOption]}
                 onPress={() => {
-                  console.log("Option selected:", option); // Log the selected option
+                  console.log("Option selected:", option);
                   setSelectedOption(option);
                 }}
               >
@@ -195,36 +225,35 @@ const ProductDetailScreen = ({ route, navigation }) => {
                         : group.maxAllowed > 1
                         ? ` (Choose up to ${group.maxAllowed})`
                         : `Min: ${group.minRequired}, Max: ${group.maxAllowed}`)}
-                </Text>
-
+                  </Text>
                 </View>
 
-                {group.modifiers.map((modifier) => (
+                {group.modifiers && group.modifiers.map((modifier) => (
                   <TouchableOpacity
-                  key={modifier.id}
-                  style={[
-                    styles.optionRow,
-                    selectedModifiers.some((m) => m.id === modifier.id) && styles.selectedOption,
-                  ]}
-                  onPress={() => toggleModifier(modifier, group)} 
-                >
-                  <Text style={styles.optionText}>
-                    {modifier.name} (+${(modifier.price / 100).toFixed(2)})
-                  </Text>
-                  <View
+                    key={modifier.id}
                     style={[
-                      styles.radioButton,
-                      selectedModifiers.some((m) => m.id === modifier.id) && styles.selectedRadio,
+                      styles.optionRow,
+                      selectedModifiers.some((m) => m.id === modifier.id) && styles.selectedOption,
                     ]}
-                  />
-                </TouchableOpacity>
-
+                    onPress={() => toggleModifier({...modifier, groupId: group.id}, group)} 
+                  >
+                    <Text style={styles.optionText}>
+                      {modifier.name} (+${(modifier.price / 100).toFixed(2)})
+                    </Text>
+                    <View
+                      style={[
+                        styles.radioButton,
+                        selectedModifiers.some((m) => m.id === modifier.id) && styles.selectedRadio,
+                      ]}
+                    />
+                  </TouchableOpacity>
                 ))}
               </View>
             ))}
           </View>
         )}
-      <Text style={styles.specialInstructionTitle}>Special Instruction</Text>
+        
+        <Text style={styles.specialInstructionTitle}>Special Instruction</Text>
         <TextInput
           style={styles.noteInput}
           placeholder={language === 'ZH' ? '输入备注...' : 'Enter a note...'}
@@ -236,15 +265,15 @@ const ProductDetailScreen = ({ route, navigation }) => {
       </ScrollView>
 
       <View style={[styles.fixedBottomContainer, { paddingBottom: Platform.OS === 'android' ? 0 : 20 }]}>
-      <TouchableOpacity 
-        style={styles.addToCartButton} 
-        onPress={handleAddToCart}
-      >
-        <Text style={styles.addToCartButtonText}>
-          {language === 'ZH' ? '加入购物车' : 'Add to Cart'}
-        </Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity 
+          style={styles.addToCartButton} 
+          onPress={handleAddToCart}
+        >
+          <Text style={styles.addToCartButtonText}>
+            {language === 'ZH' ? '加入购物车' : 'Add to Cart'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 };

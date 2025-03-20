@@ -28,7 +28,7 @@ function CheckoutScreen({ route }) {
   const [calculatedTip, setCalculatedTip] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const cart = cartItems[restaurantId] || [];
+  const cart = cartItems[restaurantId] || [];  
   if (cart.length === 0) {
     return <Text>{language === 'ZH' ? '您的購物車是空的' : 'Your cart is empty'}</Text>;
   }
@@ -128,14 +128,11 @@ function CheckoutScreen({ route }) {
         orderTime: new Date().toISOString(),
         restaurants
       };
-      
-      // Call the payment and print API
+
       try {
-        // Get client IP address
         const ipResponse = await fetch("https://checkip.amazonaws.com/");
         const clientIp = (await ipResponse.text()).trim();
-        
-        // Log order ID and API details before making the request
+
         console.log('==================== ORDER DETAILS ====================');
         console.log(`[Check Out Screen Log] ORDER ID: ${orderId}`);
         console.log(`[Check Out Screen Log] API URL: https://dev.whatsdish.com/api/orders/${orderId}/payment`);
@@ -150,7 +147,6 @@ function CheckoutScreen({ route }) {
         console.log('[Check Out Screen Log] API REQUEST BODY:', JSON.stringify(requestBody, null, 2));
         console.log('======================================================');
         
-        // Call the payment API with the orderId from SecureStore
         const placeOrderResponse = await fetch(`https://dev.whatsdish.com/api/orders/${orderId}/payment`, {
           method: 'POST',
           headers: {
@@ -165,10 +161,8 @@ function CheckoutScreen({ route }) {
         
         const responseData = await placeOrderResponse.json();
 
-        // Clear the cart once the order is successfully processed
         clearCart();
         
-        // Navigate to the HistoryDetailScreen and pass order data
         navigation.navigate('HistoryDetail', { 
           order: {
             ...orderData,

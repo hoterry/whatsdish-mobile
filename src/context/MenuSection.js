@@ -110,16 +110,24 @@ const MenuSection = ({ restaurantId, restaurants }) => {
   };
 
   const handleAddToCart = (item) => {
-    const uniqueId = `${restaurantId}-${item.id}`;
     const price = item.price || 
                   (item.price_formatted ? parseFloat(item.price_formatted.replace('$', '')) : null) || 
                   (item.fee_in_cents ? item.fee_in_cents / 100 : 0);
     
+    // 確保修飾符是一個空數組而不是 undefined
+    const selectedModifiers = [];
+    
+    // 更完善的唯一標識符，包含修飾符信息和時間戳
+    const uniqueId = `${restaurantId}-${item.id}-no-modifiers-${Date.now()}`;
+    
     const updatedItem = {
       ...item,
       uniqueId,
-      price
+      price,
+      selectedModifiers,  // 使用空數組初始化修飾符
     };
+    
+    console.log("[Menu Section Log] Adding item to cart:", updatedItem);
     addToCart(restaurantId, updatedItem);
   };
 

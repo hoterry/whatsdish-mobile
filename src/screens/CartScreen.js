@@ -19,16 +19,16 @@ function CartScreen({ route }) {
 
   useEffect(() => {
     if (!menuData || menuData.length === 0) return;
-
+  
     const enrichedCart = (cartItems[restaurantId] || []).map((cartItem) => {
       const menuItem = menuData.find((item) => item.id === cartItem.item_id);
       const enrichedModifiers = cartItem.selectedModifiers?.map((mod) => {
         const group = menuItem?.modifier_groups?.find((group) =>
           group.modifiers.some((modifier) => modifier.id === mod.mod_id)
         );
-
+  
         const modifier = group?.modifiers.find((modifier) => modifier.id === mod.mod_id);
-
+  
         return modifier
           ? {
               mod_id: mod.mod_id,
@@ -39,18 +39,36 @@ function CartScreen({ route }) {
             }
           : mod;
       });
-
+  
+      // 使用hash作為唯一標識的一部分，如果有的話
+      let uniqueId = cartItem.uniqueId;
+      
+      // 如果沒有現有唯一ID，或者想要重新生成考慮修飾符的唯一ID
+      if (!uniqueId || cartItem.hash) {
+        if (cartItem.hash) {
+          uniqueId = `${restaurantId}-${cartItem.item_id}-${cartItem.hash}`;
+        } else {
+          // 基於商品ID和修飾符生成唯一ID
+          const modifiersString = enrichedModifiers && enrichedModifiers.length > 0
+            ? `-mods-${enrichedModifiers.map(m => `${m.mod_id}-${m.count || 1}`).sort().join('-')}`
+            : '-no-modifiers';
+          
+          uniqueId = `${restaurantId}-${cartItem.item_id}-${modifiersString}`;
+        }
+      }
+  
       return {
         ...cartItem,
+        uniqueId,
         name: menuItem ? menuItem.name : cartItem.name || 'Unnamed Item',
         price: menuItem ? menuItem.fee_in_cents / 100 : cartItem.price || 0,
         image_url: menuItem ? menuItem.image_url : cartItem.image_url || '',
         selectedModifiers: enrichedModifiers || [],
       };
     });
-
+  
     console.log("Enriched Cart with Modifiers:", enrichedCart);
-
+  
     if (JSON.stringify(cartItems[restaurantId]) !== JSON.stringify(enrichedCart)) {
       setCartItems((prevState) => ({
         ...prevState,
@@ -89,18 +107,19 @@ function CartScreen({ route }) {
         mod_group_id: modifier.mod_group_id,
         count: modifier.count,
       }));
-
+  
       const updatedItem = {
         ...item,
         selectedModifiers: formattedModifiers,
         quantity: item.quantity - 1, // Decrease quantity
         item_id: item.item_id || item.id, // Ensure item_id is set
       };
-
+  
       console.log("[CartScreen] Updated Item (Decrease):", updatedItem);
-
+  
       if (updatedItem.quantity > 0) {
-        addToCart(restaurantId, updatedItem, -1); // -1 represents quantity decrease
+        // 使用 updateQuantity 替代 addToCart 減少數量
+        updateQuantity(restaurantId, item.uniqueId, updatedItem.quantity);
       } else {
         removeFromCart(restaurantId, item.uniqueId); // Remove if quantity is 0
       }
@@ -108,13 +127,24 @@ function CartScreen({ route }) {
   };
 
   const renderCartItem = (item) => {
-    const key = `${item.uniqueId}-${item.selectedModifiers.map(m => `${m.mod_id}-${m.count}`).join('-')}`;
+    const key = item.uniqueId; // 使用唯一ID作為key
     const itemName = item.name || 'Unnamed Item';
-    const itemPrice = item.price || 0;
-    const totalPrice = itemPrice * item.quantity;
-
+    const itemBasePrice = item.price || 0;
+    
+    // 計算修飾符的總價
+    const modifiersTotalPrice = (item.selectedModifiers || []).reduce(
+      (total, modifier) => total + ((modifier.price || 0) / 100) * (modifier.count || 1), 
+      0
+    );
+    
+    // 計算單個商品的總價 (基本價格 + 修飾符價格)
+    const singleItemPrice = itemBasePrice + modifiersTotalPrice;
+    
+    // 計算該商品所有數量的總價
+    const totalPrice = singleItemPrice * item.quantity;
+  
     const modifiers = item.selectedModifiers || [];
-
+  
     return (
       <View style={styles.cartItem} key={key}>
         <Image
@@ -128,7 +158,7 @@ function CartScreen({ route }) {
             <View style={styles.modifiersContainer}>
               {modifiers.map((modifier, index) => (
                 <Text key={index} style={styles.modifierText}>
-                  {language === 'ZH' ? modifier.name : modifier.name} (+${(modifier.price / 100).toFixed(2)})
+                  {language === 'ZH' ? modifier.name : modifier.name} (+${((modifier.price || 0) / 100).toFixed(2)})
                 </Text>
               ))}
             </View>

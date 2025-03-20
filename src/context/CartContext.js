@@ -9,21 +9,75 @@ export const CartProvider = ({ children }) => {
   const syncCartToContext = (restaurantId, fetchedCartItems) => {
     setCartItems((prevState) => {
       const updatedCart = fetchedCartItems.map((item) => {
-        const uniqueId = item.uniqueId || `${restaurantId}-${item.item_id || item.id}`;
+        // 使用服務器返回的hash作為唯一標識的一部分
+        const uniqueId = item.hash 
+          ? `${restaurantId}-${item.item_id}-${item.hash}` 
+          : `${restaurantId}-${item.item_id || item.id}-${
+              item.modifications && item.modifications.length > 0 
+                ? `mods-${item.modifications.map(m => `${m.mod_id}-${m.count || 1}`).sort().join('-')}` 
+                : 'no-modifiers'
+            }`;
+        
+        // 處理修飾符
+        const selectedModifiers = item.modifications?.map(mod => ({
+          mod_id: mod.mod_id || mod.id,
+          mod_group_id: mod.mod_group_id || mod.groupId,
+          name: mod.name || '',
+          price: mod.price || 0, 
+          count: mod.count || 1,
+        })) || [];
+        
+        // 查找是否在舊購物車中已存在相同的商品
+        const existingCartItems = prevState[restaurantId] || [];
+        const existingItem = item.hash 
+          ? existingCartItems.find(oldItem => oldItem.hash === item.hash)
+          : existingCartItems.find(oldItem => oldItem.uniqueId === uniqueId);
+        
+        // 從現有項目獲取更完整的信息，包括修飾符詳細信息和價格
+        let enhancedModifiers = selectedModifiers;
+        let basePrice = item.price || 0;
+        
+        if (existingItem) {
+          // 如果購物車中已有此商品，使用已有的修飾符詳細信息
+          enhancedModifiers = selectedModifiers.map(mod => {
+            // 查找現有商品中對應的修飾符
+            const existingMod = existingItem.selectedModifiers?.find(
+              m => m.mod_id === mod.mod_id
+            );
+            
+            // 如果找到，使用現有的修飾符信息，特別是價格
+            if (existingMod) {
+              return {
+                ...mod,
+                name: existingMod.name || mod.name,
+                price: existingMod.price || mod.price,
+              };
+            }
+            
+            return mod;
+          });
+          
+          // 使用現有商品的基本價格
+          basePrice = existingItem.price || basePrice;
+        }
+        
+        // 計算修飾符的總價格
+        const modifiersPrice = enhancedModifiers.reduce((total, mod) => 
+          total + (mod.price || 0) * (mod.count || 1), 0
+        );
+        
         return {
           ...item,
           uniqueId,
-          name: item.name || 'Unnamed Item',
-          price: item.price || 0,
+          name: item.name || (existingItem ? existingItem.name : 'Unnamed Item'),
+          price: basePrice,
+          // 存儲修飾符總價，以便在UI中顯示
+          modifiersPrice,
+          // 如果顯示時需要包含修飾符價格，可以使用這個計算的總價
+          totalItemPrice: basePrice + modifiersPrice,
           quantity: item.quantity || item.count || 1, 
-          image_url: item.image_url || '',
-          selectedModifiers: item.modifications?.map(mod => ({
-            mod_id: mod.mod_id || mod.id,
-            mod_group_id: mod.mod_group_id || mod.groupId,
-            name: mod.name || '',
-            price: mod.price || 0, 
-            count: mod.count || 1,
-          })) || [], 
+          image_url: item.image_url || (existingItem ? existingItem.image_url : ''),
+          selectedModifiers: enhancedModifiers,
           selectedOption: null,
         };
       });
@@ -31,12 +85,9 @@ export const CartProvider = ({ children }) => {
     });
   };
   
-
   const getCart = (restaurantId) => cartItems[restaurantId] || [];
-
-
   
-  const syncCartToDatabase = async (item, quantity, mode) => {
+  const syncCartToDatabase = async (item, quantity, mode, options = {}) => {
     try {
       console.log(`[CartContext Log] Sync Start - Mode: ${mode}`, { item, quantity });
   
@@ -45,13 +96,12 @@ export const CartProvider = ({ children }) => {
   
       if (!order_id || !accountId) {
         console.error("[CartContext ERROR] Missing order_id or accountId in SecureStore");
-        return;
+        return { success: false, error: "Missing credentials" };
       }
   
-      // For SUBTRACT mode, ensure we're sending a positive count to subtract
-      if (mode === 'SUBTRACT' && quantity <= 0) {
-        console.error("[CartContext ERROR] Quantity must be positive for SUBTRACT");
-        return;
+      if (quantity <= 0) {
+        console.error("[CartContext ERROR] Quantity must be positive");
+        return { success: false, error: "Quantity must be positive" };
       }
   
       const payload = {
@@ -59,7 +109,7 @@ export const CartProvider = ({ children }) => {
         gid: item.gid,
         order_id,
         sub: accountId,
-        count: quantity, // This is the amount to subtract in SUBTRACT mode
+        count: quantity,
         note: item.note || '',
         modifications: item.selectedModifiers?.map((modifier) => ({
           mod_id: modifier.mod_id,
@@ -69,6 +119,33 @@ export const CartProvider = ({ children }) => {
       };
   
       console.log("[CartContext Log] Payload:", JSON.stringify(payload, null, 2));
+  
+      const forceUpdate = options.forceUpdate;
+      const fetchCurrentCount = options.fetchCurrentCount;
+  
+      if (fetchCurrentCount && mode === 'ADD') {
+        try {
+          const apiUrl = `https://dev.whatsdish.com/api/orders/${order_id}/items`;
+          const response = await fetch(apiUrl);
+          const cartData = await response.json();
+          
+          const serverItem = cartData.items?.find(item => 
+            item.item_id === payload.item_id && item.gid === payload.gid
+          );
+          
+          if (serverItem && serverItem.count > quantity && !forceUpdate) {
+            console.log(`[CartContext Log] Server count (${serverItem.count}) is higher than requested (${quantity}). Use SUBTRACT instead.`);
+            return { 
+              success: true, 
+              prev_count: serverItem.count, 
+              new_count: serverItem.count,
+              message: "Cannot decrease count via ADD. Use SUBTRACT instead."
+            };
+          }
+        } catch (error) {
+          console.error("[CartContext ERROR] Failed to fetch current cart:", error);
+        }
+      }
   
       const url = `https://dev.whatsdish.com/api/orders/${order_id}/items/set?mode=${mode}`;
   
@@ -87,16 +164,14 @@ export const CartProvider = ({ children }) => {
       }
   
       console.log("[CartContext Log] API Response:", data);
+      
       return data;
     } catch (error) {
       console.error("[CartContext ERROR] Failed to sync cart to database:", error);
-      throw error;
+      return { success: false, error: error.message };
     }
   };
   
-  
-  
-
   const addToCart = async (restaurantId, item, quantity = 1) => {
     console.log("[CartContext Log] addToCart called with:", { restaurantId, item, quantity });
   
@@ -115,30 +190,96 @@ export const CartProvider = ({ children }) => {
   
     setCartItems((prevState) => {
       const restaurantCart = prevState[restaurantId] || [];
-      const existingItemIndex = restaurantCart.findIndex(cartItem => cartItem.uniqueId === item.uniqueId);
+      
+      // 使用hash或唯一ID查找現有項目
+      const existingItemIndex = item.hash 
+        ? restaurantCart.findIndex(cartItem => cartItem.hash === item.hash)
+        : restaurantCart.findIndex(cartItem => cartItem.uniqueId === item.uniqueId);
+        
       const updatedCart = [...restaurantCart];
   
       if (existingItemIndex >= 0) {
-        // If the item already exists, update its quantity and modifiers
-        updatedCart[existingItemIndex].quantity += quantity;
+        // 如果商品已存在，更新數量和修飾符
+        const newQuantity = updatedCart[existingItemIndex].quantity + quantity;
+        updatedCart[existingItemIndex].quantity = newQuantity;
         updatedCart[existingItemIndex].selectedModifiers = safeModifiers;
-        // Sync the update to the database
-        syncCartToDatabase(updatedCart[existingItemIndex], updatedCart[existingItemIndex].quantity, 'ADD');
+        
+        syncCartToDatabase(updatedCart[existingItemIndex], newQuantity, 'ADD')
+          .then(response => {
+            console.log("[CartContext Log] ADD response:", response);
+            
+            if (response.message && response.message.includes("cannot be decreased")) {
+              console.log("[CartContext Log] API rejected update, current server count:", response.prev_count);
+              
+              setCartItems(prevState => {
+                const cart = [...(prevState[restaurantId] || [])];
+                const itemIndex = cart.findIndex(item => item.uniqueId === updatedCart[existingItemIndex].uniqueId);
+                
+                if (itemIndex >= 0) {
+                  cart[itemIndex] = { ...cart[itemIndex], quantity: response.prev_count };
+                }
+                
+                return { ...prevState, [restaurantId]: cart };
+              });
+            }
+            
+            // 如果API返回了hash，更新本地商品的hash
+            if (response.hash && !updatedCart[existingItemIndex].hash) {
+              setCartItems(prevState => {
+                const cart = [...(prevState[restaurantId] || [])];
+                const itemIndex = cart.findIndex(item => item.uniqueId === updatedCart[existingItemIndex].uniqueId);
+                
+                if (itemIndex >= 0) {
+                  cart[itemIndex] = { 
+                    ...cart[itemIndex], 
+                    hash: response.hash,
+                    uniqueId: `${restaurantId}-${cart[itemIndex].item_id}-${response.hash}`
+                  };
+                }
+                
+                return { ...prevState, [restaurantId]: cart };
+              });
+            }
+          })
+          .catch(error => {
+            console.error("[CartContext ERROR] Failed to add to cart:", error);
+          });
       } else {
-        // If it's a new item, add it to the cart
+        // 如果是新商品，添加到購物車
         updatedCart.push({ ...item, quantity, selectedModifiers: safeModifiers });
-        // Sync the new item to the database
-        syncCartToDatabase(item, quantity, 'ADD');
+        
+        // 同步新商品到數據庫
+        syncCartToDatabase(item, quantity, 'ADD')
+          .then(response => {
+            // 如果API返回了hash，更新本地商品的hash
+            if (response.hash) {
+              setCartItems(prevState => {
+                const cart = [...(prevState[restaurantId] || [])];
+                const newItemIndex = cart.findIndex(cartItem => 
+                  !cartItem.hash && cartItem.item_id === item.item_id && 
+                  JSON.stringify(cartItem.selectedModifiers) === JSON.stringify(safeModifiers)
+                );
+                
+                if (newItemIndex >= 0) {
+                  cart[newItemIndex] = { 
+                    ...cart[newItemIndex], 
+                    hash: response.hash,
+                    uniqueId: `${restaurantId}-${cart[newItemIndex].item_id}-${response.hash}`
+                  };
+                }
+                
+                return { ...prevState, [restaurantId]: cart };
+              });
+            }
+          })
+          .catch(error => {
+            console.error("[CartContext ERROR] Failed to add new item:", error);
+          });
       }
   
       return { ...prevState, [restaurantId]: updatedCart };
     });
-  
-    // Ensure state is updated before continuing
-    await new Promise((resolve) => setTimeout(resolve, 0)); // Wait for state update
   };
-  
-
 
   const removeFromCart = (restaurantId, uniqueId) => {
     console.log("[CartContext Log] removeFromCart called with:", { restaurantId, uniqueId });
@@ -147,77 +288,126 @@ export const CartProvider = ({ children }) => {
       const currentCart = getCart(restaurantId);
       const removedItem = currentCart.find(item => item.uniqueId === uniqueId);
   
-      if (removedItem) {
-        // If the item is found, sync it to the database with 'SUBTRACT' mode
-        // Pass the full quantity to subtract all instances of this item
-        syncCartToDatabase(removedItem, removedItem.quantity, 'SUBTRACT')
-          .then(response => {
-            console.log("[CartContext Log] Item successfully removed:", response);
-          })
-          .catch(error => {
-            console.error("[CartContext ERROR] Failed to remove item:", error);
-          });
-      } else {
+      if (!removedItem) {
         console.error("[CartContext ERROR] Item not found for removal:", uniqueId);
+        return prevState;
       }
   
-      // Remove from local state regardless of API success
       const updatedCart = currentCart.filter(item => item.uniqueId !== uniqueId);
+  
+      const removeAllItems = async () => {
+        try {
+          let remaining = removedItem.quantity;
+          while (remaining > 0) {
+            console.log(`[CartContext Log] Removing item (${removedItem.quantity - remaining + 1}/${removedItem.quantity})`);
+            
+            const response = await syncCartToDatabase(removedItem, 1, 'SUBTRACT');
+            console.log("[CartContext Log] Remove response:", response);
+            
+            if (response.success) {
+              remaining = response.new_count;
+            } else {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+          console.log("[CartContext Log] All items successfully removed");
+        } catch (error) {
+          console.error("[CartContext ERROR] Error during item removal:", error);
+        }
+      };
+      
+      removeAllItems();
+      
       return { ...prevState, [restaurantId]: updatedCart };
     });
   };
-  
-
-
   
   const updateQuantity = (restaurantId, uniqueId, quantity) => {
     console.log("[CartContext Log] updateQuantity called with:", { restaurantId, uniqueId, quantity });
   
-    setCartItems((prevState) => {
-      const currentCart = getCart(restaurantId);
-      const existingItem = currentCart.find(item => item.uniqueId === uniqueId);
+    const currentCart = getCart(restaurantId);
+    const existingItem = currentCart.find(item => item.uniqueId === uniqueId);
+    
+    if (!existingItem) {
+      console.error("[CartContext ERROR] Item not found in cart:", uniqueId);
+      return;
+    }
+  
+    const currentQuantity = existingItem.quantity;
+    
+    let updatedCart;
+    
+    if (quantity <= 0) {
+      updatedCart = currentCart.filter(item => item.uniqueId !== uniqueId);
       
-      if (!existingItem) {
-        console.error("[CartContext ERROR] Item not found in cart:", uniqueId);
-        return prevState;
-      }
-  
-      // Calculate the difference in quantity
-      const currentQuantity = existingItem.quantity;
-      const quantityDifference = Math.abs(quantity - currentQuantity);
-  
-      // If quantity is zero, remove the item
-      if (quantity <= 0) {
-        // Remove item completely
-        const updatedCart = currentCart.filter(item => item.uniqueId !== uniqueId);
-        // Sync to database with the current quantity to subtract all of them
-        syncCartToDatabase(existingItem, existingItem.quantity, 'SUBTRACT');
-        return { ...prevState, [restaurantId]: updatedCart };
-      }
-  
-      // Update the item quantity
-      const updatedCart = currentCart.map((item) => {
-        if (item.uniqueId === uniqueId) {
-          // Determine whether to add or subtract
-          if (quantity > currentQuantity) {
-            // Adding more of the item - send the difference to add
-            syncCartToDatabase(item, quantityDifference, 'ADD');
-          } else if (quantity < currentQuantity) {
-            // Reducing the item quantity - send the difference to subtract
-            syncCartToDatabase(item, quantityDifference, 'SUBTRACT');
+      const removeAllItems = async () => {
+        let remaining = currentQuantity;
+        while (remaining > 0) {
+          const response = await syncCartToDatabase(existingItem, 1, 'SUBTRACT');
+          console.log("[CartContext Log] Remove one item response:", response);
+          
+          if (response.success) {
+            remaining = response.new_count;
+          } else {
+            break;
           }
-          return { ...item, quantity };
         }
-        return item;
-      });
-  
-      return { ...prevState, [restaurantId]: updatedCart };
-    });
+      };
+      
+      removeAllItems();
+    } else if (quantity < currentQuantity) {
+      updatedCart = currentCart.map(item => 
+        item.uniqueId === uniqueId ? { ...item, quantity } : item
+      );
+      
+      const toReduce = currentQuantity - quantity;
+      
+      const reduceQuantity = async () => {
+        for (let i = 0; i < toReduce; i++) {
+          const response = await syncCartToDatabase(existingItem, 1, 'SUBTRACT');
+          console.log(`[CartContext Log] Reduce quantity (${i+1}/${toReduce})`, response);
+          
+          if (!response.success) {
+            break;
+          }
+        }
+      };
+      
+      reduceQuantity();
+    } else if (quantity > currentQuantity) {
+      updatedCart = currentCart.map(item => 
+        item.uniqueId === uniqueId ? { ...item, quantity } : item
+      );
+      
+      syncCartToDatabase(existingItem, quantity, 'ADD', { fetchCurrentCount: true })
+        .then(response => {
+          console.log("[CartContext Log] ADD response:", response);
+          
+          if (response.message && (
+              response.message.includes("cannot be decreased") || 
+              response.message.includes("Use SUBTRACT instead")
+          )) {
+            console.log("[CartContext Log] API rejected update, current server count:", response.prev_count);
+            
+            setCartItems(prevState => {
+              const cart = [...(prevState[restaurantId] || [])];
+              const itemIndex = cart.findIndex(item => item.uniqueId === uniqueId);
+              
+              if (itemIndex >= 0) {
+                cart[itemIndex] = { ...cart[itemIndex], quantity: response.prev_count };
+              }
+              
+              return { ...prevState, [restaurantId]: cart };
+            });
+          }
+        });
+    } else {
+      updatedCart = currentCart;
+    }
+    
+    setCartItems(prevState => ({ ...prevState, [restaurantId]: updatedCart }));
   };
-
-
   
-
   const clearCart = (restaurantId) => {
     console.log("[CartContext Log] clearCart called for restaurantId:", restaurantId);
 
@@ -235,15 +425,27 @@ export const CartProvider = ({ children }) => {
     return totalItems;
   };
 
-  const getTotalPrice = (restaurantId) => {
-    const restaurantCart = cartItems[restaurantId] || [];
-    const totalPrice = restaurantCart.reduce(
-      (total, item) => total + (item.price || 0) * item.quantity,
+// 這個修改建議應該放在CartContext.js中
+const getTotalPrice = (restaurantId) => {
+  const restaurantCart = cartItems[restaurantId] || [];
+  const totalPrice = restaurantCart.reduce((total, item) => {
+    const itemBasePrice = item.price || 0;
+    
+    // 計算修飾符的總價
+    const modifiersTotalPrice = (item.selectedModifiers || []).reduce(
+      (modTotal, modifier) => modTotal + ((modifier.price || 0) / 100) * (modifier.count || 1), 
       0
     );
-    console.log("[CartContext Log] getTotalPrice result:", totalPrice);
-    return totalPrice;
-  };
+    
+    // 一個商品的總價
+    const itemTotalPrice = (itemBasePrice + modifiersTotalPrice) * item.quantity;
+    
+    return total + itemTotalPrice;
+  }, 0);
+  
+  console.log("[CartContext Log] getTotalPrice result:", totalPrice);
+  return totalPrice;
+};
 
   return (
     <CartContext.Provider
