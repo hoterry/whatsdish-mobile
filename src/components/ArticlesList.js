@@ -13,25 +13,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
-const ARTICLE_CARD_HEIGHT = 160; // 固定文章卡片高度
+const ARTICLE_CARD_HEIGHT = 160; 
 
-// 優化的黑白灰色彩系統
 const COLORS = {
-  primary: '#000000',          // 更純的黑色
-  secondary: '#222222',        // 更深黑灰
-  accent: '#444444',           // 中灰
-  highlight: '#666666',        // 亮灰
-  light: '#E0E0E0',            // 淺灰
-  lighter: '#F5F5F5',          // 更淺灰
-  white: '#FFFFFF',            // 純白
-  background: '#FAFAFA',       // 背景色
-  cardBg: '#FFFFFF',           // 卡片背景
-  shadow: 'rgba(0, 0, 0, 0.12)', // 更強陰影
-  accent1: '#1A73E8',          // 藍色強調
+  primary: '#000000',          
+  secondary: '#222222',        
+  accent: '#444444',           
+  highlight: '#666666',       
+  light: '#E0E0E0',          
+  lighter: '#F5F5F5',          
+  white: '#FFFFFF',         
+  background: '#FAFAFA',       
+  cardBg: '#FFFFFF',          
+  shadow: 'rgba(0, 0, 0, 0.12)',
+  accent1: '#1A73E8',       
 };
 
 const ArticlesList = ({ articles, featuredArticles, language, contentType, navigation }) => {
-  // 截斷長文本
+
   const truncateText = (text, maxLength) => {
     if (!text) return '';
     return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
@@ -112,7 +111,6 @@ const ArticlesList = ({ articles, featuredArticles, language, contentType, navig
     </View>
   );
 
-  // 渲染文章列表
   const renderArticleList = () => (
     <View style={styles.articlesSection}>
       <View style={styles.sectionTitleContainer}>
@@ -180,7 +178,6 @@ const ArticlesList = ({ articles, featuredArticles, language, contentType, navig
     </View>
   );
 
-  // 渲染空狀態
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <AntDesign 
@@ -211,7 +208,7 @@ const ArticlesList = ({ articles, featuredArticles, language, contentType, navig
 };
 
 const styles = StyleSheet.create({
-  // 章節標題容器
+
   sectionTitleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -234,14 +231,13 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     marginRight: 4,
   },
-  
-  // 改進空狀態顯示
+
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    marginTop: 100,  // 確保在頁面中部顯示
+    marginTop: 100,  
   },
   emptyText: {
     marginTop: 16,
@@ -249,8 +245,6 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     textAlign: 'center',
   },
-  
-  // 精選文章區域
   featuredSection: {
     marginBottom: 32,
   },

@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
     width: width - 40,
     borderRadius: 8,
     backgroundColor: COLORS.light,
-    overflow: 'hidden',  // 確保滑塊不會超出容器
+    overflow: 'hidden',  
   },
   toggleWrapper: {
     flexDirection: 'row',
@@ -722,8 +722,6 @@ const styles = StyleSheet.create({
   activeToggleText: {
     color: COLORS.white,
   },
-  
-  // 主要內容樣式
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -738,7 +736,6 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     letterSpacing: 0.2,
   },
-  // 改進空狀態顯示
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -778,8 +775,6 @@ const styles = StyleSheet.create({
   selectedCategoryText: {
     color: COLORS.white,
   },
-  
-  // 章節標題容器
   sectionTitleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -901,8 +896,6 @@ const styles = StyleSheet.create({
     color: COLORS.light,
     marginLeft: 6,
   },
-  
-  // 文章列表區域
   articlesSection: {
     paddingHorizontal: 20,
   },

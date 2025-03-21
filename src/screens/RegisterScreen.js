@@ -1,6 +1,5 @@
-import React, { useState } from 'react';  ``
+import React, { useState } from 'react';
 import { TextInput, TouchableOpacity, View, Text, StyleSheet, ScrollView, ActivityIndicator, Image } from 'react-native';
-import { supabase } from '../../supabase'; 
 import { useNavigation } from '@react-navigation/native';
 
 export default function RegisterScreen() {
@@ -13,74 +12,22 @@ export default function RegisterScreen() {
 
   const navigation = useNavigation();
 
-  const checkUserExists = async (email) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('email')
-        .eq('email', email);
-      if (error) {
-        console.error('Error checking user:', error.message);
-        return false;
-      }
-      return data.length > 0;
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      return false;
-    }
-  };
-
   const handleRegister = async () => {
     setLoading(true);
     setErrorMessage('');
 
-    const userExists = await checkUserExists(email);
-    if (userExists) {
-      setErrorMessage('This email is already registered');
-      setLoading(false);
-      return;
-    }
-
+    
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password });
 
-      if (error) {
-        setErrorMessage(error.message);
-        setLoading(false);
-        return;
-      }
+      setTimeout(() => {
 
-      const { user } = data;
-      if (!user?.id) {
-        setErrorMessage('User ID not found during registration');
-        setLoading(false);
-        return;
-      }
-
-      const { error: insertUserError } = await supabase.from('users').insert([
-        {
-          id: user.id,
-          name,
-          phone,
-          email,
-        },
-      ]);
-
-      if (insertUserError) {
-        setErrorMessage(insertUserError.message);
-        setLoading(false);
-        return;
-      }
-
-      if (insertDriverError) {
-        setErrorMessage(insertDriverError.message);
-      } else {
         navigation.navigate('VerificationScreen');
-      }
+        setLoading(false);
+      }, 1500);
+      
     } catch (err) {
       setErrorMessage('Unexpected error during registration');
       console.error('Error during registration:', err);
-    } finally {
       setLoading(false);
     }
   };

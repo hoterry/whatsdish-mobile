@@ -1,7 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { supabase } from '../../supabase'; // Import Supabase instance
-
 
 const OrderStatusScreen = ({ route }) => {
   const { orderData } = route.params;  
@@ -18,32 +16,10 @@ const OrderStatusScreen = ({ route }) => {
     }
   }
 
-  // 确保 items 是数组类型
   if (!Array.isArray(items)) {
     items = []; 
   }
 
-  useEffect(() => {
-    const sendToSupabase = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('orders') 
-          .insert([orderData]);  
-
-        if (error) {
-          throw new Error(error.message);
-        }
-
-        console.log('Order saved to Supabase:', data);
-      } catch (error) {
-        console.error('Error saving order to Supabase:', error);
-      }
-    };
-
-    if (orderData) {
-      sendToSupabase();
-    }
-  }, [orderData]);  
 
   return (
     <ScrollView style={styles.container}>

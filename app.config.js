@@ -19,6 +19,14 @@ export default ({ config }) => {
 
   return {
     ...config,
+    android: {
+      ...config.android,
+      package: "com.whatsdish.app",
+    },
+    ios: {
+      ...config.ios,
+      bundleIdentifier: "com.whatsdish.app",
+    },
     extra: {
       ...config.extra,
       ...env,

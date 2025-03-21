@@ -2,7 +2,6 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { supabase } from '../../supabase'; 
 
 const PlaceOrderButton = ({ orderData, clearCart, language }) => {
   const navigation = useNavigation();
@@ -12,30 +11,11 @@ const PlaceOrderButton = ({ orderData, clearCart, language }) => {
     setLoading(true);
     
     try {
-      const { data, error } = await supabase
-        .from('orders') 
-        .insert([
-          {
-            restaurant_id: orderData.restaurantId,
-            items: orderData.items,
-            total_price: orderData.totalPrice,
-            delivery_method: orderData.deliveryMethod,
-            delivery_option: orderData.deliveryOption,
-            delivery_scheduled_time: orderData.deliveryScheduledTime,
-            pickup_option: orderData.pickupOption,
-            pickup_scheduled_time: orderData.pickupScheduledTime,
-            address: orderData.address,
-            tip: orderData.tip,
-            payment: orderData.payment,
-            order_time: orderData.orderTime,
-          }
-        ]);
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       clearCart();
+
       navigation.navigate('HomeTabs', {
         screen: 'Orders',
         params: { order: orderData },
@@ -46,7 +26,6 @@ const PlaceOrderButton = ({ orderData, clearCart, language }) => {
       setLoading(false);
     }
   };
-
 
   return (
     <View style={styles.buttonContainer}>
