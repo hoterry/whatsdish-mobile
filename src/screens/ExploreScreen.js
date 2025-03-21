@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useCallback } from 'react';
+import React, { useEffect, useState, useContext, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,33 +12,38 @@ import {
   StatusBar,
   Platform,
   SafeAreaView,
-  Animated
+  Animated,
+  SectionList
 } from 'react-native';
 import _ from 'lodash';
 import { LanguageContext } from '../context/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AntDesign, Feather, Ionicons } from '@expo/vector-icons';
+import VideoGridComponent from '../components/VideoGridComponent';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
-const ARTICLE_CARD_HEIGHT = 160; // 固定文章卡片高度
-
-// 設置精選文章的最大數量
+const ARTICLE_CARD_HEIGHT = 160;
 const FEATURED_ARTICLES_COUNT = 3;
+const HEADER_GRADIENT_HEIGHT = 110; // Increased height to account for the additional padding
+const TOGGLE_HEIGHT = 60; // Height of the toggle part that will collapse
+const HEADER_MAX_HEIGHT = HEADER_GRADIENT_HEIGHT + TOGGLE_HEIGHT; // Total header height
+const HEADER_MIN_HEIGHT = HEADER_GRADIENT_HEIGHT; // Minimum height (only the fixed part)
+const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
 
-// 優化的黑白灰色彩系統
+// Color system
 const COLORS = {
-  primary: '#000000',          // 更純的黑色
-  secondary: '#222222',        // 更深黑灰
-  accent: '#444444',           // 中灰
-  highlight: '#666666',        // 亮灰
-  light: '#E0E0E0',            // 淺灰
-  lighter: '#F5F5F5',          // 更淺灰
-  white: '#FFFFFF',            // 純白
-  background: '#FAFAFA',       // 背景色
-  cardBg: '#FFFFFF',           // 卡片背景
-  shadow: 'rgba(0, 0, 0, 0.12)', // 更強陰影
-  accent1: '#1A73E8',          // 藍色強調
+  primary: '#000000',
+  secondary: '#222222',
+  accent: '#444444',
+  highlight: '#666666',
+  light: '#E0E0E0',
+  lighter: '#F5F5F5',
+  white: '#FFFFFF',
+  background: '#FAFAFA',
+  cardBg: '#FFFFFF',
+  shadow: 'rgba(0, 0, 0, 0.12)',
+  accent1: '#1A73E8',
 };
 
 const ExploreScreen = ({ navigation }) => {
@@ -50,18 +55,27 @@ const ExploreScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   
-  // 內容類型切換狀態
-  const [contentType, setContentType] = useState('articles'); // 'articles' 或 'videos'
+  // Content type state
+  const [contentType, setContentType] = useState('articles');
   const slideAnimation = useState(new Animated.Value(0))[0];
+  
+  // Scroll animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+  
+  // Calculate header scroll distance
+  const HEADER_SCROLL_DISTANCE = TOGGLE_HEIGHT;
 
+  // Fetch articles function
   const fetchArticles = useCallback(async () => {
     try {
+      console.log(`Fetching ${contentType === 'videos' ? 'videos' : 'articles'} data...`);
+      
       const response = await fetch(
         'https://origineer.sheetdb.io/api/v1/ij73hup2r94z5?sheet=content'
       );
       let data = await response.json();
       
-      // 添加語言映射
+      // Language mapping
       let mappedLanguage;
       if (language.toUpperCase() === 'EN') {
         mappedLanguage = 'en';
@@ -71,12 +85,74 @@ const ExploreScreen = ({ navigation }) => {
         mappedLanguage = language.toLowerCase();
       }
       
-      // 過濾已發布的文章
-      const filtered = _.filter(data, (item) => {
-        return item.language?.toLowerCase() === mappedLanguage && item.is_published === 'TRUE';
-      });
+      // Process data based on content type
+      let filtered = [];
       
-      // 提取所有類別並去重
+      if (contentType === 'videos') {
+        // Video mode: filter for video type content
+        const videoItems = _.filter(data, (item) => {
+          const isVideo = item.type && item.type.toLowerCase().includes('video');
+          return isVideo;
+        });
+        
+        // Process video data for display
+        filtered = videoItems.map(item => {
+          const videoItem = { ...item };
+          
+          // Handle cover image
+          if (!videoItem.cover_image_url && videoItem.video_url) {
+            if (videoItem.video_url.includes('cloudinary.com')) {
+              videoItem.cover_image_url = videoItem.video_url
+                .replace('/video/upload/', '/video/upload/so_0,w_640,h_360,c_fill,q_80/')
+                .replace('.mp4', '.jpg');
+            } else {
+              videoItem.cover_image_url = 'https://via.placeholder.com/640x360?text=Video';
+            }
+          }
+          
+          // Handle title and excerpt
+          if (!videoItem.title && videoItem.content) {
+            const firstLine = videoItem.content.split('\n')[0];
+            videoItem.title = firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine;
+          }
+          
+          if (!videoItem.excerpt && videoItem.content) {
+            videoItem.excerpt = videoItem.content.length > 120 ? videoItem.content.substring(0, 120) + '...' : videoItem.content;
+          }
+          
+          // Set default read time
+          if (!videoItem.read_time) {
+            videoItem.read_time = '2';
+          }
+          
+          // Add data for video grid layout
+          videoItem.location = videoItem.title;
+          videoItem.author = videoItem.creator || 'user' + Math.floor(Math.random() * 1000);
+          videoItem.likes = Math.floor(Math.random() * 50);
+          videoItem.dislikes = Math.floor(Math.random() * 10);
+          videoItem.view_count = Math.floor(Math.random() * 10000);
+          videoItem.avatar_url = `https://api.dicebear.com/7.x/adventurer/png?seed=${videoItem.author}`;
+          
+          // Extract overlay text
+          if (videoItem.content) {
+            const lines = videoItem.content.split('\n');
+            if (lines.length > 1) {
+              videoItem.overlay_text = lines[1] || '';
+            }
+          }
+          
+          return videoItem;
+        });
+      } else {
+        // Article mode: filter by language and published status
+        filtered = _.filter(data, (item) => {
+          return item.language?.toLowerCase() === mappedLanguage && 
+                 item.is_published === 'TRUE' &&
+                 (!item.type || item.type.toLowerCase() !== 'video');
+        });
+      }
+      
+      // Extract and deduplicate categories
       const allCategories = filtered
         .map(item => item.categories ? item.categories.split(', ') : [])
         .flat()
@@ -84,16 +160,12 @@ const ExploreScreen = ({ navigation }) => {
       const uniqueCategories = ['All', ...new Set(allCategories)];
       setCategories(uniqueCategories);
       
-      // 選取精選文章（按某種標準，這裡選擇最新的幾篇）
+      // Sort by creation date
       const sortedArticles = _.sortBy(filtered, item => -new Date(item.created_at_display || Date.now()));
       
-      // 根據內容類型過濾內容
-      const articlesByType = contentType === 'articles' 
-        ? sortedArticles.filter(item => item.type?.toLowerCase() !== 'video')
-        : sortedArticles.filter(item => item.type?.toLowerCase() === 'video');
+      setFeaturedArticles(sortedArticles.slice(0, FEATURED_ARTICLES_COUNT));
+      setArticles(sortedArticles);
       
-      setFeaturedArticles(articlesByType.slice(0, FEATURED_ARTICLES_COUNT));
-      setArticles(articlesByType);
     } catch (error) {
       console.error('[ExploreScreen Error] Failed to fetch articles:', error);
     } finally {
@@ -111,14 +183,14 @@ const ExploreScreen = ({ navigation }) => {
     fetchArticles();
   }, [fetchArticles]);
 
-  // 內容類型切換處理
+  // Toggle content type
   const toggleContentType = (type) => {
     if (type === contentType) return;
     
     setLoading(true);
     setContentType(type);
     
-    // 動畫效果
+    // Animation effect
     Animated.timing(slideAnimation, {
       toValue: type === 'articles' ? 0 : 1,
       duration: 300,
@@ -126,7 +198,7 @@ const ExploreScreen = ({ navigation }) => {
     }).start();
   };
 
-  // 根據選擇的類別過濾文章
+  // Filter articles by category
   const filteredArticles = selectedCategory === 'All' 
     ? articles 
     : articles.filter(article => {
@@ -134,26 +206,16 @@ const ExploreScreen = ({ navigation }) => {
         return articleCategories.includes(selectedCategory);
       });
 
-  // 根據文章類型返回不同的標籤顏色
-  const getTagColor = (type) => {
-    switch(type?.toLowerCase()) {
-      case 'blog':
-        return [COLORS.secondary, COLORS.accent];
-      case 'video':
-        return [COLORS.accent, COLORS.highlight];
-      default:
-        return [COLORS.primary, COLORS.secondary];
-    }
-  };
-
-  // 截斷長文本
+  // Helper functions
   const truncateText = (text, maxLength) => {
     if (!text) return '';
     return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
   };
 
+  // COMPONENT RENDERERS
   const renderHeader = () => (
     <View style={styles.headerContainer}>
+      {/* Fixed gradient header part that always stays visible */}
       <LinearGradient
         colors={[COLORS.primary, COLORS.secondary]}
         start={{ x: 0, y: 0 }}
@@ -168,8 +230,31 @@ const ExploreScreen = ({ navigation }) => {
         </TouchableOpacity>
       </LinearGradient>
       
-      {/* 企業級內容類型切換按鈕 - 修復對齊問題 */}
-      <View style={styles.toggleOuterContainer}>
+      {/* Collapsible toggle part */}
+      <Animated.View 
+        style={[
+          styles.toggleOuterContainer,
+          {
+            height: scrollY.interpolate({
+              inputRange: [0, TOGGLE_HEIGHT],
+              outputRange: [TOGGLE_HEIGHT, 0],
+              extrapolate: 'clamp',
+            }),
+            opacity: scrollY.interpolate({
+              inputRange: [0, TOGGLE_HEIGHT * 0.6],  // Make opacity fade faster
+              outputRange: [1, 0],
+              extrapolate: 'clamp',
+            }),
+            overflow: 'hidden',
+            borderBottomWidth: scrollY.interpolate({
+              inputRange: [0, TOGGLE_HEIGHT * 0.3],
+              outputRange: [1, 0],  // Remove border when collapsed
+              extrapolate: 'clamp',
+            }),
+            borderBottomColor: COLORS.light,
+          }
+        ]}
+      >
         <View style={styles.toggleContainer}>
           <View style={styles.toggleWrapper}>
             <Animated.View 
@@ -227,7 +312,7 @@ const ExploreScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 
@@ -259,7 +344,82 @@ const ExploreScreen = ({ navigation }) => {
     </ScrollView>
   );
 
-  const renderFeaturedArticles = () => (
+  // PREPARE SECTION DATA
+  const getSectionData = () => {
+    if (loading) {
+      return [
+        {
+          title: 'loading',
+          data: [{ type: 'loading' }]
+        }
+      ];
+    }
+    
+    if (articles.length === 0) {
+      return [
+        {
+          title: 'empty',
+          data: [{ type: 'empty' }]
+        }
+      ];
+    }
+    
+    let sections = [
+      {
+        title: 'categories',
+        data: [{ type: 'categories' }]
+      }
+    ];
+    
+    // Only add featured section for articles, not for videos
+    if (contentType === 'articles') {
+      sections.push({
+        title: 'featured',
+        data: [{ type: 'featured' }]
+      });
+    }
+    
+    if (contentType === 'videos') {
+      sections.push({
+        title: 'videoGrid',
+        data: [{ type: 'videoGrid', videos: filteredArticles }]
+      });
+    } else {
+      sections.push({
+        title: 'articles',
+        data: [{ type: 'articles' }]
+      });
+    }
+    
+    return sections;
+  };
+
+  // SECTION RENDERERS
+  const renderLoading = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color={COLORS.primary} />
+      <Text style={styles.loadingText}>
+        {language.toUpperCase() === 'EN' ? 'Loading content...' : '正在加載內容...'}
+      </Text>
+    </View>
+  );
+  
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <AntDesign 
+        name={contentType === 'articles' ? "file1" : "videocamera"} 
+        size={60} 
+        color={COLORS.accent} 
+      />
+      <Text style={styles.emptyText}>
+        {contentType === 'articles'
+          ? (language.toUpperCase() === 'EN' ? 'No articles available' : '暫無可用文章')
+          : (language.toUpperCase() === 'EN' ? 'No videos available' : '暫無可用視頻')}
+      </Text>
+    </View>
+  );
+  
+  const renderFeatured = () => (
     <View style={styles.featuredSection}>
       <View style={styles.sectionTitleContainer}>
         <Text style={styles.sectionTitle}>
@@ -279,67 +439,78 @@ const ExploreScreen = ({ navigation }) => {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.featuredScrollContainer}
+        nestedScrollEnabled={true}
       >
-        {featuredArticles.map((article, index) => (
-          <TouchableOpacity 
-            key={index}
-            style={styles.featuredCard}
-            onPress={() => navigation && navigation.navigate('ArticleDetail', { article })}
-          >
-            <View style={styles.featuredImageContainer}>
-              <Image
-                source={{ uri: article.cover_image_url || 'https://via.placeholder.com/300' }}
-                style={styles.featuredImage}
-                resizeMode="cover"
-              />
-              {contentType === 'videos' && (
-                <View style={styles.playIconOverlay}>
-                  <View style={styles.playIconCircle}>
-                    <AntDesign name="play" size={26} color={COLORS.white} />
+        {featuredArticles.length > 0 ? (
+          featuredArticles.map((article, index) => (
+            <TouchableOpacity 
+              key={index}
+              style={styles.featuredCard}
+              onPress={() => {
+                navigation && navigation.navigate('ArticleDetail', { article });
+              }}
+            >
+              <View style={styles.featuredImageContainer}>
+                <Image
+                  source={{ uri: article.cover_image_url || 'https://via.placeholder.com/640x360?text=Preview' }}
+                  style={styles.featuredImage}
+                  resizeMode="cover"
+                />
+                {contentType === 'videos' && (
+                  <View style={styles.playIconOverlay}>
+                    <View style={styles.playIconCircle}>
+                      <AntDesign name="play" size={26} color={COLORS.white} />
+                    </View>
                   </View>
-                </View>
-              )}
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.85)']}
-                style={styles.featuredGradient}
-              />
-              <View style={styles.featuredContent}>
-                <View style={styles.tagContainer}>
-                  <View style={styles.tag}>
-                    <Text style={styles.tagText}>{article.type || 'Article'}</Text>
+                )}
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.85)']}
+                  style={styles.featuredGradient}
+                />
+                <View style={styles.featuredContent}>
+                  <View style={styles.tagContainer}>
+                    <View style={styles.tag}>
+                      <Text style={styles.tagText}>{article.type || (contentType === 'videos' ? 'Video' : 'Article')}</Text>
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.featuredTitle}>{article.title}</Text>
-                <Text style={styles.featuredExcerpt}>{truncateText(article.excerpt, 100)}</Text>
-                <View style={styles.featuredMeta}>
-                  <View style={styles.metaItem}>
-                    <AntDesign name="clockcircleo" size={14} color={COLORS.light} />
-                    <Text style={styles.metaText}>
-                      {article.read_time || '5'} {language.toUpperCase() === 'EN' ? 'min' : '分鐘'}
-                    </Text>
-                  </View>
-                  <View style={styles.metaItem}>
-                    <AntDesign name="calendar" size={14} color={COLORS.light} />
-                    <Text style={styles.metaText}>
-                      {article.created_at_display || '2025-03-20'}
-                    </Text>
+                  <Text style={styles.featuredTitle}>{article.title || '無標題'}</Text>
+                  <Text style={styles.featuredExcerpt}>{truncateText(article.excerpt || article.content, 100)}</Text>
+                  <View style={styles.featuredMeta}>
+                    <View style={styles.metaItem}>
+                      <AntDesign name={contentType === 'videos' ? "videocamera" : "clockcircleo"} size={14} color={COLORS.light} />
+                      <Text style={styles.metaText}>
+                        {article.read_time || (contentType === 'videos' ? '2' : '5')} {language.toUpperCase() === 'EN' ? 'min' : '分鐘'}
+                      </Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <AntDesign name="calendar" size={14} color={COLORS.light} />
+                      <Text style={styles.metaText}>
+                        {article.created_at_display || '2025-03-21'}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View style={styles.noFeaturedContent}>
+            <Text style={styles.noFeaturedText}>
+              {contentType === 'articles'
+                ? (language.toUpperCase() === 'EN' ? 'No featured articles' : '暫無精選文章')
+                : (language.toUpperCase() === 'EN' ? 'No featured videos' : '暫無精選視頻')}
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
-
+  
   const renderArticleList = () => (
     <View style={styles.articlesSection}>
       <View style={styles.sectionTitleContainer}>
         <Text style={styles.sectionTitle}>
-          {contentType === 'articles'
-            ? (language.toUpperCase() === 'EN' ? 'Latest Articles' : '最新文章')
-            : (language.toUpperCase() === 'EN' ? 'Latest Videos' : '最新視頻')}
+          {language.toUpperCase() === 'EN' ? 'Latest Articles' : '最新文章'}
         </Text>
       </View>
       {filteredArticles.map((article, index) => (
@@ -357,8 +528,8 @@ const ExploreScreen = ({ navigation }) => {
                 <Text style={styles.articleTags} numberOfLines={1}>{article.tags}</Text>
               )}
             </View>
-            <Text style={styles.articleTitle} numberOfLines={2}>{article.title}</Text>
-            <Text style={styles.articleExcerpt} numberOfLines={2}>{truncateText(article.excerpt, 120)}</Text>
+            <Text style={styles.articleTitle} numberOfLines={2}>{article.title || '無標題'}</Text>
+            <Text style={styles.articleExcerpt} numberOfLines={2}>{truncateText(article.excerpt || article.content, 120)}</Text>
             
             <View style={styles.articleFooter}>
               <View style={styles.articleMeta}>
@@ -372,9 +543,7 @@ const ExploreScreen = ({ navigation }) => {
               
               <View style={styles.readMoreButton}>
                 <Text style={styles.readMoreText}>
-                  {contentType === 'articles'
-                    ? (language.toUpperCase() === 'EN' ? 'Read more' : '繼續閱讀')
-                    : (language.toUpperCase() === 'EN' ? 'Watch now' : '立即觀看')}
+                  {language.toUpperCase() === 'EN' ? 'Read more' : '繼續閱讀'}
                 </Text>
                 <AntDesign name="arrowright" size={16} color={COLORS.accent1} />
               </View>
@@ -382,48 +551,69 @@ const ExploreScreen = ({ navigation }) => {
           </View>
           
           <View style={styles.articleImageWrapper}>
-            {article.cover_image_url && (
-              <Image
-                source={{ uri: article.cover_image_url }}
-                style={styles.articleImage}
-                resizeMode="cover"
-              />
-            )}
-            {contentType === 'videos' && (
-              <View style={styles.smallPlayIcon}>
-                <AntDesign name="playcircleo" size={26} color={COLORS.white} />
-              </View>
-            )}
+            <Image
+              source={{ uri: article.cover_image_url || 'https://via.placeholder.com/640x360?text=Preview' }}
+              style={styles.articleImage}
+              resizeMode="cover"
+            />
           </View>
         </TouchableOpacity>
       ))}
     </View>
   );
 
-  // 改進空狀態顯示
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <AntDesign 
-        name={contentType === 'articles' ? "file1" : "videocamera"} 
-        size={60} 
-        color={COLORS.accent} 
-      />
-      <Text style={styles.emptyText}>
-        {contentType === 'articles'
-          ? (language.toUpperCase() === 'EN' ? 'No articles available' : '暫無可用文章')
-          : (language.toUpperCase() === 'EN' ? 'No videos available' : '暫無可用視頻')}
-      </Text>
-    </View>
+  // RENDER THE SECTION LIST
+  const renderSection = ({ section, item }) => {
+    if (section.title === 'loading') {
+      return renderLoading();
+    } else if (section.title === 'empty') {
+      return renderEmpty();
+    } else if (section.title === 'categories') {
+      return renderCategoryTabs();
+    } else if (section.title === 'featured') {
+      // Only render featured section for articles
+      if (contentType === 'articles') {
+        return renderFeatured();
+      }
+      return null;
+    } else if (section.title === 'videoGrid') {
+      return (
+        <VideoGridComponent 
+          videos={item.videos} 
+          navigation={navigation}
+          language={language}
+        />
+      );
+    } else if (section.title === 'articles') {
+      return renderArticleList();
+    }
+    return null;
+  };
+
+  // Handle scroll events to animate header
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: false }
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={[styles.safeArea, { paddingTop: 0 }]}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      
+      {/* Render header outside of the SectionList */}
       {renderHeader()}
       
-      <ScrollView
-        contentContainerStyle={styles.container}
+      <SectionList
+        sections={getSectionData()}
+        keyExtractor={(item, index) => String(index)}
+        renderItem={({ section, item }) => renderSection({ section, item })}
+        renderSectionHeader={() => null}
+        contentContainerStyle={[
+          styles.container,
+          { paddingTop: 0 } // Remove top padding as the header is outside
+        ]}
         showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
@@ -432,27 +622,13 @@ const ExploreScreen = ({ navigation }) => {
             tintColor={COLORS.primary}
           />
         }
-      >
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>
-              {language.toUpperCase() === 'EN' ? 'Loading content...' : '正在加載內容...'}
-            </Text>
-          </View>
-        ) : articles.length > 0 ? (
-          <>
-            {renderCategoryTabs()}
-            {renderFeaturedArticles()}
-            {renderArticleList()}
-          </>
-        ) : (
-          renderEmptyState()
-        )}
-      </ScrollView>
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      />
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -470,6 +646,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+    zIndex: 10,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.white, // Ensure background is consistent
   },
   headerGradient: {
     flexDirection: 'row',
@@ -477,6 +659,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 18,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30, // Add more padding at the top to move header down
   },
   headerTitle: {
     fontSize: 26,
@@ -487,13 +670,14 @@ const styles = StyleSheet.create({
   searchButton: {
     padding: 8,
   },
-  
-  // 修復Toggle對齊問題
+
   toggleOuterContainer: {
     backgroundColor: COLORS.white,
-    paddingVertical: 14,
+    paddingVertical: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.light,
   },
   toggleContainer: {
     width: width - 40,
@@ -546,6 +730,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     minHeight: 300,
+    marginTop: HEADER_GRADIENT_HEIGHT, // Add margin for fixed header only
   },
   loadingText: {
     marginTop: 16,
@@ -559,7 +744,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    marginTop: 100,  // 確保在頁面中部顯示
+    marginTop: 100 + HEADER_GRADIENT_HEIGHT,  // Add fixed header height only
   },
   emptyText: {
     marginTop: 16,
@@ -570,6 +755,7 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     paddingHorizontal: 20,
     paddingVertical: 18,
+    marginTop: HEADER_GRADIENT_HEIGHT, // Add margin to account for fixed header only
   },
   categoryTab: {
     paddingHorizontal: 18,
@@ -819,6 +1005,20 @@ const styles = StyleSheet.create({
     right: 6,
     bottom: 6,
   },
+  // For no featured content
+  noFeaturedContent: {
+    width: CARD_WIDTH,
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.lighter,
+    borderRadius: 14,
+    marginRight: 12,
+  },
+  noFeaturedText: {
+    fontSize: 16,
+    color: COLORS.accent,
+  }
 });
 
 export default ExploreScreen;

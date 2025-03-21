@@ -21,7 +21,7 @@ import ExploreScreen from './src/screens/ExploreScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import HistoryDetailScreen from './src/screens/HistoryDetail';
 import ArticleDetail from './src/components/ArticleDetail';
-
+import VideoDetailScreen from './src/components/VideoDetailScreen';
 
 // Context Providers
 import { CartProvider } from './src/context/CartContext';
@@ -98,6 +98,9 @@ function AppStack({ setIsAuthenticated }) {
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ headerShown: false }} />
       <Stack.Screen name="HistoryDetail" component={HistoryDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ArticleDetail" component={ArticleDetail} options={{ headerShown: false }} />
+      <Stack.Screen name="VideoDetailScreen" component={VideoDetailScreen} options={{  headerShown: false }} />
+
+
     </Stack.Navigator>
   );
 }

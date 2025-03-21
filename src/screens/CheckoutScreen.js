@@ -132,37 +132,61 @@ function CheckoutScreen({ route }) {
       try {
         const ipResponse = await fetch("https://checkip.amazonaws.com/");
         const clientIp = (await ipResponse.text()).trim();
-
+      
+        // 🔐 讀取 token
+        const token = await SecureStore.getItemAsync('token');
+        if (!token) throw new Error('No token found in SecureStore');
+      
         console.log('==================== ORDER DETAILS ====================');
         console.log(`[Check Out Screen Log] ORDER ID: ${orderId}`);
         console.log(`[Check Out Screen Log] API URL: https://dev.whatsdish.com/api/orders/${orderId}/payment`);
         console.log('[Check Out Screen Log] API METHOD: POST');
         console.log('[Check Out Screen Log] API HEADERS:', JSON.stringify({
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         }, null, 2));
-        
+      
         const requestBody = {
           ip: clientIp,
         };
         console.log('[Check Out Screen Log] API REQUEST BODY:', JSON.stringify(requestBody, null, 2));
         console.log('======================================================');
-        
+      
         const placeOrderResponse = await fetch(`https://dev.whatsdish.com/api/orders/${orderId}/payment`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(requestBody)
         });
-        
+      
         if (!placeOrderResponse.ok) {
           throw new Error('Failed to process payment');
         }
-        
+      
         const responseData = await placeOrderResponse.json();
+        console.log('[Check Out Screen Log] API RESPONSE DATA:', responseData);
+        const paymentMeta = responseData?.result?.payment_meta;
 
+if (paymentMeta) {
+  console.log('==================== CREDIT CARD INFO ====================');
+  console.log('Card Type:', paymentMeta.CardType);
+  console.log('Auth Code:', paymentMeta.AuthCode);
+  console.log('Reference Number:', paymentMeta.ReferenceNum);
+  console.log('Response Code:', paymentMeta.ResponseCode);
+  console.log('Transaction Amount:', paymentMeta.TransAmount);
+  console.log('Transaction ID:', paymentMeta.TransID);
+  console.log('Message:', paymentMeta.Message);
+  console.log('==========================================================');
+} else {
+  console.warn('[Check Out Screen Log] No payment_meta found in response');
+}
+
+
+      
         clearCart();
-        
+      
         navigation.navigate('HistoryDetail', { 
           order: {
             ...orderData,
@@ -171,7 +195,7 @@ function CheckoutScreen({ route }) {
           restaurantId, 
           restaurants 
         });
-        
+      
       } catch (error) {
         console.error('[Check Out Screen Log] API call failed:', error);
         Alert.alert(
@@ -180,6 +204,7 @@ function CheckoutScreen({ route }) {
           [{ text: 'OK' }]
         );
       }
+      
     } catch (error) {
       console.error('[Check Out Screen Log] Order processing error:', error);
     } finally {
