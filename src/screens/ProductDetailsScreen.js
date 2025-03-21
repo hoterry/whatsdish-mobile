@@ -7,28 +7,30 @@ import { LanguageContext } from '../context/LanguageContext';
 const ProductDetailScreen = ({ route, navigation }) => {
   const { menuItem, restaurantId, restaurants } = route.params;
   const { addToCart } = useCart();
-  const [selectedOption, setSelectedOption] = useState(null);
   const [selectedModifiers, setSelectedModifiers] = useState([]);
+  const [selectedVariant, setSelectedVariant] = useState(null);
   const [note, setNote] = useState('');
   const { language } = useContext(LanguageContext);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const options = menuItem.option_groups
-    ? menuItem.option_groups.flatMap(group =>
-        group.options.map(option => {
-          const name = language === 'ZH' && option.name_zh ? option.name : option.name;
-          if (__DEV__) {
-            console.log(`[Product Detail Screen Log] Option name for language ${language}:`, name);
-          }
-          return {
-            id: option.id,
-            name: name,
-            price: option.price,
-            groupId: group.id 
-          };
-        })
-      )
-    : [];
+  const variants = menuItem.items || [];
+  const hasVariants = variants.length > 0 && menuItem.variant_group;
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.log("[VARIANT DEBUG] variant_group:", menuItem.variant_group);
+      if (menuItem.variant_group) {
+        console.log("[VARIANT DEBUG] variant_group.id:", menuItem.variant_group.id);
+      }
+      console.log("[VARIANT DEBUG] variants:", variants);
+
+      if (variants.length > 0) {
+        console.log("[VARIANT DEBUG] First variant:", variants[0]);
+        console.log("[VARIANT DEBUG] First variant id:", variants[0].id);
+        console.log("[VARIANT DEBUG] First variant gid (if exists):", variants[0].gid);
+      }
+    }
+  }, [menuItem]);
 
   const modifiers = (menuItem.modifier_groups || []).flatMap(group =>
     group.modifiers
@@ -44,48 +46,51 @@ const ProductDetailScreen = ({ route, navigation }) => {
         })
       : []
   );
-    
+
   useEffect(() => {
     if (__DEV__) {
-      console.log("[Product Detail Screen Log] Options available in Product detail Screen:", options);
-      console.log("[Product Detail Screen Log] Modifiers available in Product detail Screen:", modifiers);
+      console.log("[Product Detail Screen Log] Modifiers available:", modifiers);
+      console.log("[Product Detail Screen Log] Variants available:", variants);
     }
-  }, []); 
-  
-  useEffect(() => {
 
-    if (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) {
-      menuItem.modifier_groups.forEach((group, index) => {
-        if (__DEV__) {
-          console.log(`[Product Detail Screen Log] Modifier Group in Product detail Screen ${index + 1}:`, group.modifiers);
-        }
-      });
+    if (hasVariants && variants.length > 0 && !selectedVariant) {
+      setSelectedVariant(variants[0]);
     }
-  }, [menuItem]);  
+  }, [menuItem]); 
 
-  const basePrice = menuItem.fee_in_cents ? menuItem.fee_in_cents / 100 : 0;
-  const optionPrice = selectedOption ? (selectedOption.price ? selectedOption.price / 100 : 0) : 0;
+  const getBasePrice = () => {
+    if (selectedVariant) {
+      return selectedVariant.fee_in_cents / 100;
+    }
+    return menuItem.fee_in_cents ? menuItem.fee_in_cents / 100 : 0;
+  };
+
+  const basePrice = getBasePrice();
   const totalModifiersPrice = selectedModifiers.reduce(
     (total, modifier) => total + (modifier.price / 100),
     0
   );
-  const currentPrice = basePrice + optionPrice + totalModifiersPrice;
+  const currentPrice = basePrice + totalModifiersPrice;
 
   const handleAddToCart = () => {
     if (__DEV__) {
       console.log("[Product Detail Screen Log] Handling Add to Cart...");
     }
-
+  
+    if (hasVariants && !selectedVariant) {
+      setErrorMessage(language === 'ZH' ? '請選擇規格' : 'Please select a size');
+      Alert.alert(
+        language === 'ZH' ? '選項不完整' : 'Incomplete Selection',
+        language === 'ZH' ? '請選擇規格' : 'Please select a size'
+      );
+      return;
+    }
+  
     let unmetRequirements = false;
-    
     if (menuItem.modifier_groups) {
       unmetRequirements = menuItem.modifier_groups.some(group => {
         if (!group.minRequired || group.minRequired <= 0) return false;
-
-        const selectedInGroup = selectedModifiers.filter(mod => 
-          mod.groupId === group.id
-        ).length;
-        
+        const selectedInGroup = selectedModifiers.filter(mod => mod.groupId === group.id).length;
         return selectedInGroup < group.minRequired;
       });
     }
@@ -100,13 +105,11 @@ const ProductDetailScreen = ({ route, navigation }) => {
     }
   
     setErrorMessage('');
-    const selectedOptionId = selectedOption ? selectedOption.id : 'no-option';
-    const selectedOptionName = selectedOption ? selectedOption.name : undefined;
-  
+    const selectedVariantId = selectedVariant ? selectedVariant.id : 'no-variant';
     const selectedModifiersIds = selectedModifiers.length > 0
       ? selectedModifiers.map(m => m.id).join('-')
       : 'no-modifiers';
-
+  
     const formattedModifiers = selectedModifiers.map((modifier) => ({
       mod_id: modifier.id,
       mod_group_id: modifier.groupId,
@@ -115,42 +118,43 @@ const ProductDetailScreen = ({ route, navigation }) => {
       count: 1,
     }));
   
-    const itemWithOptionAndModifiers = {
-      ...menuItem,
-      selectedOption: selectedOption ? { ...selectedOption, name: selectedOptionName } : null,
+    const itemWithOptionsAndVariants = {
+      ...(selectedVariant || menuItem),
+      gid: selectedVariant?.gid || menuItem.gid || restaurantId,
       selectedModifiers: formattedModifiers,
+      selectedVariant: selectedVariant ? {
+        id: selectedVariant.id,
+        name: selectedVariant.name,
+        price: selectedVariant.fee_in_cents / 100
+      } : null,
       price: currentPrice,
-      uniqueId: `${menuItem.id}-${selectedOptionId}-${selectedModifiersIds}-${Date.now()}`,
-      note: note, 
+      uniqueId: `${(selectedVariant || menuItem).id}-${selectedModifiersIds}-${Date.now()}`,
+      note: note,
     };
   
-    if (__DEV__) {
-      console.log("[Product Detail Screen Log] Item added to cart:", itemWithOptionAndModifiers);
-    }
+    // 🛠️ 在這裡檢查 `gid` 是否存在
+    console.log("[DEBUG] gid:", itemWithOptionsAndVariants.gid);
+    console.log("[DEBUG] Complete Item Data:", itemWithOptionsAndVariants);
   
-    console.log("[DEBUG] Calling addToCart with:", restaurantId, itemWithOptionAndModifiers);
-    addToCart(restaurantId, itemWithOptionAndModifiers, 1);
+    addToCart(restaurantId, itemWithOptionsAndVariants, 1);
     navigation.goBack();
   };
   
+
   const toggleModifier = (modifier, group) => {
     if (__DEV__) {
-      console.log("[Product Detail Screen Log] Toggling modifier in Product detail Screen:", modifier);
+      console.log("[Product Detail Screen Log] Toggling modifier:", modifier);
     }
-    
+
     setSelectedModifiers((prevModifiers) => {
-
       const isAlreadySelected = prevModifiers.some(m => m.id === modifier.id);
-      
-      if (isAlreadySelected) {
 
+      if (isAlreadySelected) {
         return prevModifiers.filter(m => m.id !== modifier.id);
       } else {
-
         const selectedInGroup = prevModifiers.filter(m => m.groupId === group.id).length;
 
         if (group.maxAllowed && selectedInGroup >= group.maxAllowed) {
-
           const oldestInGroup = prevModifiers.find(m => m.groupId === group.id);
 
           if (oldestInGroup) {
@@ -163,7 +167,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
       }
     });
   };
-  
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <View style={styles.backButtonContainer}>
@@ -173,30 +177,39 @@ const ProductDetailScreen = ({ route, navigation }) => {
       </View>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Image 
-          source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }} 
+          source={{ uri: (selectedVariant || menuItem).image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }} 
           style={styles.largeImage} 
         />
-        <Text style={styles.name}>{language === 'ZH' ? menuItem.name : menuItem.name}</Text>
-        <Text style={styles.description}>{language === 'ZH' ? menuItem.description : menuItem.description}</Text>
+        <Text style={styles.name}>{language === 'ZH' ? (selectedVariant || menuItem).name : (selectedVariant || menuItem).name}</Text>
+        <Text style={styles.description}>{language === 'ZH' ? (selectedVariant || menuItem).description : (selectedVariant || menuItem).description}</Text>
         <Text style={styles.price}>${currentPrice.toFixed(2)}</Text>
         <View style={styles.separator} />
 
         {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
-        {options.length > 0 && (
-          <View style={styles.optionsContainer}>
-            <Text style={styles.optionsTitle}>{language === 'ZH' ? '选择大小' : 'Select Size'}:</Text>
-            {options.map((option) => (
+        {hasVariants && (
+          <View style={styles.variantsContainer}>
+            <Text style={styles.variantsTitle}>
+              {language === 'ZH' ? '選擇規格' : 'Select Size'}:
+            </Text>
+            {variants.map((variant) => (
               <TouchableOpacity
-                key={option.id}
-                style={[styles.optionRow, selectedOption?.id === option.id && styles.selectedOption]}
-                onPress={() => {
-                  console.log("Option selected:", option);
-                  setSelectedOption(option);
-                }}
+                key={variant.id}
+                style={[
+                  styles.optionRow,
+                  selectedVariant?.id === variant.id && styles.selectedOption
+                ]}
+                onPress={() => setSelectedVariant(variant)}
               >
-                <Text style={styles.optionText}>{option.name} (${option.price.toFixed(2)})</Text>
-                <View style={[styles.radioButton, selectedOption?.id === option.id && styles.selectedRadio]} />
+                <Text style={styles.optionText}>
+                  {variant.name} (${(variant.fee_in_cents / 100).toFixed(2)})
+                </Text>
+                <View 
+                  style={[
+                    styles.radioButton,
+                    selectedVariant?.id === variant.id && styles.selectedRadio
+                  ]} 
+                />
               </TouchableOpacity>
             ))}
           </View>
@@ -252,7 +265,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
             ))}
           </View>
         )}
-        
+
         <Text style={styles.specialInstructionTitle}>Special Instruction</Text>
         <TextInput
           style={styles.noteInput}
@@ -277,6 +290,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
     </KeyboardAvoidingView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -422,8 +436,21 @@ const styles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
     marginBottom: 10,
-  }
-  
+  },
+  variantsContainer: {
+    marginBottom: 20,
+  },
+  variantsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  errorMessage: {
+    color: 'red',
+    fontSize: 16,
+    marginVertical: 10,
+    textAlign: 'center',
+  },
 
 });
 

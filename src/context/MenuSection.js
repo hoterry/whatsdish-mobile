@@ -17,22 +17,101 @@ const MenuSection = ({ restaurantId, restaurants }) => {
   const [menu, setMenu] = useState([]);
   const [groupedMenu, setGroupedMenu] = useState([]);
   const [categoryHeights, setCategoryHeights] = useState([]);
+  const [categoryItemWidths, setCategoryItemWidths] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [loading, setLoading] = useState(true); // Track loading state
-  const [menuLoaded, setMenuLoaded] = useState(false); // Track if menu data is loaded
+  const [loading, setLoading] = useState(true);
+  const [menuLoaded, setMenuLoaded] = useState(false);
   const navigation = useNavigation();
   const flatListRef = useRef();
   const categoryListRef = useRef();
   const { addToCart, getTotalItems, syncCartToContext, cartItems } = useCart();
   const { language } = useContext(LanguageContext);
-  const { handleScroll, handleCategoryClick } = ScrollHandler({
-    groupedMenu,
-    categoryHeights,
-    setSelectedCategory,
-    categoryListRef,
-    flatListRef,
-  });
+  const [isCategoryClicking, setIsCategoryClicking] = useState(false);
 
+  
+  // Custom category click handler to replace the one from ScrollHandler
+  const handleCustomCategoryClick = (categoryName, index) => {
+    setSelectedCategory(categoryName);
+    
+    // Calculate scroll position for horizontal category list
+    if (categoryListRef.current) {
+      // Calculate offset based on measured widths
+      let offsetToCenter = 0;
+      for (let i = 0; i < index; i++) {
+        offsetToCenter += categoryItemWidths[i] || 80; // Use default if width not measured yet
+      }
+      
+      // Add half of the current item width to center it
+      const currentItemWidth = categoryItemWidths[index] || 80;
+      const screenCenter = width / 2;
+      const scrollPosition = Math.max(0, offsetToCenter - screenCenter + currentItemWidth / 2);
+      
+      categoryListRef.current.scrollTo({ 
+        x: scrollPosition, 
+        animated: true 
+      });
+    }
+    
+    // Scroll FlatList to the selected category
+    if (flatListRef.current) {
+      try {
+        flatListRef.current.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0,
+        });
+      } catch (error) {
+        // Fallback for "index out of bounds" errors
+        console.warn("[Menu Section Warning] Scroll error:", error);
+        
+        // Alternative approach: calculate offset and use scrollToOffset
+        let offset = 0;
+        for (let i = 0; i < index; i++) {
+          offset += categoryHeights[i] || 0;
+        }
+        
+        flatListRef.current.scrollToOffset({
+          offset,
+          animated: true
+        });
+      }
+    }
+  };
+  
+  // Custom scroll handler for FlatList
+  const handleCustomScroll = (event) => {
+    if (isCategoryClicking || !categoryHeights.length || categoryHeights.includes(0)) return;
+  
+    const y = event.nativeEvent.contentOffset.y;
+    let totalHeight = 0;
+  
+    for (let i = 0; i < categoryHeights.length; i++) {
+      totalHeight += categoryHeights[i];
+      if (y < totalHeight) {
+        if (selectedCategory !== groupedMenu[i].category_name) {
+          setSelectedCategory(groupedMenu[i].category_name);
+  
+          if (categoryListRef.current) {
+            let offsetToCenter = 0;
+            for (let j = 0; j < i; j++) {
+              offsetToCenter += categoryItemWidths[j] || 80;
+            }
+  
+            const currentItemWidth = categoryItemWidths[i] || 80;
+            const screenCenter = width / 2;
+            const scrollPosition = Math.max(0, offsetToCenter - screenCenter + currentItemWidth / 2);
+  
+            categoryListRef.current.scrollTo({ 
+              x: scrollPosition, 
+              animated: true 
+            });
+          }
+        }
+        break;
+      }
+    }
+  };
+  
   const handleDataFetched = (data) => {
     if (!data || !data.categories || !data.groupedItems) {
       console.error('[Menu Section Error] Invalid data received:', data);
@@ -47,19 +126,50 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     const categories = data.categories;
     const groupedItems = data.groupedItems;
 
-    const groupedItemsMap = new Map(groupedItems.map(item => [item.id, item]));
+    // Create a map to group items by variant_group
+    const variantGroups = new Map();
+    
+    // First, identify all variant groups
+    groupedItems.forEach(item => {
+      if (item.variant_group && item.variant_group !== '') {
+        if (!variantGroups.has(item.variant_group)) {
+          variantGroups.set(item.variant_group, []);
+        }
+        variantGroups.get(item.variant_group).push(item);
+      }
+    });
+    
+    // Create a map with deduplicated items
+    const dedupedItemsMap = new Map();
+    
+    groupedItems.forEach(item => {
+      // If this is a variant but not the parent item, skip it
+      if (item.variant_group && item.variant_group !== '' && item.is_variant) {
+        return;
+      }
+      
+      // Add non-variant items or parent variant items to the map
+      dedupedItemsMap.set(item.id, item);
+    });
+    
+    // Create the grouped menu with deduplicated items
+    const groupedItemsMap = dedupedItemsMap;
 
     const grouped = categories.map(category => ({
       category_name: category.name,
       category_name_zh: category.name || category.name,
       items: category.items
         .map(item => groupedItemsMap.get(item.id))
-        .filter(item => item),
+        .filter(item => item), // Remove nulls and undefineds
     }));
 
     setGroupedMenu(grouped);
-    setMenu(data.groupedItems);
+    setMenu(data.groupedItems); // Keep the full menu with all variants for reference
     setMenuLoaded(true); // Mark menu data as loaded
+    
+    // Initialize arrays to track heights and widths
+    setCategoryHeights(new Array(grouped.length).fill(0));
+    setCategoryItemWidths(new Array(grouped.length).fill(0));
   };
 
   const handleCartFetched = (fetchedCartItems) => {
@@ -87,10 +197,18 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     if (groupedMenu.length > 0) {
       const firstCategory = groupedMenu[0].category_name;
       setSelectedCategory(firstCategory);
-      flatListRef.current.scrollToIndex({
-        index: 0,
-        animated: true,
-      });
+      
+      // Safely scroll to first item
+      if (flatListRef.current) {
+        try {
+          flatListRef.current.scrollToIndex({
+            index: 0,
+            animated: false,
+          });
+        } catch (error) {
+          console.warn("[Menu Section Warning] Initial scroll error:", error);
+        }
+      }
     }
 
     if (__DEV__) {
@@ -108,23 +226,32 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       return newHeights;
     });
   };
+  
+  const handleCategoryItemLayout = (event, index) => {
+    const { width } = event.nativeEvent.layout;
+    setCategoryItemWidths((prevWidths) => {
+      const newWidths = [...prevWidths];
+      newWidths[index] = width;
+      return newWidths;
+    });
+  };
 
   const handleAddToCart = (item) => {
     const price = item.price || 
                   (item.price_formatted ? parseFloat(item.price_formatted.replace('$', '')) : null) || 
                   (item.fee_in_cents ? item.fee_in_cents / 100 : 0);
     
-    // 確保修飾符是一個空數組而不是 undefined
+    // Ensure modifiers are initialized as an empty array
     const selectedModifiers = [];
     
-    // 更完善的唯一標識符，包含修飾符信息和時間戳
+    // Create a more reliable unique identifier
     const uniqueId = `${restaurantId}-${item.id}-no-modifiers-${Date.now()}`;
     
     const updatedItem = {
       ...item,
       uniqueId,
       price,
-      selectedModifiers,  // 使用空數組初始化修飾符
+      selectedModifiers,
     };
     
     console.log("[Menu Section Log] Adding item to cart:", updatedItem);
@@ -158,6 +285,8 @@ const MenuSection = ({ restaurantId, restaurants }) => {
         <View style={styles.separator} />
 
         {category.items.map((menuItem, itemIndex) => {
+          if (!menuItem) return null;
+
           if (index === 30 && itemIndex === 30) {
             if (__DEV__) {
               console.log('[Menu Section Log] First Menu Item in MenuSection:', menuItem);
@@ -176,9 +305,13 @@ const MenuSection = ({ restaurantId, restaurants }) => {
             }
           }
 
+          // Check if this item has variants, options, or modifiers
           const hasOptions =
             (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) ||
-            (menuItem.option_groups && menuItem.option_groups.length > 0);
+            (menuItem.option_groups && menuItem.option_groups.length > 0) ||
+            (menuItem.items && menuItem.items.length > 0) ||
+            menuItem.variant_group ||
+            menuItem.min_max_display;
 
           return (
             <TouchableOpacity
@@ -191,7 +324,15 @@ const MenuSection = ({ restaurantId, restaurants }) => {
                 <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
                   {language === 'ZH' ? menuItem.description : menuItem.description}
                 </Text>
-                <Text style={styles.price}>{`$${(menuItem.fee_in_cents / 100).toFixed(2)}`}</Text>
+                
+                {/* Display price range for items with variants */}
+                {menuItem.min_max_display && menuItem.min && menuItem.max ? (
+                  <Text style={styles.price}>
+                    ${(menuItem.min.fee_min / 100).toFixed(2)} - ${(menuItem.max.fee_max / 100).toFixed(2)}
+                  </Text>
+                ) : (
+                  <Text style={styles.price}>${(menuItem.fee_in_cents / 100).toFixed(2)}</Text>
+                )}
               </View>
 
               <Image
@@ -208,9 +349,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
                   }
                 }}
               >
-                <Text style={styles.addButtonText}>
-                  {hasOptions ? (language === 'ZH' ? '+' : '+') : '+'}
-                </Text>
+                <Text style={styles.addButtonText}>+</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           );
@@ -224,9 +363,9 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       <MenuFetcher
         restaurantId={restaurantId}
         onDataFetched={handleDataFetched}
-        onLoading={handleLoading} // Pass loading callback
+        onLoading={handleLoading}
       />
-      {menuLoaded && ( // Only render FetchCartItems after menu data is loaded
+      {menuLoaded && (
         <FetchCartItems
           restaurantId={restaurantId}
           onCartFetched={handleCartFetched}
@@ -239,14 +378,19 @@ const MenuSection = ({ restaurantId, restaurants }) => {
             style={styles.categoryList}
             ref={categoryListRef}
             showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryListContent}
           >
             {groupedMenu.map((category, index) => (
               <TouchableOpacity
                 key={category.category_name}
                 style={[styles.categoryItem, selectedCategory === category.category_name && styles.selectedCategory]}
-                onPress={() => handleCategoryClick(category.category_name, index)}
+                onPress={() => handleCustomCategoryClick(category.category_name, index)}
+                onLayout={(event) => handleCategoryItemLayout(event, index)}
               >
-                <Text style={styles.categoryText}>
+                <Text style={[
+                  styles.categoryText,
+                  selectedCategory === category.category_name && styles.selectedCategoryText
+                ]}>
                   {language === 'ZH' ? category.category_name : category.category_name}
                 </Text>
               </TouchableOpacity>
@@ -259,7 +403,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
             keyExtractor={(item) => item.category_name}
             renderItem={renderCategory}
             style={styles.flatList}
-            onScroll={handleScroll}
+            onScroll={handleCustomScroll}
             scrollEventThrottle={16}
             contentContainerStyle={{ paddingBottom: 750 * scaleHeight }}
             initialNumToRender={10}
@@ -273,7 +417,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
         <Text style={styles.emptyMessage}> </Text>
       )}
   
-      {menuLoaded && cartItemCount > 0 && ( // Only show View Cart button after menu is loaded and there are items in the cart
+      {menuLoaded && cartItemCount > 0 && (
         <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
           <Text style={styles.viewCartButtonText}>
             View Cart ({cartItemCount})
@@ -283,6 +427,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   categoryHeader: {

@@ -9,7 +9,6 @@ export const CartProvider = ({ children }) => {
   const syncCartToContext = (restaurantId, fetchedCartItems) => {
     setCartItems((prevState) => {
       const updatedCart = fetchedCartItems.map((item) => {
-        // 使用服務器返回的hash作為唯一標識的一部分
         const uniqueId = item.hash 
           ? `${restaurantId}-${item.item_id}-${item.hash}` 
           : `${restaurantId}-${item.item_id || item.id}-${
@@ -18,7 +17,6 @@ export const CartProvider = ({ children }) => {
                 : 'no-modifiers'
             }`;
         
-        // 處理修飾符
         const selectedModifiers = item.modifications?.map(mod => ({
           mod_id: mod.mod_id || mod.id,
           mod_group_id: mod.mod_group_id || mod.groupId,
@@ -26,26 +24,21 @@ export const CartProvider = ({ children }) => {
           price: mod.price || 0, 
           count: mod.count || 1,
         })) || [];
-        
-        // 查找是否在舊購物車中已存在相同的商品
+
         const existingCartItems = prevState[restaurantId] || [];
         const existingItem = item.hash 
           ? existingCartItems.find(oldItem => oldItem.hash === item.hash)
           : existingCartItems.find(oldItem => oldItem.uniqueId === uniqueId);
-        
-        // 從現有項目獲取更完整的信息，包括修飾符詳細信息和價格
+
         let enhancedModifiers = selectedModifiers;
         let basePrice = item.price || 0;
         
         if (existingItem) {
-          // 如果購物車中已有此商品，使用已有的修飾符詳細信息
           enhancedModifiers = selectedModifiers.map(mod => {
-            // 查找現有商品中對應的修飾符
             const existingMod = existingItem.selectedModifiers?.find(
               m => m.mod_id === mod.mod_id
             );
-            
-            // 如果找到，使用現有的修飾符信息，特別是價格
+
             if (existingMod) {
               return {
                 ...mod,
@@ -56,12 +49,10 @@ export const CartProvider = ({ children }) => {
             
             return mod;
           });
-          
-          // 使用現有商品的基本價格
+
           basePrice = existingItem.price || basePrice;
         }
-        
-        // 計算修飾符的總價格
+
         const modifiersPrice = enhancedModifiers.reduce((total, mod) => 
           total + (mod.price || 0) * (mod.count || 1), 0
         );
@@ -71,9 +62,7 @@ export const CartProvider = ({ children }) => {
           uniqueId,
           name: item.name || (existingItem ? existingItem.name : 'Unnamed Item'),
           price: basePrice,
-          // 存儲修飾符總價，以便在UI中顯示
           modifiersPrice,
-          // 如果顯示時需要包含修飾符價格，可以使用這個計算的總價
           totalItemPrice: basePrice + modifiersPrice,
           quantity: item.quantity || item.count || 1, 
           image_url: item.image_url || (existingItem ? existingItem.image_url : ''),
@@ -190,8 +179,7 @@ export const CartProvider = ({ children }) => {
   
     setCartItems((prevState) => {
       const restaurantCart = prevState[restaurantId] || [];
-      
-      // 使用hash或唯一ID查找現有項目
+
       const existingItemIndex = item.hash 
         ? restaurantCart.findIndex(cartItem => cartItem.hash === item.hash)
         : restaurantCart.findIndex(cartItem => cartItem.uniqueId === item.uniqueId);
@@ -199,7 +187,6 @@ export const CartProvider = ({ children }) => {
       const updatedCart = [...restaurantCart];
   
       if (existingItemIndex >= 0) {
-        // 如果商品已存在，更新數量和修飾符
         const newQuantity = updatedCart[existingItemIndex].quantity + quantity;
         updatedCart[existingItemIndex].quantity = newQuantity;
         updatedCart[existingItemIndex].selectedModifiers = safeModifiers;
@@ -222,8 +209,7 @@ export const CartProvider = ({ children }) => {
                 return { ...prevState, [restaurantId]: cart };
               });
             }
-            
-            // 如果API返回了hash，更新本地商品的hash
+
             if (response.hash && !updatedCart[existingItemIndex].hash) {
               setCartItems(prevState => {
                 const cart = [...(prevState[restaurantId] || [])];
@@ -245,13 +231,10 @@ export const CartProvider = ({ children }) => {
             console.error("[CartContext ERROR] Failed to add to cart:", error);
           });
       } else {
-        // 如果是新商品，添加到購物車
         updatedCart.push({ ...item, quantity, selectedModifiers: safeModifiers });
-        
-        // 同步新商品到數據庫
+
         syncCartToDatabase(item, quantity, 'ADD')
           .then(response => {
-            // 如果API返回了hash，更新本地商品的hash
             if (response.hash) {
               setCartItems(prevState => {
                 const cart = [...(prevState[restaurantId] || [])];
@@ -425,19 +408,16 @@ export const CartProvider = ({ children }) => {
     return totalItems;
   };
 
-// 這個修改建議應該放在CartContext.js中
 const getTotalPrice = (restaurantId) => {
   const restaurantCart = cartItems[restaurantId] || [];
   const totalPrice = restaurantCart.reduce((total, item) => {
     const itemBasePrice = item.price || 0;
-    
-    // 計算修飾符的總價
+
     const modifiersTotalPrice = (item.selectedModifiers || []).reduce(
       (modTotal, modifier) => modTotal + ((modifier.price || 0) / 100) * (modifier.count || 1), 
       0
     );
-    
-    // 一個商品的總價
+
     const itemTotalPrice = (itemBasePrice + modifiersTotalPrice) * item.quantity;
     
     return total + itemTotalPrice;

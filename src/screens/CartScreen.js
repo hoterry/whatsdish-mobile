@@ -40,15 +40,12 @@ function CartScreen({ route }) {
           : mod;
       });
   
-      // 使用hash作為唯一標識的一部分，如果有的話
       let uniqueId = cartItem.uniqueId;
       
-      // 如果沒有現有唯一ID，或者想要重新生成考慮修飾符的唯一ID
       if (!uniqueId || cartItem.hash) {
         if (cartItem.hash) {
           uniqueId = `${restaurantId}-${cartItem.item_id}-${cartItem.hash}`;
         } else {
-          // 基於商品ID和修飾符生成唯一ID
           const modifiersString = enrichedModifiers && enrichedModifiers.length > 0
             ? `-mods-${enrichedModifiers.map(m => `${m.mod_id}-${m.count || 1}`).sort().join('-')}`
             : '-no-modifiers';
@@ -118,7 +115,6 @@ function CartScreen({ route }) {
       console.log("[CartScreen] Updated Item (Decrease):", updatedItem);
   
       if (updatedItem.quantity > 0) {
-        // 使用 updateQuantity 替代 addToCart 減少數量
         updateQuantity(restaurantId, item.uniqueId, updatedItem.quantity);
       } else {
         removeFromCart(restaurantId, item.uniqueId); // Remove if quantity is 0
@@ -127,22 +123,17 @@ function CartScreen({ route }) {
   };
 
   const renderCartItem = (item) => {
-    const key = item.uniqueId; // 使用唯一ID作為key
+    const key = item.uniqueId; 
     const itemName = item.name || 'Unnamed Item';
     const itemBasePrice = item.price || 0;
-    
-    // 計算修飾符的總價
     const modifiersTotalPrice = (item.selectedModifiers || []).reduce(
       (total, modifier) => total + ((modifier.price || 0) / 100) * (modifier.count || 1), 
       0
     );
-    
-    // 計算單個商品的總價 (基本價格 + 修飾符價格)
+
     const singleItemPrice = itemBasePrice + modifiersTotalPrice;
-    
-    // 計算該商品所有數量的總價
     const totalPrice = singleItemPrice * item.quantity;
-  
+
     const modifiers = item.selectedModifiers || [];
   
     return (

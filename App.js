@@ -20,6 +20,8 @@ import OrderHistoryScreen from './src/screens/OrderHistoryScreen';
 import ExploreScreen from './src/screens/ExploreScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import HistoryDetailScreen from './src/screens/HistoryDetail';
+import ArticleDetail from './src/components/ArticleDetail';
+
 
 // Context Providers
 import { CartProvider } from './src/context/CartContext';
@@ -95,6 +97,7 @@ function AppStack({ setIsAuthenticated }) {
       <Stack.Screen name="OrderStatusScreen" component={OrderStatusScreen} options={{ headerShown: false }} />
       <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ headerShown: false }} />
       <Stack.Screen name="HistoryDetail" component={HistoryDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ArticleDetail" component={ArticleDetail} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
