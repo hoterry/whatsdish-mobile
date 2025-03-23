@@ -9,12 +9,15 @@ import LocationFetcher from '../context/LocationFetcher';
 import { LanguageManager } from '../components/LanguageManager';
 import NotificationComponent from '../components/NotificationComponent';
 import SearchBar from '../components/SearchBar'; 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
 
 const HomeScreen = () => {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [restaurants, setRestaurants] = useState([]);
   const [location, setLocation] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
 
   useEffect(() => {
     async function loadFonts() {
@@ -58,7 +61,7 @@ const HomeScreen = () => {
               <View style={styles.topBarRow}>
                 <TouchableOpacity style={styles.location}>
                   <Text style={styles.locationText} numberOfLines={1}>
-                    {location || '[Location Fetcher Log] Fetching location...'}
+                    {location || ''}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -85,7 +88,6 @@ const HomeScreen = () => {
             </View>
 
             <View style={styles.restaurantSection}>
-              <Text style={styles.sectionTitle}>{t('featured')}</Text>
               <RestaurantFetcher onDataFetched={handleDataFetched} />
               <RestaurantList restaurants={restaurants} />
             </View>

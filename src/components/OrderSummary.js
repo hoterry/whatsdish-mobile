@@ -45,54 +45,59 @@ const OrderSummary = ({
     const itemPrice = item.price || 0;
     let modifiersPrice = 0;
     
-    // 計算修飾符的總價
     if (item.selectedModifiers && item.selectedModifiers.length > 0) {
-      modifiersPrice = item.selectedModifiers.reduce((total, modifier) => 
-        total + (modifier.price || 0), 0);
+      modifiersPrice = item.selectedModifiers.reduce((total, modifier) => {
+        return total + ((modifier.price || 0) / 100);
+      }, 0);
     }
     
-    // 計算選項的額外價格
     const optionPrice = item.selectedOption ? (item.selectedOption.price || 0) : 0;
-    
-    // 計算商品總價 (基本價 + 修飾符價格 + 選項價格) × 數量
     const totalItemPrice = (itemPrice + modifiersPrice + optionPrice) * item.quantity;
 
     return (
       <View style={styles.orderItem} key={key}>
-        <Image 
-          source={{ 
-            uri: item.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png'
-          }} 
-          style={styles.itemImage} 
-          resizeMode="cover"
-        />
-        <View style={styles.itemInfo}>
-          <View style={styles.itemNameContainer}>
-            <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-            <Text style={styles.itemQuantity}>{`x${item.quantity}`}</Text>
-          </View>
-  
+        <View style={styles.imageColumn}>
+          <Image 
+            source={{ 
+              uri: item.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png'
+            }} 
+            style={styles.itemImage} 
+            resizeMode="cover"
+          />
+        </View>
+
+        <View style={styles.contentColumn}>
+          <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+          
           {item.selectedOption && (
-            <View style={styles.optionContainer}>
-              <Text style={styles.optionText} numberOfLines={1}>
-                {item.selectedOption.name}
-                {item.selectedOption.price > 0 && ` (+$${(item.selectedOption.price).toFixed(2)})`}
-              </Text>
-            </View>
+            <Text style={styles.optionText} numberOfLines={1}>
+              {item.selectedOption.name}
+              {item.selectedOption.price > 0 && ` (+$${(item.selectedOption.price).toFixed(2)})`}
+            </Text>
           )}
-  
+          
           {item.selectedModifiers && item.selectedModifiers.length > 0 && (
-            <View style={styles.modifierContainer}>
-              {item.selectedModifiers.map((modifier, index) => (
-                <Text key={index} style={styles.modifierText} numberOfLines={1}>
-                  {modifier.name}
-                  {modifier.price > 0 && ` (+$${(modifier.price).toFixed(2)})`}
-                </Text>
-              ))}
+            <View>
+              {item.selectedModifiers.map((modifier, index) => {
+                const displayPrice = (modifier.price || 0) / 100;
+                return (
+                  <Text key={index} style={styles.modifierText} numberOfLines={1}>
+                    {modifier.name}
+                    {modifier.price > 0 && ` (+$${displayPrice.toFixed(2)})`}
+                  </Text>
+                );
+              })}
             </View>
           )}
         </View>
-        <Text style={styles.itemPrice}>${totalItemPrice.toFixed(2)}</Text>
+
+        <View style={styles.quantityColumn}>
+          <Text style={styles.itemQuantity}>{`x${item.quantity}`}</Text>
+        </View>
+
+        <View style={styles.priceColumn}>
+          <Text style={styles.itemPrice}>${totalItemPrice.toFixed(2)}</Text>
+        </View>
       </View>
     );
   };
@@ -146,94 +151,100 @@ const OrderSummary = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    flex: 1,
+    backgroundColor: '#fff',
     padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   header: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#333333',
+    fontWeight: 'bold',
   },
   itemCount: {
+    fontSize: 16,
+    color: '#666',
+  },
+
+  tableHeader: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    marginBottom: 8,
+  },
+  columnTitle: {
     fontSize: 14,
-    color: '#777777',
+    fontWeight: '500',
+    color: '#777',
   },
   itemsContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   orderItem: {
     flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#f0f0f0',
+  },
+
+  imageColumn: {
+    width: 70,
+    paddingRight: 10,
+  },
+  contentColumn: {
+    flex: 1,
+    paddingRight: 10,
+    justifyContent: 'center',
+  },
+  quantityColumn: {
+    width: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  priceColumn: {
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
   },
   itemImage: {
     width: 60,
     height: 60,
     borderRadius: 8,
-    marginRight: 12,
-    backgroundColor: '#F5F5F5',
-  },
-  itemInfo: {
-    flex: 1,
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  itemNameContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
   },
   itemName: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333333',
-    flex: 1,
-    marginRight: 8,
-  },
-  itemQuantity: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#555555',
-  },
-  optionContainer: {
-    marginTop: 2,
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
   optionText: {
     fontSize: 14,
-    color: '#666666',
-  },
-  modifierContainer: {
-    marginTop: 2,
+    color: '#666',
+    marginBottom: 2,
   },
   modifierText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#666',
+    marginBottom: 2,
+  },
+  itemQuantity: {
+    fontSize: 16,
+    color: '#555',
   },
   itemPrice: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-    minWidth: 50,
-    textAlign: 'right',
-    alignSelf: 'center',
+    fontWeight: '500',
   },
   summaryContainer: {
-    paddingTop: 16,
+    backgroundColor: '#f9f9f9',
+    padding: 16,
+    borderRadius: 8,
   },
   priceRow: {
     flexDirection: 'row',
@@ -241,17 +252,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   priceLabel: {
-    fontSize: 15,
-    color: '#666666',
+    fontSize: 16,
+    color: '#555',
   },
   priceValue: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#333333',
+    fontSize: 16,
+    textAlign: 'right',
+    width: 80,
   },
   divider: {
     height: 1,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#ddd',
     marginVertical: 12,
   },
   totalRow: {
@@ -261,13 +272,13 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
+    fontWeight: 'bold',
   },
   totalPrice: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000000',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'right',
+    width: 80,
   },
 });
 

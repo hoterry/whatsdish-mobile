@@ -1,4 +1,4 @@
-// VideoGridComponent.js - Updated for API data compatibility
+// VideoGridComponent.js - Updated for SectionList compatibility
 import React from 'react';
 import {
   View,
@@ -6,7 +6,8 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
-  Dimensions
+  Dimensions,
+  FlatList
 } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 
@@ -38,47 +39,7 @@ const formatViewCount = (count) => {
   return count.toString();
 };
 
-// Get the first line of the content as title
-const getContentTitle = (content) => {
-  if (!content) return '';
-  const lines = content.split('\n');
-  return lines[0] || '';
-};
-
-// Get the second line for overlay text
-const getOverlayText = (content) => {
-  if (!content) return '';
-  const lines = content.split('\n');
-  return lines.length > 1 ? lines[1] : '';
-};
-
-// Get hashtags from content if available
-const getHashtags = (content) => {
-  if (!content) return [];
-  // Find hashtags in the content (words starting with #)
-  const hashtagRegex = /#[a-zA-Z0-9]+/g;
-  return content.match(hashtagRegex) || [];
-};
-
 const VideoGridItem = ({ video, onPress, language }) => {
-  // Prepare data from API format
-  const videoTitle = video.title || getContentTitle(video.content) || 'Video';
-  const overlayText = video.overlay_text || getOverlayText(video.content) || '';
-  const hashtags = getHashtags(video.content);
-  
-  // Ensure avatar information is available
-  const username = video.avatar_name || video.author || 'username';
-  const avatarUrl = video.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}`;
-  
-  // Generate cover image from video URL if needed
-  const coverImageUrl = video.cover_image_url || (
-    video.video_url && video.video_url.includes('cloudinary.com') 
-      ? video.video_url
-          .replace('/video/upload/', '/video/upload/so_0,w_640,h_360,c_fill,q_80/')
-          .replace('.mp4', '.jpg')
-      : 'https://via.placeholder.com/400x500?text=Video'
-  );
-
   return (
     <TouchableOpacity 
       style={styles.gridItem} 
@@ -88,7 +49,7 @@ const VideoGridItem = ({ video, onPress, language }) => {
       {/* Video Thumbnail */}
       <View style={styles.thumbnailContainer}>
         <Image
-          source={{ uri: coverImageUrl }}
+          source={{ uri: video.cover_image_url || 'https://via.placeholder.com/400x500?text=Video' }}
           style={styles.thumbnail}
           resizeMode="cover"
         />
@@ -98,36 +59,28 @@ const VideoGridItem = ({ video, onPress, language }) => {
           <AntDesign name="playcircleo" size={32} color="white" />
         </View>
         
-        {/* Text Overlay - if available */}
-        {overlayText && (
+        {/* Text Overlay - if any */}
+        {video.overlay_text && (
           <View style={styles.overlayTextContainer}>
-            <Text style={styles.overlayText}>{overlayText}</Text>
+            <Text style={styles.overlayText}>{video.overlay_text}</Text>
           </View>
         )}
         
         {/* User Info at Top */}
         <View style={styles.userInfoContainer}>
           <Image 
-            source={{ uri: avatarUrl }} 
+            source={{ uri: video.avatar_url || 'https://via.placeholder.com/50x50?text=User' }} 
             style={styles.userAvatar} 
           />
-          <Text style={styles.username}>{username}</Text>
+          <Text style={styles.username}>{video.author || 'username'}</Text>
         </View>
       </View>
       
       {/* Video Details Below */}
       <View style={styles.detailsContainer}>
         <Text style={styles.locationText} numberOfLines={1}>
-          {videoTitle}
+          {video.location || video.title || 'Location Name'}
         </Text>
-        
-        {/* Hashtags if available */}
-        {hashtags.length > 0 && (
-          <Text style={styles.hashtagsText} numberOfLines={1}>
-            {hashtags.slice(0, 2).join(' ')}
-            {hashtags.length > 2 ? '...' : ''}
-          </Text>
-        )}
         
         <View style={styles.statsContainer}>
           {/* Happy Emoji + Count */}
@@ -157,36 +110,18 @@ const VideoGridItem = ({ video, onPress, language }) => {
 
 const VideoGridComponent = ({ videos, navigation, language }) => {
   const handleVideoPress = (video) => {
-    console.log('Video pressed:', video.title || getContentTitle(video.content) || video.id);
+    console.log('Video pressed:', video.title || video.id);
     
     // 導航到VideoDetail頁面
     navigation && navigation.navigate('VideoDetailScreen', { video: video });
   };
   
-  // Pre-process videos if needed
-  const processedVideos = videos.map(video => {
-    // Add any additional processing here if needed
-    return {
-      ...video,
-      // Pre-compute these values if they're used in multiple places
-      title: video.title || getContentTitle(video.content) || 'Video',
-      overlay_text: video.overlay_text || getOverlayText(video.content),
-      cover_image_url: video.cover_image_url || (
-        video.video_url && video.video_url.includes('cloudinary.com') 
-          ? video.video_url
-              .replace('/video/upload/', '/video/upload/so_0,w_640,h_360,c_fill,q_80/')
-              .replace('.mp4', '.jpg')
-          : undefined
-      )
-    };
-  });
-  
   // 渲染網格佈局
   return (
     <View style={styles.container}>      
       <View style={styles.gridContainer}>
-        {processedVideos && processedVideos.length > 0 ? (
-          processedVideos.map((video, index) => (
+        {videos && videos.length > 0 ? (
+          videos.map((video, index) => (
             <VideoGridItem 
               key={`video-grid-${index}`}
               video={video} 
@@ -301,11 +236,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: COLORS.primary,
-    marginBottom: 4,
-  },
-  hashtagsText: {
-    fontSize: 12,
-    color: COLORS.accent1,
     marginBottom: 6,
   },
   statsContainer: {

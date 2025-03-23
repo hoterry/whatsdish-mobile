@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useCart } from '../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
 import OrderSummary from '../components/OrderSummary';
@@ -11,14 +11,17 @@ import { LanguageContext } from '../context/LanguageContext';
 import * as SecureStore from 'expo-secure-store';
 
 function CheckoutScreen({ route }) {
+  // 所有状态定义必须保持每次渲染时都执行相同数量的hooks
   const { cartItems, getTotalPrice, clearCart } = useCart();
   const { language } = useContext(LanguageContext);
+  const navigation = useNavigation();
+  const { restaurantId, restaurants } = route.params;
+  
+  // 所有useState hooks
   const [deliveryMethod, setDeliveryMethod] = useState('pickup');
   const [pickupOption, setPickupOption] = useState('immediate');
   const [deliveryOption, setDeliveryOption] = useState('immediate');
   const [address, setAddress] = useState('');
-  const navigation = useNavigation();
-  const { restaurantId, restaurants } = route.params;
   const [pickupScheduledTime, setPickupScheduledTime] = useState(null);
   const [deliveryScheduledTime, setDeliveryScheduledTime] = useState(null);
   const [creditCardNumber, setCreditCardNumber] = useState('');
@@ -27,46 +30,59 @@ function CheckoutScreen({ route }) {
   const [showDeliveryFee, setShowDeliveryFee] = useState(false);
   const [calculatedTip, setCalculatedTip] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [hasCartItems, setHasCartItems] = useState(false);
 
-  const cart = cartItems[restaurantId] || [];  
-  if (cart.length === 0) {
-    return <Text>{language === 'ZH' ? '您的購物車是空的' : 'Your cart is empty'}</Text>;
-  }
+  // 获取购物车数据
+  const cart = cartItems[restaurantId] || [];
 
+  // 固定顺序的useEffect: 检查购物车状态
+  useEffect(() => {
+    const checkCart = async () => {
+      try {
+        const hasItems = cart.length > 0;
+        setHasCartItems(hasItems);
+        
+        if (__DEV__) {
+          console.log('[CheckoutScreen] Checking cart status:', hasItems ? 'Has items' : 'Empty');
+        }
+        
+        setIsInitializing(false);
+      } catch (error) {
+        console.error('[CheckoutScreen] Error checking cart:', error);
+        setIsInitializing(false);
+      }
+    };
+    
+    checkCart();
+  }, [cart]);
+
+  // 固定顺序的useEffect: 记录接收到的数据
   useEffect(() => {
     if (__DEV__) {
       console.log('[Check Out Screen Log] Received cart items:', cart); 
       console.log("[Check Out Screen Log] Restaurants data Received:", restaurants);
     }
-  }, [cart]);
+  }, [cart, restaurants]);
 
+  // 计算相关变量
   const subtotal = getTotalPrice(restaurantId);
   const deliveryFee = 4.99;
   const taxes = subtotal * 0.05;
   const totalPrice =
     deliveryMethod === 'delivery' ? subtotal + deliveryFee + taxes : subtotal + taxes;
 
-  const handleDeliveryMethodChange = (method) => {
-    setDeliveryMethod(method);
-    setShowDeliveryFee(method === 'delivery');
-  };
-
-  const handleChangeAddress = () => {
-    navigation.navigate('AddressPicker', { updateAddress: setAddress });
-  };
-
-  const handleTipChange = (tipAmount) => {
-    setCalculatedTip(tipAmount);
-  };
-
   const currentTime = new Date();
+  
+  // 辅助函数
   const generateScheduleTimes = () => {
     const times = [];
     for (let day = 0; day < 5; day++) {
       const dayStart = new Date(currentTime.getTime() + day * 24 * 60 * 60 * 1000);
       for (let hour = 0; hour < 24; hour++) {
         for (let minute = 0; minute < 60; minute += 30) {
-          const time = new Date(dayStart.setHours(hour, minute, 0, 0));
+          const time = new Date(dayStart);
+          time.setHours(hour, minute, 0, 0);
           times.push(time);
         }
       }
@@ -84,6 +100,20 @@ function CheckoutScreen({ route }) {
     return `${day}, ${month}/${dayOfMonth}`;
   };
 
+  const handleDeliveryMethodChange = (method) => {
+    setDeliveryMethod(method);
+    setShowDeliveryFee(method === 'delivery');
+  };
+
+  const handleChangeAddress = () => {
+    navigation.navigate('AddressPicker', { updateAddress: setAddress });
+  };
+
+  const handleTipChange = (tipAmount) => {
+    setCalculatedTip(tipAmount);
+  };
+
+  // 下单处理函数
   const handlePlaceOrder = async () => {
     try {
       setIsProcessing(true);
@@ -92,7 +122,7 @@ function CheckoutScreen({ route }) {
         console.log('[Check Out Screen Log] Processing order...');
       }
 
-      // Get order_id from SecureStore
+      // 获取order_id
       let orderId;
       try {
         orderId = await SecureStore.getItemAsync('order_id');
@@ -169,31 +199,120 @@ function CheckoutScreen({ route }) {
         console.log('[Check Out Screen Log] API RESPONSE DATA:', responseData);
         const paymentMeta = responseData?.result?.payment_meta;
 
-if (paymentMeta) {
-  console.log('==================== CREDIT CARD INFO ====================');
-  console.log('Card Type:', paymentMeta.CardType);
-  console.log('Auth Code:', paymentMeta.AuthCode);
-  console.log('Reference Number:', paymentMeta.ReferenceNum);
-  console.log('Response Code:', paymentMeta.ResponseCode);
-  console.log('Transaction Amount:', paymentMeta.TransAmount);
-  console.log('Transaction ID:', paymentMeta.TransID);
-  console.log('Message:', paymentMeta.Message);
-  console.log('==========================================================');
-} else {
-  console.warn('[Check Out Screen Log] No payment_meta found in response');
-}
+        if (paymentMeta) {
+          console.log('==================== CREDIT CARD INFO ====================');
+          console.log('Card Type:', paymentMeta.CardType);
+          console.log('Auth Code:', paymentMeta.AuthCode);
+          console.log('Reference Number:', paymentMeta.ReferenceNum);
+          console.log('Response Code:', paymentMeta.ResponseCode);
+          console.log('Transaction Amount:', paymentMeta.TransAmount);
+          console.log('Transaction ID:', paymentMeta.TransID);
+          console.log('Message:', paymentMeta.Message);
+          console.log('==========================================================');
+        } else {
+          console.warn('[Check Out Screen Log] No payment_meta found in response');
+        }
 
-
+        // 打印机API调用
+        if (responseData.success) {
+          try {
+            console.log('==================== PRINTER INFO ====================');
+            console.log(`[Check Out Screen Log] Calling print API for order: ${orderId}`);
+            
+            // 获取Google Place ID
+            const googlePlaceId = responseData.result?.google_place_ids?.[0];
+            if (!googlePlaceId) {
+              console.warn('[Check Out Screen Log] No Google Place ID found in response');
+            } else {
+              console.log(`[Check Out Screen Log] Google Place ID: ${googlePlaceId}`);
+            }
+            
+            // 查找匹配的餐厅
+            const restaurantsData = restaurants.data || [];
+            const filteredMerchantSettings = restaurantsData.filter(r => r.is_active !== false);
+            
+            // 首先通过Google Place ID查找商户
+            let merchantSetting = filteredMerchantSettings.find(r => r.gid === googlePlaceId);
+            
+            // 如果通过Google Place ID找不到，则尝试通过restaurantId查找
+            if (!merchantSetting) {
+              merchantSetting = filteredMerchantSettings.find(r => r.id === restaurantId || r.slug === restaurantId);
+            }
+            
+            // 如果仍找不到，使用第一个活跃餐厅作为备选
+            if (!merchantSetting && filteredMerchantSettings.length > 0) {
+              merchantSetting = filteredMerchantSettings[0];
+              console.warn('[Check Out Screen Log] Using fallback restaurant for printing');
+            }
+            
+            if (merchantSetting) {
+              console.log('[Check Out Screen Log] Found merchant for printing:', merchantSetting.name);
+              
+              // 根据环境确定使用哪个打印机ID
+              const printerSerialNumber = __DEV__ ? merchantSetting.dev_printer_id : merchantSetting.printer_id;
+              const printerLanguage = merchantSetting.printer_language || language.toLowerCase();
+              
+              console.log(`[Check Out Screen Log] Printer Serial Number: ${printerSerialNumber}`);
+              console.log(`[Check Out Screen Log] Printer Language: ${printerLanguage}`);
+              
+              if (!printerSerialNumber) {
+                console.warn('[Check Out Screen Log] No printer ID configured for restaurant:', merchantSetting.name);
+              } else {
+                // 调用打印机API
+                const printOrderRequest = await fetch(
+                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=${printerSerialNumber}`,
+                  {
+                    method: 'GET',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token}`
+                    }
+                  }
+                );
+                
+                if (!printOrderRequest.ok) {
+                  console.warn('[Check Out Screen Log] Printer API returned non-OK status:', printOrderRequest.status);
+                }
+                
+                const printOrderResponse = await printOrderRequest.json();
+                console.log('[Check Out Screen Log] Printer API response:', printOrderResponse);
+                
+                if (!printOrderResponse.success) {
+                  console.warn('[Check Out Screen Log] Printing failed:', printOrderResponse.message || 'Unknown error');
+                } else {
+                  console.log('[Check Out Screen Log] Printing successful!');
+                }
+              }
+            } else {
+              console.warn('[Check Out Screen Log] No matching restaurant found for printing');
+            }
+            console.log('======================================================');
+          } catch (printError) {
+            console.error('[Check Out Screen Log] Error calling print API:', printError);
+            // 不阻止订单完成
+          }
+        }
       
+        // 清除购物车
         clearCart();
+        
+        // 清除SecureStore中的order_id
+        try {
+          await SecureStore.deleteItemAsync('order_id');
+          console.log('[Check Out Screen Log] Successfully cleared order_id from SecureStore');
+        } catch (error) {
+          console.error('[Check Out Screen Log] Error clearing order_id from SecureStore:', error);
+        }
       
+        // 导航到历史详情页面，带上明确的重置标志
         navigation.navigate('HistoryDetail', { 
           order: {
             ...orderData,
             orderId: orderId
           }, 
           restaurantId, 
-          restaurants 
+          restaurants,
+          resetOrderState: true  // 明确设置为true，确保App.js中的导航监听器可以正确识别
         });
       
       } catch (error) {
@@ -212,7 +331,34 @@ if (paymentMeta) {
     }
   };
 
+  // 使用统一的渲染方式处理不同状态
+  if (isInitializing) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
 
+  if (!hasCartItems) {
+    return (
+      <View style={styles.emptyCartContainer}>
+        <Text style={styles.emptyCartText}>
+          {language === 'ZH' ? '您的購物車是空的' : 'Your cart is empty'}
+        </Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>
+            {language === 'ZH' ? '返回' : 'Go Back'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // 正常UI渲染
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>

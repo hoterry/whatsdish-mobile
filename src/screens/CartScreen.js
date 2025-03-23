@@ -127,13 +127,13 @@ function CartScreen({ route }) {
     const itemName = item.name || 'Unnamed Item';
     const itemBasePrice = item.price || 0;
     const modifiersTotalPrice = (item.selectedModifiers || []).reduce(
-      (total, modifier) => total + ((modifier.price || 0) / 100) * (modifier.count || 1), 
+      (total, modifier) => total + (modifier.price || 0) / 100, 
       0
     );
-
+  
     const singleItemPrice = itemBasePrice + modifiersTotalPrice;
     const totalPrice = singleItemPrice * item.quantity;
-
+  
     const modifiers = item.selectedModifiers || [];
   
     return (

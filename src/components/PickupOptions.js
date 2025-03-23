@@ -183,7 +183,7 @@ const PickupOptions = ({
           <View>
             <Text style={styles.estimatedTimeLabel}>{translations[language].estimatedTime}</Text>
             <Text style={styles.estimatedTimeValue}>
-              {pickupOption === 'immediate' ? '15-25min' : formatSelectedTime(selectedTime || pickupScheduledTime)}
+              {pickupOption === 'immediate' ? '15 - 25min' : formatSelectedTime(selectedTime || pickupScheduledTime)}
             </Text>
           </View>
         </View>

@@ -8,7 +8,7 @@ import * as Font from 'expo-font';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 
-// Simple error boundary component
+
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
   
@@ -30,28 +30,24 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Screens
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
-import HomeScreen from './src/screens/HomeScreen';
-import OrderStatusScreen from './src/screens/OrderStatusScreen';
 import DetailsScreen from './src/screens/DetailsScreen';
-import CartScreen from './src/screens/CartScreen';
 import ProductDetailsScreen from './src/screens/ProductDetailsScreen';
-import CheckoutScreen from './src/screens/CheckoutScreen';
-import OrderHistoryScreen from './src/screens/OrderHistoryScreen';
-import ExploreScreen from './src/screens/ExploreScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen';import ExploreScreen from './src/screens/ExploreScreen';
 import AccountScreen from './src/screens/AccountScreen';
+import OrderStatusScreen from './src/screens/OrderStatusScreen';
 import HistoryDetailScreen from './src/screens/HistoryDetail';
 import ArticleDetail from './src/components/ArticleDetail';
 import VideoDetailScreen from './src/components/VideoDetailScreen';
+import VideoPreloader from './src/components/VideoPreloader'; // 引入新創建的VideoPreloader組件
+import CartScreen from './src/screens/CartScreen';
+import CustomTabNavigator from './CustomTabNavigator';
 
-// Context Providers
 import { CartProvider } from './src/context/CartContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 
 const Stack = createStackNavigator();
-const Tab = createBottomTabNavigator();
 
 function AuthStack({ setIsAuthenticated }) {
   return (
@@ -64,68 +60,21 @@ function AuthStack({ setIsAuthenticated }) {
   );
 }
 
-function HomeTabs({ setIsAuthenticated }) {
-  try {
-    return (
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-            if (route.name === 'Home') {
-              iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Explore') {
-              iconName = focused ? 'search' : 'search-outline';
-            } else if (route.name === 'Orders') {
-              iconName = focused ? 'list' : 'list-outline';
-            } else if (route.name === 'Account') {
-              iconName = focused ? 'person' : 'person-outline';
-            }
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-          tabBarActiveTintColor: 'tomato',
-          tabBarInactiveTintColor: 'gray',
-          tabBarStyle: {
-            paddingBottom: Platform.OS === 'android' ? 10 : 0,
-            paddingTop: 5,
-          },
-          headerShown: false,
-        })}
-      >
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Explore" component={ExploreScreen} />
-        <Tab.Screen name="Orders" component={OrderHistoryScreen} />
-        <Tab.Screen name="Account">
-          {props => <AccountScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
-        </Tab.Screen>
-      </Tab.Navigator>
-    );
-  } catch (error) {
-    if (__DEV__) {
-      console.error("Error in HomeTabs:", error);
-    }
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Error occurred: {error.toString()}</Text>
-      </View>
-    );
-  }
-}
-
 function AppStack({ setIsAuthenticated }) {
   return (
     <Stack.Navigator>
       <Stack.Screen name="HomeTabs" options={{ headerShown: false }}>
-        {props => <HomeTabs {...props} setIsAuthenticated={setIsAuthenticated} />}
+        {props => <CustomTabNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
       </Stack.Screen>
       <Stack.Screen name="Details" component={DetailsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ProductDetail" component={ProductDetailsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: false }} />
       <Stack.Screen name="OrderStatusScreen" component={OrderStatusScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} options={{ headerShown: false }} />
       <Stack.Screen name="HistoryDetail" component={HistoryDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ArticleDetail" component={ArticleDetail} options={{ headerShown: false }} />
       <Stack.Screen name="VideoDetailScreen" component={VideoDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Video" component={VideoDetailScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
@@ -135,8 +84,8 @@ export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [navigationState, setNavigationState] = useState(null);
 
-  // Log environment variables only in development
   useEffect(() => {
     if (__DEV__) {
       try {
@@ -152,13 +101,16 @@ export default function App() {
       try {
         await Font.loadAsync({
           'Quicksand-Bold': require('./assets/fonts/Quicksand-Bold.ttf'),
+          'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
+          'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
+          'Poppins-SemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
+          'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
         });
         setFontsLoaded(true);
       } catch (error) {
         if (__DEV__) {
           console.error("Font loading error:", error);
         }
-        // Mark as loaded even if font loading fails, so the app can still run
         setFontsLoaded(true);
         setError(`Font loading error: ${error.message}`);
       }
@@ -185,6 +137,34 @@ export default function App() {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (!navigationState || !navigationState.routes || navigationState.routes.length < 2) return;
+    
+    const currentRoute = navigationState.routes[navigationState.routes.length - 1];
+    const prevRoute = navigationState.routes[navigationState.routes.length - 2];
+  
+    if (__DEV__) {
+      console.log('[Navigation] Previous route:', prevRoute.name);
+      console.log('[Navigation] Current route:', currentRoute.name);
+    }
+
+    if (prevRoute.name === 'HistoryDetail' && prevRoute.params?.resetOrderState === true) {
+      if (__DEV__) {
+        console.log('[Navigation] Will clear order_id after order completion');
+      }
+
+      SecureStore.deleteItemAsync('order_id')
+        .then(() => {
+          if (__DEV__) {
+            console.log('[Navigation] Successfully cleared order_id');
+          }
+        })
+        .catch(error => {
+          console.error('[Navigation] Error clearing order_id:', error);
+        });
+    }
+  }, [navigationState]);
+
   if (isLoading || !fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -194,12 +174,19 @@ export default function App() {
     );
   }
 
-  // Catch errors throughout the entire application
   return (
     <ErrorBoundary>
       <LanguageProvider>
         <CartProvider>
-          <NavigationContainer fallback={<ActivityIndicator size="large" />}>
+
+          <VideoPreloader isAuthenticated={isAuthenticated} isLoading={isLoading} />
+          
+          <NavigationContainer 
+            fallback={<ActivityIndicator size="large" />}
+            onStateChange={(state) => {
+              setNavigationState(state);
+            }}
+          >
             {isAuthenticated ? (
               <AppStack setIsAuthenticated={setIsAuthenticated} />
             ) : (

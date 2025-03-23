@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   topControls: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 44 : 20,
-    left: 20,
+    left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',

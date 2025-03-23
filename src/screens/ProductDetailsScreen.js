@@ -127,7 +127,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
         name: selectedVariant.name,
         price: selectedVariant.fee_in_cents / 100
       } : null,
-      price: currentPrice,
+      price: basePrice,
       uniqueId: `${(selectedVariant || menuItem).id}-${selectedModifiersIds}-${Date.now()}`,
       note: note,
     };
@@ -228,7 +228,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
                   {language === 'ZH'
                     ? (group.minRequired === 0 && group.maxAllowed === 0
                         ? ''
-                        : ` (最少可選 ${group.minRequired}，最多可選 ${group.maxAllowed} )`)
+                        : ` (最少選 ${group.minRequired}，最多可選 ${group.maxAllowed} )`)
                     : (group.minRequired === 0 && group.maxAllowed === 0
                         ? ''
                         : group.minRequired === 1
