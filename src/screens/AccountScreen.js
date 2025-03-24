@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   logoutConfirmButton: {
-    backgroundColor: '#ff3b30',
+    backgroundColor: '#000000',
   },
   logoutConfirmText: {
     color: '#fff',

@@ -404,7 +404,6 @@ export const CartProvider = ({ children }) => {
   const getTotalItems = (restaurantId) => {
     const restaurantCart = cartItems[restaurantId] || [];
     const totalItems = restaurantCart.reduce((sum, item) => sum + (item.quantity || 0), 0);
-    console.log("[CartContext Log] getTotalItems result:", totalItems);
     return totalItems;
   };
 
