@@ -44,69 +44,76 @@ const HomeScreen = () => {
   return (
     <LanguageManager>
       {({ t, language, showLanguageModal, setShowLanguageModal }) => (
-        <SafeAreaView style={styles.safeArea}>
-          <LocationFetcher onLocationFetched={(location) => setLocation(location)} />
-          <View style={styles.fixedHeader}>
-            <View style={styles.topBar}>
-              <View style={styles.topBarRow}>
-                <Image source={require('../../assets/whatsdish.png')} style={styles.logo} resizeMode="contain" />
-                <View style={styles.iconContainer}>
-                  <NotificationComponent />
-                  <TouchableOpacity onPress={() => setShowLanguageModal(true)} style={styles.languageContainer}>
-                    <Text style={styles.languageText}>{language}</Text>
+        <View style={styles.container}>
+          <StatusBar 
+            translucent={true}
+            backgroundColor="transparent"
+            barStyle="dark-content"
+          />
+          
+          <SafeAreaView style={styles.safeArea}>
+            <LocationFetcher onLocationFetched={(location) => setLocation(location)} />
+            <View style={styles.fixedHeader}>
+              <View style={styles.topBar}>
+                <View style={styles.topBarRow}>
+                  <Image source={require('../../assets/whatsdish.png')} style={styles.logo} resizeMode="contain" />
+                  <View style={styles.iconContainer}>
+                    <NotificationComponent />
+                    <TouchableOpacity onPress={() => setShowLanguageModal(true)} style={styles.languageContainer}>
+                      <Text style={styles.languageText}>{language}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.topBarRow}>
+                  <TouchableOpacity style={styles.location}>
+                    <Text style={styles.locationText} numberOfLines={1}>
+                      {location || ''}
+                    </Text>
                   </TouchableOpacity>
                 </View>
+
+                {/*<SearchBar
+                  onSearchChange={handleSearchChange}
+                  placeholder={t('searchPlaceholder')}
+                />*/}
+              </View>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <AdCarousel />
+
+              <View style={styles.menuSection}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.menuRow}>
+                  {menus.map((item) => (
+                    <TouchableOpacity key={item.id} style={styles.menuItem}>
+                      <Image source={item.icon} style={styles.menuIcon} />
+                      <Text style={styles.menuTitle}>{language === 'EN' ? item.title_en : item.title_zh}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
 
-              <View style={styles.topBarRow}>
-                <TouchableOpacity style={styles.location}>
-                  <Text style={styles.locationText} numberOfLines={1}>
-                    {location || ''}
-                  </Text>
-                </TouchableOpacity>
+              <View style={styles.restaurantSection}>
+                <RestaurantFetcher onDataFetched={handleDataFetched} />
+                <RestaurantList restaurants={restaurants} />
               </View>
-
-              {/*<SearchBar
-                onSearchChange={handleSearchChange}
-                placeholder={t('searchPlaceholder')}
-              />*/}
-            </View>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <AdCarousel />
-
-            <View style={styles.menuSection}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.menuRow}>
-                {menus.map((item) => (
-                  <TouchableOpacity key={item.id} style={styles.menuItem}>
-                    <Image source={item.icon} style={styles.menuIcon} />
-                    <Text style={styles.menuTitle}>{language === 'EN' ? item.title_en : item.title_zh}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={styles.restaurantSection}>
-              <RestaurantFetcher onDataFetched={handleDataFetched} />
-              <RestaurantList restaurants={restaurants} />
-            </View>
-          </ScrollView>
-        </SafeAreaView>
+            </ScrollView>
+          </SafeAreaView>
+        </View>
       )}
     </LanguageManager>
   );
 };
 
 const styles = StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: '#fff',
-      paddingTop: Platform.OS === 'ios' ? 0 : StatusBar.currentHeight,
-    },
     container: {
       flex: 1,
       backgroundColor: "#FFF",
+    },
+    safeArea: {
+      flex: 1,
+      backgroundColor: '#fff',
     },
     logo: {
       width: 160,
@@ -114,6 +121,10 @@ const styles = StyleSheet.create({
     },
     topBar: {
       padding: 8,
+      backgroundColor: '#fff',
+      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 8,
+    },
+    fixedHeader: {
       backgroundColor: '#fff',
     },
     topBarRow: {
@@ -149,7 +160,9 @@ const styles = StyleSheet.create({
       marginLeft: 8,
       maxWidth: "90%",
     },
-
+    scrollContent: {
+      paddingBottom: 20,
+    },
     menuSection: { 
       padding: 8,
       marginBottom: -8,
@@ -182,4 +195,3 @@ const styles = StyleSheet.create({
   
   
   export default HomeScreen;
-  
