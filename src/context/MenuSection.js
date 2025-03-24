@@ -503,10 +503,10 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   categoryHeader: {
-    fontSize: 28 * fontScale,
-    fontFamily: 'Urbanist-ExtraBold',
+    fontSize: 24 * fontScale, 
+    fontFamily: 'Inter-SemiBold', 
     fontWeight: 'bold',
-    marginVertical: 20 * scaleHeight,
+    marginVertical: 12 * scaleHeight, 
     paddingHorizontal: 18 * scaleWidth,
   },
   separator: {
@@ -515,12 +515,13 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 24 * fontScale, 
-    fontFamily: 'Quicksand-Bold',
+    fontFamily: 'Inter-SemiBold',
     marginBottom: 6 * scaleHeight,
     maxWidth: 260 * scaleWidth,
   },
   description: {
     fontSize: 20 * fontScale,
+    fontFamily: 'Inter-Regular',
     color: '#555',
     marginBottom: 6 * scaleHeight,
     lineHeight: 22 * scaleHeight,
@@ -627,7 +628,7 @@ const styles = StyleSheet.create({
   },
   viewCartButtonText: {
     color: '#fff',
-    fontSize: 18 * fontScale,
+    fontSize: 20 * fontScale,
     fontWeight: 'bold',
     textAlign: 'center',
   },

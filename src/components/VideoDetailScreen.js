@@ -19,7 +19,6 @@ import { LanguageContext } from '../context/LanguageContext';
 
 const { width, height } = Dimensions.get('window');
 
-// 色彩方案
 const COLORS = {
   primary: '#000000',
   secondary: '#222222',
@@ -69,7 +68,7 @@ const VideoDetailScreen = ({ route, navigation }) => {
   
   // Ensure avatar information is available
   const username = video.avatar_name || video.author || 'username';
-  const avatarUrl = video.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}`;
+  const avatarUrl = video.avatar_url;
   
   // Generate cover image from video URL if needed
   const coverImageUrl = video.cover_image_url || (
@@ -126,8 +125,7 @@ const VideoDetailScreen = ({ route, navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
-      
-      {/* TikTok 風格視頻播放器 */}
+
       <TouchableOpacity 
         activeOpacity={1}
         style={styles.videoWrapper}
@@ -152,27 +150,23 @@ const VideoDetailScreen = ({ route, navigation }) => {
             resizeMode="cover"
           />
         )}
-        
-        {/* 漸變覆蓋層 - 底部 */}
+
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}
           style={styles.bottomGradient}
         />
-        
-        {/* 漸變覆蓋層 - 頂部 */}
+
         <LinearGradient
           colors={['rgba(0,0,0,0.5)', 'transparent']}
           style={styles.topGradient}
         />
-        
-        {/* 暫停指示器 - 只在暫停時顯示 */}
+
         {!isPlaying && (
           <View style={styles.pauseIndicator}>
             <Ionicons name="play" size={60} color="rgba(255, 255, 255, 0.8)" />
           </View>
         )}
-        
-        {/* 頂部控制區 */}
+
         <SafeAreaView style={styles.topControls}>
           <TouchableOpacity 
             style={styles.backButton}
@@ -181,8 +175,7 @@ const VideoDetailScreen = ({ route, navigation }) => {
             <AntDesign name="arrowleft" size={24} color={COLORS.white}  />
           </TouchableOpacity>
         </SafeAreaView>
-        
-        {/* 底部信息區 */}
+
         <SafeAreaView style={styles.bottomControls}>
           <View style={styles.videoInfo}>
             {videoTitle ? (
@@ -208,8 +201,7 @@ const VideoDetailScreen = ({ route, navigation }) => {
               >
                 {videoDescription}
               </Text>
-              
-              {/* 單行顯示所有標籤 */}
+
               {hashtags.length > 0 && (
                 <View style={styles.hashtagsRow}>
                   <Text style={styles.hashtagText} numberOfLines={1} ellipsizeMode="tail">
@@ -226,8 +218,7 @@ const VideoDetailScreen = ({ route, navigation }) => {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
-        
-        {/* 右側交互按鈕 */}
+
         <View style={styles.sideButtons}>
           <TouchableOpacity style={styles.sideButton} onPress={handleShare}>
             <Feather name="share" size={28} color={COLORS.white} />
@@ -361,7 +352,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
     lineHeight: 18,
   },
-  // 修改為單行顯示標籤
   hashtagsRow: {
     flexDirection: 'row',
     marginTop: 8,

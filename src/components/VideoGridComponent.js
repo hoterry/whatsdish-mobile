@@ -1,5 +1,4 @@
-// VideoGridComponent.js - Updated for SectionList compatibility
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,7 +15,6 @@ const GRID_SPACING = 8;
 const NUM_COLUMNS = 2;
 const ITEM_WIDTH = (width - (GRID_SPACING * (NUM_COLUMNS + 1))) / NUM_COLUMNS;
 
-// Colors from existing system
 const COLORS = {
   primary: '#000000',
   secondary: '#222222',
@@ -31,7 +29,6 @@ const COLORS = {
   accent1: '#1A73E8',
 };
 
-// Function to format view count (e.g. 3.8K, 6.9K)
 const formatViewCount = (count) => {
   if (count >= 1000) {
     return (count / 1000).toFixed(1) + 'K';
@@ -46,7 +43,6 @@ const VideoGridItem = ({ video, onPress, language }) => {
       onPress={() => onPress(video)}
       activeOpacity={0.9}
     >
-      {/* Video Thumbnail */}
       <View style={styles.thumbnailContainer}>
         <Image
           source={{ uri: video.cover_image_url || 'https://via.placeholder.com/400x500?text=Video' }}
@@ -54,19 +50,16 @@ const VideoGridItem = ({ video, onPress, language }) => {
           resizeMode="cover"
         />
         
-        {/* Play Button Overlay */}
         <View style={styles.playButtonContainer}>
           <AntDesign name="playcircleo" size={32} color="white" />
         </View>
         
-        {/* Text Overlay - if any */}
         {video.overlay_text && (
           <View style={styles.overlayTextContainer}>
             <Text style={styles.overlayText}>{video.overlay_text}</Text>
           </View>
         )}
         
-        {/* User Info at Top */}
         <View style={styles.userInfoContainer}>
           <Image 
             source={{ uri: video.avatar_url || 'https://via.placeholder.com/50x50?text=User' }} 
@@ -76,26 +69,22 @@ const VideoGridItem = ({ video, onPress, language }) => {
         </View>
       </View>
       
-      {/* Video Details Below */}
       <View style={styles.detailsContainer}>
         <Text style={styles.locationText} numberOfLines={1}>
           {video.location || video.title || 'Location Name'}
         </Text>
         
         <View style={styles.statsContainer}>
-          {/* Happy Emoji + Count */}
           <View style={styles.statItem}>
             <Text style={styles.emojiText}>😄</Text>
             <Text style={styles.statCount}>{video.likes || Math.floor(Math.random() * 50)}</Text>
           </View>
           
-          {/* Sad Emoji + Count */}
           <View style={styles.statItem}>
             <Text style={styles.emojiText}>😔</Text>
             <Text style={styles.statCount}>{video.dislikes || Math.floor(Math.random() * 10)}</Text>
           </View>
           
-          {/* View Count */}
           <View style={styles.viewCountContainer}>
             <AntDesign name="eye" size={14} color={COLORS.accent} />
             <Text style={styles.viewCount}>
@@ -109,19 +98,20 @@ const VideoGridItem = ({ video, onPress, language }) => {
 };
 
 const VideoGridComponent = ({ videos, navigation, language }) => {
+  const filteredVideos = useMemo(() => {
+    if (!videos || videos.length === 0) return [];
+    return videos.filter(video => video.video_url);
+  }, [videos]);
+
   const handleVideoPress = (video) => {
-    console.log('Video pressed:', video.title || video.id);
-    
-    // 導航到VideoDetail頁面
     navigation && navigation.navigate('VideoDetailScreen', { video: video });
   };
-  
-  // 渲染網格佈局
+
   return (
     <View style={styles.container}>      
       <View style={styles.gridContainer}>
-        {videos && videos.length > 0 ? (
-          videos.map((video, index) => (
+        {filteredVideos.length > 0 ? (
+          filteredVideos.map((video, index) => (
             <VideoGridItem 
               key={`video-grid-${index}`}
               video={video} 

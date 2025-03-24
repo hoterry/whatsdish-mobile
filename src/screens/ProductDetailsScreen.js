@@ -131,8 +131,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
       uniqueId: `${(selectedVariant || menuItem).id}-${selectedModifiersIds}-${Date.now()}`,
       note: note,
     };
-  
-    // 🛠️ 在這裡檢查 `gid` 是否存在
+
     console.log("[DEBUG] gid:", itemWithOptionsAndVariants.gid);
     console.log("[DEBUG] Complete Item Data:", itemWithOptionsAndVariants);
   

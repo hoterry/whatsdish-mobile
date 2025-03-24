@@ -1,4 +1,3 @@
-// components/RestaurantHeader.js
 import React from 'react';
 import { View, Text, StyleSheet, Image, Dimensions, Platform } from 'react-native';
 
@@ -45,12 +44,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   headerName: {
-    fontSize: 24, 
-    fontWeight: 'bold',
-    marginTop: 10,
+    fontSize: 24,
+    fontFamily: 'Inter-SemiBold', 
+    marginTop: 5,
     textAlign: 'center',
     paddingHorizontal: 10,
     width: width * 0.9,
+    color: '#333',
   },
   restaurantImage: {
     width: '100%',
@@ -83,9 +83,10 @@ const styles = StyleSheet.create({
     width: '90%', 
   },
   address: {
-    fontSize: 16, 
-    color: '#555',
-    marginTop: 10,
+    fontSize: 16,
+    fontFamily: 'Montserrat',
+    color: '#666',
+    marginTop: 8,
     textAlign: 'center',
     paddingHorizontal: 10,
     width: width * 0.9,

@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   },
   cartText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   emptyText: {

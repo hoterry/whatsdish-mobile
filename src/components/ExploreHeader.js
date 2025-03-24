@@ -32,7 +32,6 @@ const ExploreHeader = ({
 }) => {
   return (
     <View style={styles.headerContainer}>
-      {/* Fixed gradient header part that always stays visible */}
       <LinearGradient
         colors={[COLORS.primary, COLORS.secondary]}
         start={{ x: 0, y: 0 }}
@@ -47,7 +46,6 @@ const ExploreHeader = ({
         </TouchableOpacity>
       </LinearGradient>
       
-      {/* Collapsible toggle part */}
       <Animated.View 
         style={[
           styles.toggleOuterContainer,
