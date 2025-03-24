@@ -309,12 +309,12 @@ const styles = StyleSheet.create({
   },
   bottomControls: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 80 : 60, // 調整底部位置，使其更靠上
+    bottom: Platform.OS === 'ios' ? 80 : 60, 
     left: 20,
-    right: 85, // 增加右側空間
+    right: 85,
     padding: 16,
-    paddingRight: 5, // 減少右側內邊距
-    zIndex: 20, // 增加 zIndex 確保它在其他元素之上
+    paddingRight: 5, 
+    zIndex: 20, 
   },
   videoInfo: {
     width: '100%',

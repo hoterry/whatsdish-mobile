@@ -112,7 +112,6 @@ const MenuFetcher = ({ onDataFetched }) => {
           loop
           style={styles.loadingAnimation}
         />
-        <Text style={styles.loadingText}>Loading menu...</Text>
       </View>
     );
   }

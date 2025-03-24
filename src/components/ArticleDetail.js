@@ -308,24 +308,22 @@ const ArticleDetail = ({ route, navigation }) => {
       backgroundColor: COLORS.lighter,
     },
     th: {
-      padding: 14,            // 表格標題更大內邊距
+      padding: 14,         
       fontWeight: 'bold',
-      fontSize: 16,           // 表格標題更大字體
+      fontSize: 16,          
     },
     td: {
-      padding: 14,            // 表格單元格更大內邊距
+      padding: 14,            
       borderTopWidth: 1,
       borderTopColor: COLORS.light,
-      fontSize: 16,           // 表格內容更大字體
+      fontSize: 16,         
     },
   };
-  
-  // 渲染加載指示器
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>正在載入精彩內容...</Text>
       </View>
     );
   }

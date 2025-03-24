@@ -30,14 +30,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
   const { fetchUserData } = useUserFetcher();
 
   useEffect(() => {
-    if (__DEV__) {
-      console.log('[Login Screen Log] __DEV__:', __DEV__);
-      console.log('[Login Screen Log] Current Environment:', process.env.NODE_ENV); 
-      console.log('[Login Screen Log] API URL:', API_URL);
-    }
-  }, []); 
-
-  useEffect(() => {
     let timer;
     if (isCodeSent && resendTimer > 0) {
       timer = setInterval(() => {

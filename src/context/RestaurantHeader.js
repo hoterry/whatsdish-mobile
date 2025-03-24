@@ -1,9 +1,8 @@
 // components/RestaurantHeader.js
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, Dimensions, Platform } from 'react-native';
 
 function RestaurantHeader({ restaurant }) {
-  console.log("Restaurant Logo URL: ", restaurant.logo_url);
   return (
     <View style={styles.headerContainer}>
       <Image source={{ uri: restaurant.banner_url }} style={styles.restaurantImage} />
@@ -12,23 +11,46 @@ function RestaurantHeader({ restaurant }) {
       </View>
       <View style={styles.centerAlignContainer}>
         <View style={styles.textContainer}>
-          {restaurant.name && <Text style={styles.headerName}>{restaurant.name}</Text>}
-          {restaurant.formatted_address && <Text style={styles.address}>{restaurant.formatted_address}</Text>}
+          {restaurant.name && (
+            <Text 
+              style={styles.headerName} 
+              numberOfLines={1} 
+              adjustsFontSizeToFit={Platform.OS === 'ios'}
+              minimumFontScale={0.7}
+            >
+              {restaurant.name}
+            </Text>
+          )}
+          {restaurant.formatted_address && (
+            <Text 
+              style={styles.address} 
+              numberOfLines={2} 
+              ellipsizeMode="tail"
+            >
+              {restaurant.formatted_address}
+            </Text>
+          )}
         </View>
       </View>
     </View>
   );
 }
 
+const { width } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   headerContainer: {
     alignItems: 'center',
     marginTop: -20,
+    width: '100%',
   },
   headerName: {
-    fontSize: 28,
+    fontSize: 24, 
     fontWeight: 'bold',
     marginTop: 10,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+    width: width * 0.9,
   },
   restaurantImage: {
     width: '100%',
@@ -58,11 +80,15 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     alignItems: 'center',
+    width: '90%', 
   },
   address: {
-    fontSize: 19,
+    fontSize: 16, 
     color: '#555',
     marginTop: 10,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+    width: width * 0.9,
   },
 });
 

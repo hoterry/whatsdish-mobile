@@ -32,7 +32,6 @@ const AccountScreen = ({ setIsAuthenticated }) => {
   const [confirmLogoutVisible, setConfirmLogoutVisible] = useState(false);
   const navigation = useNavigation();
 
-  // 获取用户数据
   const refreshUserData = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -49,7 +48,6 @@ const AccountScreen = ({ setIsAuthenticated }) => {
     }
   }, [fetchUserData]);
 
-  // 组件挂载时获取数据
   useEffect(() => {
     if (__DEV__) {
       console.log('[AccountScreen] Component mounted, fetching user data...');
@@ -57,7 +55,6 @@ const AccountScreen = ({ setIsAuthenticated }) => {
     refreshUserData();
   }, [refreshUserData]);
 
-  // 更新用户头像
   const pickImage = async () => {
     if (__DEV__) {
       console.log('[AccountScreen] Picking image...');
@@ -75,8 +72,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
           console.log('[AccountScreen] Image selected:', result.assets[0].uri);
         }
         setAvatar(result.assets[0].uri);
-        
-        // 这里应该有API调用来更新头像
+
         setUserData(prev => ({
           ...prev,
           avatar: result.assets[0].uri
@@ -90,12 +86,10 @@ const AccountScreen = ({ setIsAuthenticated }) => {
     }
   };
 
-  // 注销确认
   const showLogoutConfirmation = () => {
     setConfirmLogoutVisible(true);
   };
 
-  // 执行注销
   const handleLogout = async () => {
     try {
       if (__DEV__) {
@@ -114,7 +108,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
     }
   };
 
-  // 用于格式化ID，显示最后4位
+
   const formatAccountId = (accountId) => {
     if (!accountId) return 'Not available';
     const length = accountId.length;
@@ -131,7 +125,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* 返回按钮 */}
+
             <TouchableOpacity 
               style={styles.backButton} 
               onPress={() => navigation.goBack()}
@@ -139,8 +133,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
             >
               <Ionicons name="chevron-back" size={28} color="#000" />
             </TouchableOpacity>
-            
-            {/* 用户信息头部 - 静态，不再使用动画 */}
+
             <View style={styles.header}>
               <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
                 <Image source={{ uri: avatar }} style={styles.avatar} />
@@ -158,7 +151,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
               </Text>
             </View>
             
-            {/* 个人信息卡片 */}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Personal Information</Text>
               <View style={styles.card}>
@@ -184,7 +177,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
               </View>
             </View>
             
-            {/* 账户信息卡片 */}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Account Details</Text>
               <View style={styles.card}>
@@ -203,8 +196,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
                 />
               </View>
             </View>
-            
-            {/* 支持和附加功能卡片 */}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Settings & Support</Text>
               <View style={styles.card}>
@@ -256,8 +248,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
               onClose={() => setShowLanguageModal(false)}
             />
           )}
-          
-          {/* 退出确认模态框 */}
+
           <Modal
             visible={confirmLogoutVisible}
             transparent={true}
@@ -287,8 +278,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
               </View>
             </BlurView>
           </Modal>
-          
-          {/* 加载指示器 */}
+
           {isRefreshing && (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="large" color="#000" />

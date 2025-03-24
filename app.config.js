@@ -1,5 +1,10 @@
 import 'dotenv/config';
 
+console.log("[BUILD DEBUG] NODE_ENV:", process.env.NODE_ENV);
+console.log("[BUILD DEBUG] DEV_API_URL:", process.env.DEV_API_URL);
+console.log("[BUILD DEBUG] PROD_API_URL:", process.env.PROD_API_URL);
+
+
 export default ({ config }) => {
   const isDev = process.env.NODE_ENV === 'development';
 

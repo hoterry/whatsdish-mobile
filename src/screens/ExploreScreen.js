@@ -272,7 +272,6 @@ const fetchArticles = useCallback(async () => {
     <View style={styles.loadingContainer}>
       <ActivityIndicator size="large" color={COLORS.primary} />
       <Text style={styles.loadingText}>
-        {language.toUpperCase() === 'EN' ? 'Loading content...' : '正在加載內容...'}
       </Text>
     </View>
   );

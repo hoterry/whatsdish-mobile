@@ -1,135 +1,175 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
-import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  StyleSheet, 
+  Image, 
+  TouchableOpacity, 
+  ScrollView, 
+  SafeAreaView, 
+  Dimensions,
+  Platform,
+  PixelRatio 
+} from 'react-native';
 import { useCart } from './CartContext';
 import { useNavigation } from '@react-navigation/native';
-import ScrollHandler from './ScrollHandler';
 import MenuFetcher from './MenuFetcher';
 import FetchCartItems from './FetchCartItems';
 import { LanguageContext } from '../context/LanguageContext';
-import { Dimensions, PixelRatio } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 const scaleWidth = width / 375;
 const scaleHeight = height / 812;
-const fontScale = PixelRatio.getFontScale();
+const fontScale = Math.min(PixelRatio.getFontScale(), 1.3);
 
 const MenuSection = ({ restaurantId, restaurants }) => {
+
   const [menu, setMenu] = useState([]);
   const [groupedMenu, setGroupedMenu] = useState([]);
-  const [categoryHeights, setCategoryHeights] = useState([]);
-  const [categoryItemWidths, setCategoryItemWidths] = useState([]);
+  const [categoryHeights, setCategoryHeights] = useState({});
+  const [categoryWidths, setCategoryWidths] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [menuLoaded, setMenuLoaded] = useState(false);
-  const navigation = useNavigation();
-  const flatListRef = useRef();
-  const categoryListRef = useRef();
-  const { addToCart, getTotalItems, syncCartToContext, cartItems } = useCart();
-  const { language } = useContext(LanguageContext);
-  const [isCategoryClicking, setIsCategoryClicking] = useState(false);
-
+  const [isManualScroll, setIsManualScroll] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const [categoryOffsets, setCategoryOffsets] = useState({});
   
-  // Custom category click handler to replace the one from ScrollHandler
-  const handleCustomCategoryClick = (categoryName, index) => {
-    setSelectedCategory(categoryName);
-    
-    // Calculate scroll position for horizontal category list
-    if (categoryListRef.current) {
-      // Calculate offset based on measured widths
-      let offsetToCenter = 0;
-      for (let i = 0; i < index; i++) {
-        offsetToCenter += categoryItemWidths[i] || 80; // Use default if width not measured yet
-      }
+
+  const menuListRef = useRef(null);
+  const categoryScrollRef = useRef(null);
+  const categoryMeasurements = useRef({}).current;
+  const menuMeasurements = useRef({}).current;
+  const timeoutRef = useRef(null);
+  const isScrollingRef = useRef(false);
+
+  const navigation = useNavigation();
+  const { addToCart, getTotalItems, syncCartToContext } = useCart();
+  const { language } = useContext(LanguageContext);
+
+  useEffect(() => {
+    if (Object.keys(categoryWidths).length > 0 && groupedMenu.length > 0) {
+      const offsets = {};
+      let currentOffset = 0;
       
-      // Add half of the current item width to center it
-      const currentItemWidth = categoryItemWidths[index] || 80;
-      const screenCenter = width / 2;
-      const scrollPosition = Math.max(0, offsetToCenter - screenCenter + currentItemWidth / 2);
-      
-      categoryListRef.current.scrollTo({ 
-        x: scrollPosition, 
-        animated: true 
+      groupedMenu.forEach((category, index) => {
+        const categoryId = category.category_name;
+        offsets[categoryId] = currentOffset;
+        currentOffset += (categoryWidths[categoryId] || 100) + 20 * scaleWidth; // 加上margin
       });
+      
+      setCategoryOffsets(offsets);
     }
-    
-    // Scroll FlatList to the selected category
-    if (flatListRef.current) {
+  }, [categoryWidths, groupedMenu]);
+
+  const handleCategoryPress = useCallback((categoryId, index) => {
+    setSelectedCategory(categoryId);
+    setIsManualScroll(true);
+
+    if (menuListRef.current) {
       try {
-        flatListRef.current.scrollToIndex({
+        menuListRef.current.scrollToIndex({
           index,
           animated: true,
           viewPosition: 0,
         });
       } catch (error) {
-        // Fallback for "index out of bounds" errors
-        console.warn("[Menu Section Warning] Scroll error:", error);
-        
-        // Alternative approach: calculate offset and use scrollToOffset
+        console.warn("[MenuSection] Scroll to index failed:", error);
+
         let offset = 0;
         for (let i = 0; i < index; i++) {
-          offset += categoryHeights[i] || 0;
+          const catId = groupedMenu[i]?.category_name;
+          offset += categoryHeights[catId] || 0;
         }
         
-        flatListRef.current.scrollToOffset({
+        menuListRef.current.scrollToOffset({
           offset,
-          animated: true
+          animated: true,
         });
       }
     }
-  };
-  
-  // Custom scroll handler for FlatList
-  const handleCustomScroll = (event) => {
-    if (isCategoryClicking || !categoryHeights.length || categoryHeights.includes(0)) return;
-  
-    const y = event.nativeEvent.contentOffset.y;
-    let totalHeight = 0;
-  
-    for (let i = 0; i < categoryHeights.length; i++) {
-      totalHeight += categoryHeights[i];
-      if (y < totalHeight) {
-        if (selectedCategory !== groupedMenu[i].category_name) {
-          setSelectedCategory(groupedMenu[i].category_name);
-  
-          if (categoryListRef.current) {
-            let offsetToCenter = 0;
-            for (let j = 0; j < i; j++) {
-              offsetToCenter += categoryItemWidths[j] || 80;
-            }
-  
-            const currentItemWidth = categoryItemWidths[i] || 80;
-            const screenCenter = width / 2;
-            const scrollPosition = Math.max(0, offsetToCenter - screenCenter + currentItemWidth / 2);
-  
-            categoryListRef.current.scrollTo({ 
-              x: scrollPosition, 
-              animated: true 
-            });
-          }
-        }
-        break;
-      }
+
+    if (categoryScrollRef.current) {
+      const offset = categoryOffsets[categoryId] || 0;
+      const itemWidth = categoryWidths[categoryId] || 100;
+      const centerPosition = offset - (width / 2) + (itemWidth / 2);
+
+      const scrollTo = Math.max(0, centerPosition);
+      
+      categoryScrollRef.current.scrollTo({
+        x: scrollTo,
+        animated: true,
+      });
     }
-  };
-  
-  const handleDataFetched = (data) => {
+
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setIsManualScroll(false);
+    }, 800);
+  }, [groupedMenu, categoryHeights, categoryWidths, categoryOffsets]);
+
+  const handleMenuScroll = useCallback((event) => {
+    if (isManualScroll || !groupedMenu.length) return;
+    
+    const yOffset = event.nativeEvent.contentOffset.y;
+    setScrollPosition(yOffset);
+
+    if (isScrollingRef.current) return;
+    isScrollingRef.current = true;
+
+    requestAnimationFrame(() => {
+
+      let accumulatedHeight = 0;
+      let currentCategoryIndex = 0;
+      
+      for (let i = 0; i < groupedMenu.length; i++) {
+        const categoryId = groupedMenu[i].category_name;
+        const categoryHeight = categoryHeights[categoryId] || 0;
+        
+        if (yOffset < accumulatedHeight + categoryHeight) {
+          currentCategoryIndex = i;
+          break;
+        }
+        
+        accumulatedHeight += categoryHeight;
+      }
+      
+      const currentCategoryId = groupedMenu[currentCategoryIndex]?.category_name;
+
+      if (currentCategoryId && currentCategoryId !== selectedCategory) {
+        setSelectedCategory(currentCategoryId);
+
+        if (categoryScrollRef.current && categoryOffsets[currentCategoryId] !== undefined) {
+          const offset = categoryOffsets[currentCategoryId] || 0;
+          const itemWidth = categoryWidths[currentCategoryId] || 100;
+          const centerPosition = offset - (width / 2) + (itemWidth / 2);
+
+          const scrollTo = Math.max(0, centerPosition);
+          
+          categoryScrollRef.current.scrollTo({
+            x: scrollTo,
+            animated: true,
+          });
+        }
+      }
+      
+      isScrollingRef.current = false;
+    });
+  }, [isManualScroll, groupedMenu, categoryHeights, selectedCategory, categoryOffsets, categoryWidths]);
+
+
+  const handleDataFetched = useCallback((data) => {
     if (!data || !data.categories || !data.groupedItems) {
       console.error('[Menu Section Error] Invalid data received:', data);
       return;
     }
 
-    const firstFoodItem = data.groupedItems[50];
-    if (__DEV__) {
-      console.log('[Menu Section Log] Log 1 food item:', JSON.stringify(firstFoodItem, null, 2));
-    }
-
     const categories = data.categories;
     const groupedItems = data.groupedItems;
 
-    // Create a map to group items by variant_group
     const variantGroups = new Map();
     
-    // First, identify all variant groups
     groupedItems.forEach(item => {
       if (item.variant_group && item.variant_group !== '') {
         if (!variantGroups.has(item.variant_group)) {
@@ -138,174 +178,155 @@ const MenuSection = ({ restaurantId, restaurants }) => {
         variantGroups.get(item.variant_group).push(item);
       }
     });
-    
-    // Create a map with deduplicated items
+
     const dedupedItemsMap = new Map();
     
     groupedItems.forEach(item => {
-      // If this is a variant but not the parent item, skip it
       if (item.variant_group && item.variant_group !== '' && item.is_variant) {
         return;
       }
       
-      // Add non-variant items or parent variant items to the map
       dedupedItemsMap.set(item.id, item);
     });
-    
-    // Create the grouped menu with deduplicated items
-    const groupedItemsMap = dedupedItemsMap;
 
     const grouped = categories.map(category => ({
       category_name: category.name,
       category_name_zh: category.name || category.name,
       items: category.items
-        .map(item => groupedItemsMap.get(item.id))
-        .filter(item => item), // Remove nulls and undefineds
+        .map(item => dedupedItemsMap.get(item.id))
+        .filter(item => item),
     }));
 
     setGroupedMenu(grouped);
-    setMenu(data.groupedItems); // Keep the full menu with all variants for reference
-    setMenuLoaded(true); // Mark menu data as loaded
-    
-    // Initialize arrays to track heights and widths
-    setCategoryHeights(new Array(grouped.length).fill(0));
-    setCategoryItemWidths(new Array(grouped.length).fill(0));
-  };
+    setMenu(data.groupedItems);
+    setMenuLoaded(true);
 
-  const handleCartFetched = (fetchedCartItems) => {
+    const initialHeights = {};
+    const initialWidths = {};
+    
+    grouped.forEach(category => {
+      initialHeights[category.category_name] = 0;
+      initialWidths[category.category_name] = 0;
+    });
+    
+    setCategoryHeights(initialHeights);
+    setCategoryWidths(initialWidths);
+
+    if (grouped.length > 0) {
+      setSelectedCategory(grouped[0].category_name);
+    }
+  }, []);
+
+  const handleCartFetched = useCallback((fetchedCartItems) => {
     syncCartToContext(restaurantId, fetchedCartItems);
-    setLoading(false); // Mark overall loading as complete
-  };
+    setLoading(false);
+  }, [restaurantId, syncCartToContext]);
 
-  const handleLoading = (isLoading) => {
-    setLoading(isLoading); // Update loading state
-  };
+  const handleLoading = useCallback((isLoading) => {
+    setLoading(isLoading);
+  }, []);
 
-  const getItemLayout = (data, index) => {
-    let offset = 0;
-    for (let i = 0; i < index; i++) {
-      offset += categoryHeights[i] || 0;
-    }
-    return {
-      length: categoryHeights[index] || 0,
-      offset,
-      index,
-    };
-  };
-
-  useEffect(() => {
-    if (groupedMenu.length > 0) {
-      const firstCategory = groupedMenu[0].category_name;
-      setSelectedCategory(firstCategory);
-      
-      // Safely scroll to first item
-      if (flatListRef.current) {
-        try {
-          flatListRef.current.scrollToIndex({
-            index: 0,
-            animated: false,
-          });
-        } catch (error) {
-          console.warn("[Menu Section Warning] Initial scroll error:", error);
-        }
-      }
-    }
-
-    if (__DEV__) {
-      console.log('[Menu Section Log] Running in development environment');
-    } else {
-      console.log('[Menu Section Log] Running in production environment');
-    }
-  }, [groupedMenu]);
-
-  const handleCategoryLayout = (event, index) => {
+  const handleCategoryLayout = useCallback((event, categoryId) => {
     const { height } = event.nativeEvent.layout;
-    setCategoryHeights((prevHeights) => {
-      const newHeights = [...prevHeights];
-      newHeights[index] = height;
-      return newHeights;
-    });
-  };
-  
-  const handleCategoryItemLayout = (event, index) => {
-    const { width } = event.nativeEvent.layout;
-    setCategoryItemWidths((prevWidths) => {
-      const newWidths = [...prevWidths];
-      newWidths[index] = width;
-      return newWidths;
-    });
-  };
+    
+    setCategoryHeights(prev => ({
+      ...prev,
+      [categoryId]: height
+    }));
+    
+    menuMeasurements[categoryId] = { height };
+  }, [menuMeasurements]);
 
-  const handleAddToCart = (item) => {
+
+  const handleCategoryItemLayout = useCallback((event, categoryId) => {
+    const { width } = event.nativeEvent.layout;
+    
+    setCategoryWidths(prev => ({
+      ...prev,
+      [categoryId]: width
+    }));
+    
+    categoryMeasurements[categoryId] = { width };
+  }, [categoryMeasurements]);
+
+  const handleAddToCart = useCallback((item) => {
     const price = item.price || 
-                  (item.price_formatted ? parseFloat(item.price_formatted.replace('$', '')) : null) || 
-                  (item.fee_in_cents ? item.fee_in_cents / 100 : 0);
+                 (item.price_formatted ? parseFloat(item.price_formatted.replace('$', '')) : null) || 
+                 (item.fee_in_cents ? item.fee_in_cents / 100 : 0);
     
-    // Ensure modifiers are initialized as an empty array
-    const selectedModifiers = [];
-    
-    // Create a more reliable unique identifier
     const uniqueId = `${restaurantId}-${item.id}-no-modifiers-${Date.now()}`;
     
     const updatedItem = {
       ...item,
       uniqueId,
       price,
-      selectedModifiers,
+      selectedModifiers: [],
     };
     
-    console.log("[Menu Section Log] Adding item to cart:", updatedItem);
     addToCart(restaurantId, updatedItem);
-  };
+  }, [restaurantId, addToCart]);
 
-  const handleViewCart = () => {
+  const handleViewCart = useCallback(() => {
     navigation.navigate('Cart', { 
       restaurantId, 
       restaurants, 
       menuData: menu,
     });
-  };
+  }, [restaurantId, restaurants, menu, navigation]);
 
-  const cartItemCount = getTotalItems(restaurantId);
+  const handleProductPress = useCallback((menuItem) => {
+    navigation.navigate('ProductDetail', { 
+      menuItem, 
+      restaurantId, 
+      restaurants 
+    });
+  }, [restaurantId, restaurants, navigation]);
 
-  const renderCategory = ({ item: category, index }) => {
-    if (!category) {
-      return null;
+  const getItemLayout = useCallback((data, index) => {
+    if (!data || !groupedMenu[index]) return { length: 0, offset: 0, index };
+    
+    const categoryId = groupedMenu[index].category_name;
+    const height = categoryHeights[categoryId] || 0;
+    
+    let offset = 0;
+    for (let i = 0; i < index; i++) {
+      const catId = groupedMenu[i]?.category_name;
+      offset += categoryHeights[catId] || 0;
     }
+    
+    return {
+      length: height,
+      offset,
+      index,
+    };
+  }, [groupedMenu, categoryHeights]);
 
+  const getViewCartText = useCallback(() => {
+    const cartItemCount = getTotalItems(restaurantId);
+    return language === 'ZH' 
+      ? `查看購物車 (${cartItemCount})` 
+      : `View Cart (${cartItemCount})`;
+  }, [language, getTotalItems, restaurantId]);
+
+  const renderCategory = useCallback(({ item: category, index }) => {
+    if (!category) return null;
+    
+    const categoryId = category.category_name;
+    
     return (
       <View
         style={styles.categorySection}
-        key={category.category_name}
-        onLayout={(event) => handleCategoryLayout(event, index)}
+        key={categoryId}
+        onLayout={(event) => handleCategoryLayout(event, categoryId)}
       >
-        <Text style={styles.categoryHeader}>
-          {language === 'ZH' ? category.category_name : category.category_name}
+        <Text style={styles.categoryHeader} numberOfLines={1} ellipsizeMode="tail">
+          {language === 'ZH' ? category.category_name_zh : category.category_name}
         </Text>
         <View style={styles.separator} />
 
-        {category.items.map((menuItem, itemIndex) => {
+        {category.items.map((menuItem) => {
           if (!menuItem) return null;
 
-          if (index === 30 && itemIndex === 30) {
-            if (__DEV__) {
-              console.log('[Menu Section Log] First Menu Item in MenuSection:', menuItem);
-            }
-
-            if (menuItem.option_groups && menuItem.option_groups.length > 0) {
-              if (__DEV__) {
-                console.log('[Menu Section Log] Option Groups in MenuSection:', menuItem.option_groups);
-              }
-            }
-
-            if (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) {
-              if (__DEV__) {
-                console.log('[Menu Section Log] Modifier Groups in MenuSection:', menuItem.modifier_groups);
-              }
-            }
-          }
-
-          // Check if this item has variants, options, or modifiers
           const hasOptions =
             (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) ||
             (menuItem.option_groups && menuItem.option_groups.length > 0) ||
@@ -317,15 +338,16 @@ const MenuSection = ({ restaurantId, restaurants }) => {
             <TouchableOpacity
               key={menuItem.id}
               style={styles.menuItem}
-              onPress={() => navigation.navigate('ProductDetail', { menuItem, restaurantId, restaurants })}
+              onPress={() => handleProductPress(menuItem)}
             >
               <View style={styles.info}>
-                <Text style={styles.name}>{language === 'ZH' ? menuItem.name : menuItem.name}</Text>
+                <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
+                  {language === 'ZH' ? menuItem.name_zh || menuItem.name : menuItem.name}
+                </Text>
                 <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
-                  {language === 'ZH' ? menuItem.description : menuItem.description}
+                  {language === 'ZH' ? menuItem.description_zh || menuItem.description : menuItem.description}
                 </Text>
                 
-                {/* Display price range for items with variants */}
                 {menuItem.min_max_display && menuItem.min && menuItem.max ? (
                   <Text style={styles.price}>
                     ${(menuItem.min.fee_min / 100).toFixed(2)} - ${(menuItem.max.fee_max / 100).toFixed(2)}
@@ -343,7 +365,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
                 style={styles.addButton}
                 onPress={() => {
                   if (hasOptions) {
-                    navigation.navigate('ProductDetail', { menuItem, restaurantId, restaurants });
+                    handleProductPress(menuItem);
                   } else {
                     handleAddToCart(menuItem);
                   }
@@ -356,80 +378,130 @@ const MenuSection = ({ restaurantId, restaurants }) => {
         })}
       </View>
     );
-  };
+  }, [language, handleCategoryLayout, handleProductPress, handleAddToCart]);
 
+  // 渲染分类标题项
+  const renderCategoryItem = useCallback((category, index) => {
+    const categoryId = category.category_name;
+    const isSelected = selectedCategory === categoryId;
+    
+    return (
+      <TouchableOpacity
+        key={categoryId}
+        style={[
+          styles.categoryItem, 
+          isSelected && styles.selectedCategory
+        ]}
+        onPress={() => handleCategoryPress(categoryId, index)}
+        onLayout={(event) => handleCategoryItemLayout(event, categoryId)}
+      >
+        <Text 
+          style={[
+            styles.categoryText,
+            isSelected && styles.selectedCategoryText
+          ]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          {language === 'ZH' ? category.category_name_zh : category.category_name}
+        </Text>
+      </TouchableOpacity>
+    );
+  }, [selectedCategory, handleCategoryPress, handleCategoryItemLayout, language]);
+
+  // 渲染购物车按钮
+  const renderCartButton = useCallback(() => {
+    const cartItemCount = getTotalItems(restaurantId);
+    if (menuLoaded && cartItemCount > 0) {
+      return (
+        <View style={styles.viewCartContainer}>
+          <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
+            <Text style={styles.viewCartButtonText} numberOfLines={1} ellipsizeMode="tail">
+              {getViewCartText()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return null;
+  }, [menuLoaded, getTotalItems, restaurantId, handleViewCart, getViewCartText]);
+
+  // 组件渲染
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+
       <MenuFetcher
         restaurantId={restaurantId}
         onDataFetched={handleDataFetched}
         onLoading={handleLoading}
       />
+
       {menuLoaded && (
         <FetchCartItems
           restaurantId={restaurantId}
           onCartFetched={handleCartFetched}
         />
       )}
+      
       {groupedMenu.length > 0 ? (
         <>
-          <ScrollView
-            horizontal
-            style={styles.categoryList}
-            ref={categoryListRef}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoryListContent}
-          >
-            {groupedMenu.map((category, index) => (
-              <TouchableOpacity
-                key={category.category_name}
-                style={[styles.categoryItem, selectedCategory === category.category_name && styles.selectedCategory]}
-                onPress={() => handleCustomCategoryClick(category.category_name, index)}
-                onLayout={(event) => handleCategoryItemLayout(event, index)}
-              >
-                <Text style={[
-                  styles.categoryText,
-                  selectedCategory === category.category_name && styles.selectedCategoryText
-                ]}>
-                  {language === 'ZH' ? category.category_name : category.category_name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-  
+
+          <View style={styles.categoryWrapper}>
+            <ScrollView
+              horizontal
+              ref={categoryScrollRef}
+              style={styles.categoryList}
+              showsHorizontalScrollIndicator={false}
+              scrollEventThrottle={16}
+              contentContainerStyle={styles.categoryListContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              {groupedMenu.map((category, index) => (
+                renderCategoryItem(category, index)
+              ))}
+            </ScrollView>
+          </View>
+
           <FlatList
-            ref={flatListRef}
+            ref={menuListRef}
             data={groupedMenu}
             keyExtractor={(item) => item.category_name}
             renderItem={renderCategory}
             style={styles.flatList}
-            onScroll={handleCustomScroll}
+            onScroll={handleMenuScroll}
             scrollEventThrottle={16}
-            contentContainerStyle={{ paddingBottom: 750 * scaleHeight }}
-            initialNumToRender={10}
-            maxToRenderPerBatch={10}
+            contentContainerStyle={styles.flatListContent}
+            initialNumToRender={5}
+            maxToRenderPerBatch={5}
             windowSize={5}
-            removeClippedSubviews={true}
+            removeClippedSubviews={Platform.OS === 'android'}
             getItemLayout={getItemLayout}
+            onMomentumScrollEnd={() => setIsManualScroll(false)}
+            keyboardShouldPersistTaps="handled"
           />
         </>
       ) : (
-        <Text style={styles.emptyMessage}> </Text>
+        <Text style={styles.emptyMessage}>
+
+        </Text>
       )}
-  
-      {menuLoaded && cartItemCount > 0 && (
-        <TouchableOpacity style={styles.viewCartButton} onPress={handleViewCart}>
-          <Text style={styles.viewCartButtonText}>
-            View Cart ({cartItemCount})
-          </Text>
-        </TouchableOpacity>
-      )}
-    </View>
+
+      {renderCartButton()}
+    </SafeAreaView>
   );
 };
 
-
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  categoryWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    backgroundColor: '#fff',
+    zIndex: 10,
+  },
   categoryHeader: {
     fontSize: 28 * fontScale,
     fontFamily: 'Urbanist-ExtraBold',
@@ -485,21 +557,32 @@ const styles = StyleSheet.create({
   },
   categoryList: {
     paddingHorizontal: 12 * scaleWidth,
+    height: 56,
+  },
+  categoryListContent: {
+    alignItems: 'center',
+    paddingRight: 20 * scaleWidth,
   },
   categoryItem: {
     marginRight: 20 * scaleWidth,
     paddingVertical: 12 * scaleHeight,
     paddingHorizontal: 18 * scaleWidth,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   selectedCategory: {
     borderBottomWidth: 3 * scaleHeight,
     borderBottomColor: 'black',
   },
   categoryText: {
-    fontSize: 24* fontScale, 
+    fontSize: 24 * fontScale, 
     color: '#333',
-    lineHeight: 32 * scaleHeight,
     textAlignVertical: 'center',
+    textAlign: 'center',
+  },
+  selectedCategoryText: {
+    fontWeight: 'bold',
   },
   addButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -517,32 +600,49 @@ const styles = StyleSheet.create({
     fontSize: 22 * fontScale, 
     fontWeight: 'bold',
   },
-  viewCartButton: {
+  flatListContent: {
+    paddingBottom: 100 * scaleHeight,
+  },
+  viewCartContainer: {
     position: 'absolute',
-    top: height * 0.6,  
-    left: width * 0.05,  
+    bottom: Platform.OS === 'ios' ? 50 : 30,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  viewCartButton: {
     backgroundColor: '#000',
-    padding: 12 * scaleWidth,
-    borderRadius: 6 * scaleWidth,
-    zIndex: 999,
+    borderRadius: 10,
     width: '90%',
-    height: '5%',
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
   },
   viewCartButtonText: {
     color: '#fff',
     fontSize: 18 * fontScale,
+    fontWeight: 'bold',
     textAlign: 'center',
   },
-    emptyMessage: {
-      textAlign: 'center',
-      marginTop: 20,
-      fontSize: 16,
-      color: '#666',
-    },
+  emptyMessage: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16 * fontScale,
+    color: '#666',
+  },
+  flatList: {
+    flex: 1,
+  },
+  categorySection: {
+    backgroundColor: '#fff',
+  },
 });
-
   
 export default MenuSection;
