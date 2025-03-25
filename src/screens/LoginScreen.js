@@ -63,6 +63,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
     setLoading(true);
 
     try {
+      console.log('[API URL Log] Sending code to:', `${API_URL}/api/send-code`)
       const response = await fetch(`${API_URL}/api/send-code`, {
         method: 'POST',
         headers: {

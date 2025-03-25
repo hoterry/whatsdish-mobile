@@ -11,13 +11,11 @@ import { LanguageContext } from '../context/LanguageContext';
 import * as SecureStore from 'expo-secure-store';
 
 function CheckoutScreen({ route }) {
-  // 所有状态定义必须保持每次渲染时都执行相同数量的hooks
   const { cartItems, getTotalPrice, clearCart } = useCart();
   const { language } = useContext(LanguageContext);
   const navigation = useNavigation();
   const { restaurantId, restaurants } = route.params;
   
-  // 所有useState hooks
   const [deliveryMethod, setDeliveryMethod] = useState('pickup');
   const [pickupOption, setPickupOption] = useState('immediate');
   const [deliveryOption, setDeliveryOption] = useState('immediate');
@@ -33,10 +31,8 @@ function CheckoutScreen({ route }) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [hasCartItems, setHasCartItems] = useState(false);
 
-  // 获取购物车数据
   const cart = cartItems[restaurantId] || [];
 
-  // 固定顺序的useEffect: 检查购物车状态
   useEffect(() => {
     const checkCart = async () => {
       try {
@@ -57,7 +53,6 @@ function CheckoutScreen({ route }) {
     checkCart();
   }, [cart]);
 
-  // 固定顺序的useEffect: 记录接收到的数据
   useEffect(() => {
     if (__DEV__) {
       console.log('[Check Out Screen Log] Received cart items:', cart); 
@@ -65,7 +60,6 @@ function CheckoutScreen({ route }) {
     }
   }, [cart, restaurants]);
 
-  // 计算相关变量
   const subtotal = getTotalPrice(restaurantId);
   const deliveryFee = 4.99;
   const taxes = subtotal * 0.05;
@@ -74,7 +68,6 @@ function CheckoutScreen({ route }) {
 
   const currentTime = new Date();
   
-  // 辅助函数
   const generateScheduleTimes = () => {
     const times = [];
     for (let day = 0; day < 5; day++) {
@@ -113,7 +106,6 @@ function CheckoutScreen({ route }) {
     setCalculatedTip(tipAmount);
   };
 
-  // 下单处理函数
   const handlePlaceOrder = async () => {
     try {
       setIsProcessing(true);
@@ -122,7 +114,6 @@ function CheckoutScreen({ route }) {
         console.log('[Check Out Screen Log] Processing order...');
       }
 
-      // 获取order_id
       let orderId;
       try {
         orderId = await SecureStore.getItemAsync('order_id');
@@ -163,7 +154,6 @@ function CheckoutScreen({ route }) {
         const ipResponse = await fetch("https://checkip.amazonaws.com/");
         const clientIp = (await ipResponse.text()).trim();
       
-        // 🔐 讀取 token
         const token = await SecureStore.getItemAsync('token');
         if (!token) throw new Error('No token found in SecureStore');
       
@@ -213,13 +203,11 @@ function CheckoutScreen({ route }) {
           console.warn('[Check Out Screen Log] No payment_meta found in response');
         }
 
-        // 打印机API调用
         if (responseData.success) {
           try {
             console.log('==================== PRINTER INFO ====================');
             console.log(`[Check Out Screen Log] Calling print API for order: ${orderId}`);
             
-            // 获取Google Place ID
             const googlePlaceId = responseData.result?.google_place_ids?.[0];
             if (!googlePlaceId) {
               console.warn('[Check Out Screen Log] No Google Place ID found in response');
@@ -227,19 +215,15 @@ function CheckoutScreen({ route }) {
               console.log(`[Check Out Screen Log] Google Place ID: ${googlePlaceId}`);
             }
             
-            // 查找匹配的餐厅
             const restaurantsData = restaurants.data || [];
             const filteredMerchantSettings = restaurantsData.filter(r => r.is_active !== false);
             
-            // 首先通过Google Place ID查找商户
             let merchantSetting = filteredMerchantSettings.find(r => r.gid === googlePlaceId);
             
-            // 如果通过Google Place ID找不到，则尝试通过restaurantId查找
             if (!merchantSetting) {
               merchantSetting = filteredMerchantSettings.find(r => r.id === restaurantId || r.slug === restaurantId);
             }
             
-            // 如果仍找不到，使用第一个活跃餐厅作为备选
             if (!merchantSetting && filteredMerchantSettings.length > 0) {
               merchantSetting = filteredMerchantSettings[0];
               console.warn('[Check Out Screen Log] Using fallback restaurant for printing');
@@ -248,7 +232,6 @@ function CheckoutScreen({ route }) {
             if (merchantSetting) {
               console.log('[Check Out Screen Log] Found merchant for printing:', merchantSetting.name);
               
-              // 根据环境确定使用哪个打印机ID
               const printerSerialNumber = __DEV__ ? merchantSetting.dev_printer_id : merchantSetting.printer_id;
               const printerLanguage = merchantSetting.printer_language || language.toLowerCase();
               
@@ -258,7 +241,6 @@ function CheckoutScreen({ route }) {
               if (!printerSerialNumber) {
                 console.warn('[Check Out Screen Log] No printer ID configured for restaurant:', merchantSetting.name);
               } else {
-                // 调用打印机API
                 const printOrderRequest = await fetch(
                   `https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=${printerSerialNumber}`,
                   {
@@ -289,14 +271,11 @@ function CheckoutScreen({ route }) {
             console.log('======================================================');
           } catch (printError) {
             console.error('[Check Out Screen Log] Error calling print API:', printError);
-            // 不阻止订单完成
           }
         }
       
-        // 清除购物车
         clearCart();
         
-        // 清除SecureStore中的order_id
         try {
           await SecureStore.deleteItemAsync('order_id');
           console.log('[Check Out Screen Log] Successfully cleared order_id from SecureStore');
@@ -304,7 +283,6 @@ function CheckoutScreen({ route }) {
           console.error('[Check Out Screen Log] Error clearing order_id from SecureStore:', error);
         }
       
-        // 导航到历史详情页面，带上明确的重置标志
         navigation.navigate('HistoryDetail', { 
           order: {
             ...orderData,
@@ -312,7 +290,7 @@ function CheckoutScreen({ route }) {
           }, 
           restaurantId, 
           restaurants,
-          resetOrderState: true  // 明确设置为true，确保App.js中的导航监听器可以正确识别
+          resetOrderState: true
         });
       
       } catch (error) {
@@ -331,7 +309,6 @@ function CheckoutScreen({ route }) {
     }
   };
 
-  // 使用统一的渲染方式处理不同状态
   if (isInitializing) {
     return (
       <View style={styles.loadingContainer}>
@@ -358,7 +335,6 @@ function CheckoutScreen({ route }) {
     );
   }
 
-  // 正常UI渲染
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>

@@ -10,25 +10,71 @@ const Distance = ({ restaurant }) => {
     const [distance, setDistance] = useState(null);
     const [error, setError] = useState(null);  // Add state to track error
 
-    useEffect(() => {
-      const getUserLocation = async () => {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          if (__DEV__) {
-            console.log('[Distance Calculator Log] Permission to access location was denied');
-          }
-          return;
+// 在 Distance 組件中修改位置權限請求方式
+
+useEffect(() => {
+  const getUserLocation = async () => {
+    try {
+      // 在 iOS 上，先檢查位置服務是否啟用
+      const serviceEnabled = await Location.hasServicesEnabledAsync().catch(() => false);
+      if (!serviceEnabled) {
+        if (__DEV__) {
+          console.log('[Distance] Location services are not enabled');
         }
+        return;
+      }
 
-        const location = await Location.getCurrentPositionAsync({});
-        setUserLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        });
-      };
+      // 安全地檢查當前權限
+      const { status } = await Location.getForegroundPermissionsAsync().catch(() => ({ status: 'unknown' }));
+      
+      // 只有當權限未決定時才請求
+      if (status !== 'granted') {
+        // 在 iOS 上，確保在主線程上下文請求
+        setTimeout(async () => {
+          try {
+            const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
+            if (newStatus !== 'granted') {
+              return;
+            }
+            // 權限獲取後繼續獲取位置
+            getLocationAfterPermission();
+          } catch (permErr) {
+            if (__DEV__) {
+              console.error('[Distance] Error requesting permission:', permErr);
+            }
+          }
+        }, 500);
+      } else {
+        // 已有權限，直接獲取位置
+        getLocationAfterPermission();
+      }
+    } catch (e) {
+      if (__DEV__) {
+        console.error('[Distance] Unexpected error in location flow:', e);
+      }
+    }
+  };
 
-      getUserLocation();
-    }, []);
+  const getLocationAfterPermission = async () => {
+    try {
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 5000
+      });
+      
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+    } catch (locErr) {
+      if (__DEV__) {
+        console.error('[Distance] Error getting location:', locErr);
+      }
+    }
+  };
+
+  getUserLocation();
+}, []);
 
     useEffect(() => {
       if (restaurant && restaurant.formatted_address) {

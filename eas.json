@@ -14,11 +14,17 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
-        
+        "buildType": "apk"  
+      },
+      "ios": {
+        "simulator": false,
+        "credentialsSource": "local"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "PROD_API_URL": "https://whatsdish-app-backend-b0392f9e50f6.herokuapp.com",
+        "PROD_SUPABASE_URL": "https://kaogouzfrzjeynyflmrr.supabase.co",
+        "PROD_SUPABASE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imthb2dvdXpmcnpqZXlueWZsbXJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM2NjUyNzQsImV4cCI6MjA0OTI0MTI3NH0.Bp75Wx3ZruXhkw6W8vh6J3FtjFyy4QSY3t8_aaGyG90"
       }
     },
     "production": {
@@ -27,11 +33,18 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "PROD_API_URL": "https://whatsdish-app-backend-b0392f9e50f6.herokuapp.com",
+        "PROD_SUPABASE_URL": "https://kaogouzfrzjeynyflmrr.supabase.co"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {},
+    "preview": {
+      "ios": {
+        "appleTeamId": "A5R5JW7TF6"
+      }
+    }
   }
 }

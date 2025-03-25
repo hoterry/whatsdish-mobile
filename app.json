@@ -15,8 +15,14 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIViewControllerBasedStatusBarAppearance": true
-      }
+        "UIViewControllerBasedStatusBarAppearance": true,
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "We need your location to show you the distance to restaurants nearby.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to show you the distance to restaurants nearby.",
+        "NSLocationAlwaysUsageDescription": "We need your location to show you the distance to restaurants nearby.",
+        "aps-environment": "development"
+      },
+      "bundleIdentifier": "com.whatsdish.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -29,11 +35,26 @@
         "hidden": false,
         "barStyle": "dark-content"
       },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "We need your location to show you the distance to restaurants nearby."
+        }
+      ],
+      [
+        "expo-notifications"
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "afe593c8-471a-4e86-b604-bccf9533623e"
