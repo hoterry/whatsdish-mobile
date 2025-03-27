@@ -43,6 +43,11 @@ export default function LoginScreen({ setIsAuthenticated }) {
     return /^\d{10}$/.test(phoneNumber.replace(/\D/g, ''));
   }, [phoneNumber]);
 
+  // 格式化電話號碼，確保前面加上 +1
+  const formattedPhoneNumber = useCallback(() => {
+    const cleanNumber = phoneNumber.replace(/\D/g, '');
+    return `+1${cleanNumber}`;
+  }, [phoneNumber]);
 
   const handleSendCode = useCallback(async () => {
     if (resendTimer > 0) return;
@@ -63,13 +68,20 @@ export default function LoginScreen({ setIsAuthenticated }) {
     setLoading(true);
 
     try {
-      console.log('[API URL Log] Sending code to:', `${API_URL}/api/send-code`)
+      // 使用格式化後的電話號碼 (帶有 +1 前綴)
+      const phoneWithCountryCode = formattedPhoneNumber();
+      
+      if (__DEV__) {
+        console.log('[API URL Log] Sending code to:', `${API_URL}/api/send-code`);
+        console.log('[Login Screen Log] Phone number with country code:', phoneWithCountryCode);
+      }
+      
       const response = await fetch(`${API_URL}/api/send-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phoneNumber }),
+        body: JSON.stringify({ phoneNumber: phoneWithCountryCode }),
       });
 
       const data = await response.json();
@@ -94,7 +106,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
     } finally {
       setLoading(false);
     }
-  }, [phoneNumber, resendTimer, API_URL, isValidPhoneNumber]);
+  }, [phoneNumber, resendTimer, API_URL, isValidPhoneNumber, formattedPhoneNumber]);
 
   const handleVerifyCode = useCallback(async () => {
     setErrorMessage('');
@@ -108,8 +120,12 @@ export default function LoginScreen({ setIsAuthenticated }) {
     setLoading(true);
     
     try {
+      // 使用格式化後的電話號碼 (帶有 +1 前綴)
+      const phoneWithCountryCode = formattedPhoneNumber();
+      
       if (__DEV__) {
         console.log('[Login Screen Log] Verifying code:', code.join(''));
+        console.log('[Login Screen Log] Phone number with country code:', phoneWithCountryCode);
       }
 
       const response = await fetch(`${API_URL}/api/verify-code`, { 
@@ -118,7 +134,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          phoneNumber, 
+          phoneNumber: phoneWithCountryCode, 
           code: code.join('') 
         }),
       });
@@ -133,7 +149,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
         await SecureStore.setItemAsync('token', data.token);
         
         if (__DEV__) {
-          console.log('[Login Screen Log] Stored userPhoneNumber:', phoneNumber);
+          console.log('[Login Screen Log] Stored userPhoneNumber:', phoneWithCountryCode);
         }
 
         try {
@@ -166,7 +182,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
     } finally {
       setLoading(false);
     }
-  }, [code, phoneNumber, API_URL, fetchUserData, setIsAuthenticated]);
+  }, [code, phoneNumber, API_URL, fetchUserData, setIsAuthenticated, formattedPhoneNumber]);
 
   const handleCodeChange = useCallback((text, index) => {
     const numericText = text.replace(/[^0-9]/g, '');
@@ -326,7 +342,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
     </ScrollView>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
