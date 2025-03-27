@@ -242,7 +242,7 @@ function CheckoutScreen({ route }) {
                 console.warn('[Check Out Screen Log] No printer ID configured for restaurant:', merchantSetting.name);
               } else {
                 const printOrderRequest = await fetch(
-                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=${printerSerialNumber}`,
+                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=0162410240002`,//${printerSerialNumber}
                   {
                     method: 'GET',
                     headers: {
@@ -349,65 +349,74 @@ function CheckoutScreen({ route }) {
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <DeliveryOptionsButton
-          deliveryMethod={deliveryMethod}
-          pickupOption={pickupOption}
-          pickupScheduledTime={pickupScheduledTime}
-          deliveryOption={deliveryOption}
-          deliveryScheduledTime={deliveryScheduledTime}
-          address={address}
-          currentTime={currentTime}
-          scheduleTimes={scheduleTimes}
-          onDeliveryMethodChange={handleDeliveryMethodChange}
-          onPickupOptionChange={setPickupOption}
-          onPickupTimeChange={(itemValue) => {
-            const newTime = new Date(itemValue);
-            setPickupScheduledTime(newTime);
-          }}
-          onDeliveryOptionChange={setDeliveryOption}
-          onDeliveryTimeChange={(itemValue) => {
-            const newTime = new Date(itemValue);
-            setDeliveryScheduledTime(newTime);
-          }}
-          onAddressChange={handleChangeAddress}
-          formatDate={formatDate}
-          restaurantId={restaurantId} 
-          restaurants={restaurants}   
-        />
-  
-        <OrderSummary
-          cart={cart}
-          subtotal={subtotal}
-          showDeliveryFee={showDeliveryFee}
-          deliveryFee={deliveryFee}
-          taxes={taxes}
-          totalPrice={totalPrice}
-        />
-  
-        <Payment
-          creditCardNumber={creditCardNumber}
-          setCreditCardNumber={setCreditCardNumber}
-          expirationDate={expirationDate}
-          setExpirationDate={setExpirationDate}
-          cvv={cvv}
-          setCvv={setCvv}
-        />
-      </ScrollView>
+      // 在 ScrollView 部分加入條件渲染邏輯
+<ScrollView contentContainerStyle={styles.scrollContainer}>
+  <DeliveryOptionsButton
+    deliveryMethod={deliveryMethod}
+    pickupOption={pickupOption}
+    pickupScheduledTime={pickupScheduledTime}
+    deliveryOption={deliveryOption}
+    deliveryScheduledTime={deliveryScheduledTime}
+    address={address}
+    currentTime={currentTime}
+    scheduleTimes={scheduleTimes}
+    onDeliveryMethodChange={handleDeliveryMethodChange}
+    onPickupOptionChange={setPickupOption}
+    onPickupTimeChange={(itemValue) => {
+      const newTime = new Date(itemValue);
+      setPickupScheduledTime(newTime);
+    }}
+    onDeliveryOptionChange={setDeliveryOption}
+    onDeliveryTimeChange={(itemValue) => {
+      const newTime = new Date(itemValue);
+      setDeliveryScheduledTime(newTime);
+    }}
+    onAddressChange={handleChangeAddress}
+    formatDate={formatDate}
+    restaurantId={restaurantId} 
+    restaurants={restaurants}   
+  />
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={[styles.placeOrderButton, isProcessing && styles.disabledButton]} 
-          onPress={handlePlaceOrder}
-          disabled={isProcessing}
-        >
-          <Text style={styles.placeOrderText}>
-            {isProcessing 
-              ? (language === 'ZH' ? '處理中...' : 'Processing...') 
-              : (language === 'ZH' ? '確認下單' : 'Place Order')}
-          </Text>
-        </TouchableOpacity>
-      </View>
+  {/* 只在 Pickup 模式下顯示這些內容 */}
+  {deliveryMethod === 'pickup' && (
+    <>
+      <OrderSummary
+        cart={cart}
+        subtotal={subtotal}
+        showDeliveryFee={showDeliveryFee}
+        deliveryFee={deliveryFee}
+        taxes={taxes}
+        totalPrice={totalPrice}
+      />
+
+      <Payment
+        creditCardNumber={creditCardNumber}
+        setCreditCardNumber={setCreditCardNumber}
+        expirationDate={expirationDate}
+        setExpirationDate={setExpirationDate}
+        cvv={cvv}
+        setCvv={setCvv}
+      />
+    </>
+  )}
+</ScrollView>
+
+{/* 同樣也要修改底部按鈕，只在 Pickup 模式下顯示 */}
+{deliveryMethod === 'pickup' ? (
+  <View style={styles.buttonContainer}>
+    <TouchableOpacity 
+      style={[styles.placeOrderButton, isProcessing && styles.disabledButton]} 
+      onPress={handlePlaceOrder}
+      disabled={isProcessing}
+    >
+      <Text style={styles.placeOrderText}>
+        {isProcessing 
+          ? (language === 'ZH' ? '處理中...' : 'Processing...') 
+          : (language === 'ZH' ? '確認下單' : 'Place Order')}
+      </Text>
+    </TouchableOpacity>
+  </View>
+) : null}
     </View>
   );
 }

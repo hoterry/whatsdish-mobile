@@ -1,3 +1,4 @@
+
 import React, { useContext } from 'react';
 import { 
   View, 
@@ -16,10 +17,14 @@ const translations = {
   EN: {
     pickup: "Pickup",
     delivery: "Delivery",
+    comingSoon: "Delivery service coming soon!",
+    stayTuned: "Stay tuned for updates."
   },
   ZH: {
     pickup: "自取",
     delivery: "配送",
+    comingSoon: "配送服務即將推出！",
+    stayTuned: "敬請期待更多消息。"
   },
 };
 
@@ -110,7 +115,25 @@ const DeliveryOptionsButton = ({
         )}
 
         {deliveryMethod === 'delivery' && (
-          <DeliveryOptions
+          <View style={styles.comingSoonContainer}>
+            <Ionicons 
+              name="time-outline" 
+              size={32} 
+              color="#666666" 
+              style={styles.comingSoonIcon}
+            />
+            <Text style={styles.comingSoonText}>
+              {translations[language].comingSoon}
+            </Text>
+            <Text style={styles.stayTunedText}>
+              {translations[language].stayTuned}
+            </Text>
+          </View>
+                      
+        )}
+      </View>
+      <View style={styles.emptyDeliveryContainer}>
+                      {/*<DeliveryOptions
             deliveryOption={deliveryOption}
             deliveryScheduledTime={deliveryScheduledTime}
             currentTime={currentTime}
@@ -119,10 +142,8 @@ const DeliveryOptionsButton = ({
             onDeliveryTimeChange={onDeliveryTimeChange}
             formatDate={formatDate}
             address={address}
-            onAddressChange={onAddressChange}
-          />
-        )}
-      </View>
+            onAddressChange={onAddressChange}*/}
+          </View>
     </View>
   );
 };
@@ -197,6 +218,26 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
     paddingTop: 16,
+  },
+  comingSoonContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  comingSoonIcon: {
+    marginBottom: 12,
+  },
+  comingSoonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#444444',
+    marginBottom: 8,
+    textAlign: 'center'
+  },
+  stayTunedText: {
+    fontSize: 15,
+    color: '#777777',
+    textAlign: 'center'
   }
 });
 

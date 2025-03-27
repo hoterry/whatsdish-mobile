@@ -163,6 +163,7 @@ const RestaurantList = ({ restaurants, userLocation }) => {
         .filter((item) => item.is_shown) 
         .map((item) => (
           <View key={item.gid} style={styles.restaurantCard}>
+            <Text style={styles.Featured}>{t('Featured Restaurants')}</Text>
             <Pressable 
               onPress={() => handlePressRestaurant(item)}
               android_ripple={{ color: 'rgba(0, 0, 0, 0.1)' }}
@@ -432,6 +433,12 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
   },
+  Featured: {
+    fontSize: 20,
+    fontFamily: 'Inter-SemiBold',
+    color: '#333',
+    marginBottom: 10,
+  }
 });
 
 export default RestaurantList;
