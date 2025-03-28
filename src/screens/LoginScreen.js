@@ -24,7 +24,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import useUserFetcher from '../context/FetchUser';
 import * as Haptics from 'expo-haptics';
 
-// Get screen dimensions
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen({ setIsAuthenticated }) {
@@ -39,11 +38,9 @@ export default function LoginScreen({ setIsAuthenticated }) {
   const { API_URL } = Constants.expoConfig.extra; 
   const { fetchUserData } = useUserFetcher();
   
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   
-  // Run entrance animation on mount
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -61,7 +58,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
 
   useEffect(() => {
     if (isCodeSent) {
-      // Reset and run animations when switching to code input
       fadeAnim.setValue(0);
       slideAnim.setValue(50);
       
@@ -94,7 +90,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
     return /^\d{10}$/.test(phoneNumber.replace(/\D/g, ''));
   }, [phoneNumber]);
 
-  // Format phone number
   const formattedPhoneNumber = useCallback(() => {
     const cleanNumber = phoneNumber.replace(/\D/g, '');
     return `+1${cleanNumber}`;
@@ -115,7 +110,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
       return;
     }
 
-    // Haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     Keyboard.dismiss();
@@ -169,7 +163,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
       return;
     }
 
-    // Haptic feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     Keyboard.dismiss();
@@ -221,13 +214,11 @@ export default function LoginScreen({ setIsAuthenticated }) {
           }
         }
 
-        // Success animation before setting authenticated
         Animated.timing(fadeAnim, {
           toValue: 0,
           duration: 500,
           useNativeDriver: true,
         }).start(() => {
-          // Set authenticated state after fade out
           setIsAuthenticated(true);
         });
 
@@ -237,7 +228,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
       } else {
         setErrorMessage(data.error || 'Invalid verification code.');
         
-        // Error shake animation for invalid code
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         
         const shakeAnimation = new Animated.Value(0);
@@ -262,7 +252,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
     const numericText = text.replace(/[^0-9]/g, '');
     
     if (numericText || text === '') {
-      // Provide subtle haptic feedback on each digit
       Haptics.selectionAsync();
       
       const newCode = [...code];
@@ -292,7 +281,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
   }, [code]);
 
   const handlePhoneChange = useCallback((text) => {
-    // Format the phone number as user types (XXX) XXX-XXXX
     const cleaned = text.replace(/\D/g, '');
     let formatted = cleaned;
     
@@ -313,7 +301,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
   }, []);
 
   const handleBack = useCallback(() => {
-    // Animation for going back
     Animated.timing(fadeAnim, {
       toValue: 0,
       duration: 300,
@@ -324,7 +311,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
       setCode(['', '', '', '', '', '']);
       setErrorMessage('');
       
-      // Fade back in the phone input
       fadeAnim.setValue(0);
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -351,6 +337,14 @@ export default function LoginScreen({ setIsAuthenticated }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
+      <TouchableOpacity 
+        style={styles.backButtonTop}
+        onPress={() => navigation.goBack()}
+      >
+        <Ionicons name="arrow-back-circle" size={36} color="#2E8B57" />
+      </TouchableOpacity>
+      
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
@@ -417,7 +411,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
                 <TouchableOpacity 
                   onPress={handleBack} 
                   style={styles.backButton}
-                  accessibilityLabel="Go back to phone number"
                 >
                   <Ionicons name="arrow-back-circle" size={30} color="#2E8B57" />
                 </TouchableOpacity>
@@ -443,7 +436,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
                       ref={(ref) => (codeInputs.current[index] = ref)}
                       textContentType="oneTimeCode"
                       onKeyPress={(e) => handleKeyPress(e, index)}
-                      accessibilityLabel={`Verification code digit ${index + 1}`}
                       selectionColor="#2E8B57"
                     />
                   ))}
@@ -701,6 +693,23 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 1,
     padding: 8,
+  },
+  backButtonTop: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight + 10,
+    left: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   resendButton: {
     alignSelf: 'center',

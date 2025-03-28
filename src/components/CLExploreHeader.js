@@ -21,8 +21,9 @@ const COLORS = {
   accent1: '#2E8B57',          // Sea Green (same as accent)
 };
 
+// 計算狀態欄高度
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 
-  (Platform.isPad ? 20 : StatusBar.currentHeight || 14) : 
+  (Platform.isPad ? 20 : StatusBar.currentHeight || 44) : 
   (StatusBar.currentHeight || 0);
 
 const CLExploreHeader = ({
@@ -35,7 +36,6 @@ const CLExploreHeader = ({
 }) => {
   return (
     <View style={styles.headerContainer}>
-      {/* 添加 StatusBar 設置 */}
       <StatusBar 
         barStyle="dark-content" 
         backgroundColor="transparent"
@@ -51,7 +51,6 @@ const CLExploreHeader = ({
         </TouchableOpacity>*/}
       </View>
       
-      {/* Animated View 保持不變 */}
       <Animated.View 
         style={[
           styles.toggleOuterContainer,
@@ -149,7 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.light,
-    paddingTop: STATUS_BAR_HEIGHT,
+    paddingTop: STATUS_BAR_HEIGHT, // 添加動態計算的狀態欄高度
   },
   headerMain: {
     height: HEADER_HEIGHT, // 使用減小後的高度
@@ -160,6 +159,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12, // 添加底部 padding
     paddingTop: 5, // 添加頂部 padding
     backgroundColor: COLORS.white,
+    // 移除了固定的 paddingTop: 50
   },
   headerTitle: {
     color: COLORS.primary,

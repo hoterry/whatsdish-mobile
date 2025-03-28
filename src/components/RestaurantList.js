@@ -240,7 +240,7 @@ const RestaurantList = ({ restaurants, userLocation }) => {
               </View>
             </Pressable>
             
-            <TouchableOpacity 
+            {/*<TouchableOpacity 
               onPress={() => toggleBookmark(item)} 
               style={styles.bookmarkIcon}
             >
@@ -250,7 +250,7 @@ const RestaurantList = ({ restaurants, userLocation }) => {
                   : require('../../assets/unmark.png')}
                 style={styles.bookmarkIconImage}
               />
-            </TouchableOpacity>
+            </TouchableOpacity>*/}
           </View>
         ))}
     </ScrollView>

@@ -194,7 +194,7 @@ const CLRestaurantList = ({ restaurants, userLocation }) => {
             </Pressable>
             
             {/* 收藏按鈕 - 點擊提示登入 */}
-            <Pressable 
+            {/*<Pressable 
               onPress={promptLogin} 
               style={styles.bookmarkIcon}
             >
@@ -202,7 +202,7 @@ const CLRestaurantList = ({ restaurants, userLocation }) => {
                 source={require('../../assets/unmark.png')}
                 style={styles.bookmarkIconImage}
               />
-            </Pressable>
+            </Pressable>*/}
           </View>
         ))}
         

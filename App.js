@@ -11,6 +11,9 @@ import * as Font from 'expo-font';
 import * as SecureStore from 'expo-secure-store';
 import { Button } from 'react-native';
 import { LoadingProvider } from './src/context/LoadingContext';
+
+
+
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
   enableInExpoDevelopment: true,
@@ -53,29 +56,28 @@ import VideoDetailScreen from './src/components/VideoDetailScreen';
 import VideoPreloader from './src/components/VideoPreloader'; // 引入新創建的VideoPreloader組件
 import CartScreen from './src/screens/CartScreen';
 import CustomTabNavigator from './CustomTabNavigator';
-// 引入新的無需登入主頁面
+import CLCustomTabNavigator from './CLCustomTabNavigator';
 import CLHomeScreen from './src/screens/CLHomeScreen';
-// 加入餐廳詳情頁面
 import CLDetailsScreen from './src/components/CLDetailsScreen';
-// 加入菜單頁面
-
-
 import { CartProvider } from './src/context/CartContext';
 import { LanguageProvider } from './src/context/LanguageContext';
+import CLArticleDetail from './src/components/CLArticleDetail';
 
 const Stack = createStackNavigator();
 
 // 無需登入的頁面堆疊
 function GuestStack({ setIsAuthenticated }) {
   return (
-    <Stack.Navigator initialRouteName="CLHome">
-      <Stack.Screen name="CLHome" component={CLHomeScreen} options={{ headerShown: false }} />
+    <Stack.Navigator initialRouteName="CLHomeTabs">
+      <Stack.Screen name="CLHomeTabs" options={{ headerShown: false }}>
+        {props => <CLCustomTabNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
+      </Stack.Screen>
       <Stack.Screen name="Login" options={{ headerShown: false }}>
         {props => <LoginScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
       </Stack.Screen>
       <Stack.Screen name="Details" component={CLDetailsScreen} options={{ headerShown: false }} />
-
-
+      <Stack.Screen name="VideoDetailScreen" component={VideoDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CLArticleDetail" component={CLArticleDetail} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

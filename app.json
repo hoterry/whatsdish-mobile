@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo-green.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -26,7 +26,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo-green.png",
         "backgroundColor": "#ffffff"
       },
       "statusBar": {
@@ -51,8 +51,14 @@
           "locationAlwaysAndWhenInUsePermission": "We need your location to show you the distance to restaurants nearby."
         }
       ],
+      "expo-notifications",
       [
-        "expo-notifications"
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
       ]
     ],
     "extra": {

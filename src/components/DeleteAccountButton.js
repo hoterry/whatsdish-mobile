@@ -2,9 +2,15 @@
 import React from 'react';
 import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
+import { useNavigation } from '@react-navigation/native';
 import ProfileItem from './ProfileItem';
 
-const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN' }) => {
+const { API_URL } = Constants.expoConfig.extra;
+
+const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN', isLast }) => {
+  const navigation = useNavigation();
+  
   const texts = {
     EN: {
       deleteLabel: 'Delete Account',
@@ -38,23 +44,40 @@ const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN' }) => {
           onPress: async () => {
             try {
               const token = await SecureStore.getItemAsync('token');
-              const res = await fetch('https://your-backend.com/api/account', {
+              
+              // Call the specific API endpoint
+              const response = await fetch('https://dev.whatsdish.com/api/profile', {
                 method: 'DELETE',
                 headers: {
-                  Authorization: `Bearer ${token}`,
                   'Content-Type': 'application/json',
+                  Authorization: `Bearer ${token}`,
                 },
               });
+              
+              // Log the response
+              if (__DEV__) {
+                const responseData = await response.json().catch(() => ({}));
+                console.log('[DeleteAccountButton] API Response:', response.status, responseData);
+              }
 
-              if (res.ok) {
+              if (response.ok) {
+                // Account deleted successfully
                 await SecureStore.deleteItemAsync('token');
                 await SecureStore.deleteItemAsync('accountId');
                 setIsAuthenticated(false);
+                // Navigate to CLHomeScreen
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'CLHomeScreen' }],
+                });
               } else {
+                // Handle error response
                 Alert.alert('Error', t.error);
               }
             } catch (err) {
-              console.error('Delete account error:', err);
+              if (__DEV__) {
+                console.error('Delete account error:', err);
+              }
               Alert.alert('Error', t.error);
             }
           },
@@ -69,7 +92,7 @@ const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN' }) => {
       label={t.deleteLabel}
       value=""
       onPress={handleDeleteAccount}
-      isLast
+      isLast={isLast}
     />
   );
 };
