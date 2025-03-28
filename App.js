@@ -7,9 +7,10 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, View, Platform, Text } from 'react-native';
-import * as Font from 'expo-font';
+import * as Font from 'expo-font';  
 import * as SecureStore from 'expo-secure-store';
 import { Button } from 'react-native';
+import { LoadingProvider } from './src/context/LoadingContext';
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
   enableInExpoDevelopment: true,
@@ -42,7 +43,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import DetailsScreen from './src/screens/DetailsScreen';
 import ProductDetailsScreen from './src/screens/ProductDetailsScreen';
-import CheckoutScreen from './src/screens/CheckoutScreen';import ExploreScreen from './src/screens/ExploreScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen';
+import ExploreScreen from './src/screens/ExploreScreen';
 import AccountScreen from './src/screens/AccountScreen';
 import OrderStatusScreen from './src/screens/OrderStatusScreen';
 import HistoryDetailScreen from './src/screens/HistoryDetail';
@@ -51,11 +53,32 @@ import VideoDetailScreen from './src/components/VideoDetailScreen';
 import VideoPreloader from './src/components/VideoPreloader'; // 引入新創建的VideoPreloader組件
 import CartScreen from './src/screens/CartScreen';
 import CustomTabNavigator from './CustomTabNavigator';
+// 引入新的無需登入主頁面
+import CLHomeScreen from './src/screens/CLHomeScreen';
+// 加入餐廳詳情頁面
+import CLDetailsScreen from './src/components/CLDetailsScreen';
+// 加入菜單頁面
+
 
 import { CartProvider } from './src/context/CartContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 
 const Stack = createStackNavigator();
+
+// 無需登入的頁面堆疊
+function GuestStack({ setIsAuthenticated }) {
+  return (
+    <Stack.Navigator initialRouteName="CLHome">
+      <Stack.Screen name="CLHome" component={CLHomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Login" options={{ headerShown: false }}>
+        {props => <LoginScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
+      </Stack.Screen>
+      <Stack.Screen name="Details" component={CLDetailsScreen} options={{ headerShown: false }} />
+
+
+    </Stack.Navigator>
+  );
+}
 
 function AuthStack({ setIsAuthenticated }) {
   return (
@@ -93,6 +116,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [navigationState, setNavigationState] = useState(null);
+  // 新增狀態控制是否跳過登入驗證直接使用訪客模式
+  const [useGuestMode, setUseGuestMode] = useState(true); // 預設啟用訪客模式
 
   useEffect(() => {
     if (__DEV__) {
@@ -183,6 +208,7 @@ export default function App() {
   }
 
   return (
+    <LoadingProvider>
     <ErrorBoundary>
       <LanguageProvider>
         <CartProvider>
@@ -198,11 +224,16 @@ export default function App() {
             {isAuthenticated ? (
               <AppStack setIsAuthenticated={setIsAuthenticated} />
             ) : (
-              <AuthStack setIsAuthenticated={setIsAuthenticated} />
+              useGuestMode ? (
+                <GuestStack setIsAuthenticated={setIsAuthenticated} />
+              ) : (
+                <AuthStack setIsAuthenticated={setIsAuthenticated} />
+              )
             )}
           </NavigationContainer>
         </CartProvider>
       </LanguageProvider>
     </ErrorBoundary>
+    </LoadingProvider>
   );
 }

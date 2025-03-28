@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
-import { Text, View, StyleSheet } from 'react-native';
+import { Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { LanguageContext } from '../context/LanguageContext';
-import LottieView from 'lottie-react-native'; 
+import { useLoading } from '../context/LoadingContext'; // 使用全局加載狀態
 
 const MenuFetcher = ({ onDataFetched }) => {
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [orderId, setOrderId] = useState(null);
+
+  // 使用全局加載狀態
+  const { setIsLoading } = useLoading();
 
   const prevOrderIdRef = useRef();
   const { API_URL } = Constants.expoConfig.extra;
@@ -53,7 +55,8 @@ const MenuFetcher = ({ onDataFetched }) => {
     }
 
     const fetchMenu = async () => {
-      setLoading(true);
+      // 設置全局加載狀態為 true
+      setIsLoading(true);
       setError(null);
 
       try {
@@ -87,34 +90,30 @@ const MenuFetcher = ({ onDataFetched }) => {
       } catch (err) {
         console.error('[MenuFetcher Log] Error fetching menu:', err.message);
         setError('Unable to load menu, please try again later.');
+        
+        // 在出錯時關閉加載狀態
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 1000);
       } finally {
         if (__DEV__) {
           console.log('[MenuFetcher Log] Finished fetching menu for orderId:', orderId);
         }
-        setLoading(false);
+        
+        // FetchCartItems 組件會在數據加載完成後設置加載狀態，
+        // 所以這裡不需要關閉加載狀態
       }
     };
 
     fetchMenu();
 
     prevOrderIdRef.current = orderId;
-  }, [orderId, onDataFetched, lang]);
-
-  if (loading) {
-    if (__DEV__) {
-      console.log('[MenuFetcher Log] Loading...');
-    }
-    return (
-      <View style={styles.loadingContainer}>
-        <LottieView
-          source={require('../../assets/loading-animation.json')} // Path to your Lottie JSON file
-          autoPlay
-          loop
-          style={styles.loadingAnimation}
-        />
-      </View>
-    );
-  }
+    
+    // 組件卸載時清理
+    return () => {
+      setIsLoading(false);
+    };
+  }, [orderId, onDataFetched, lang, setIsLoading]);
 
   if (error) {
     if (__DEV__) {
@@ -125,23 +124,5 @@ const MenuFetcher = ({ onDataFetched }) => {
 
   return null;
 };
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 250
-  },
-  loadingAnimation: {
-    width: 100,
-    height: 100,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#000',
-  },
-});
 
 export default MenuFetcher;

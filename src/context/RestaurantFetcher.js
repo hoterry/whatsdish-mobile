@@ -1,15 +1,18 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Text, View, StyleSheet } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
-import LottieView from 'lottie-react-native';
+import { useLoading } from '../context/LoadingContext'; // 確保路徑正確
 
 const RestaurantFetcher = ({ onDataFetched }) => {
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+  const { setIsLoading } = useLoading(); // 使用 LoadingContext
+  
   const stableOnDataFetched = useCallback(onDataFetched, []);
 
   useEffect(() => {
+    // 設置全局加載狀態為 true
+    setIsLoading(true);
+    
     const fetchRestaurants = async () => {
       const { API_URL } = Constants.expoConfig.extra;
 
@@ -21,56 +24,46 @@ const RestaurantFetcher = ({ onDataFetched }) => {
         }
 
         const data = await response.json();
-        stableOnDataFetched(data);
+        
+        // 添加延遲，確保動畫顯示足夠時間
+        setTimeout(() => {
+          stableOnDataFetched(data);
+          // 設置全局加載狀態為 false
+          setIsLoading(false);
+        }, 1000);
+        
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        setTimeout(() => {
+          setError(err.message);
+          // 設置全局加載狀態為 false
+          setIsLoading(false);
+        }, 1000);
       }
     };
 
     fetchRestaurants();
-  }, [stableOnDataFetched]);
+    
+    // 在組件卸載時確保設置加載狀態為 false
+    return () => {
+      setIsLoading(false);
+    };
+  }, [stableOnDataFetched, setIsLoading]);
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <LottieView
-          source={require('../../assets/loading-animation.json')}
-          autoPlay
-          loop
-          style={styles.loadingAnimation}
-        />
-      </View>
-    );
-  }
-
+  // 只有在出錯時才渲染內容
   if (error) {
     return <Text style={styles.errorText}>Error: {error}</Text>;
   }
 
+  // 不需要在這裡處理加載狀態，因為它已經由 LoadingContext 處理
   return null;
 };
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingAnimation: {
-    width: 200,
-    height: 200,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#000',
-  },
   errorText: {
     color: 'red',
     textAlign: 'center',
     marginTop: 16,
+    padding: 20,
   },
 });
 

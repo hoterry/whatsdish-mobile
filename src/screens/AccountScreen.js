@@ -29,7 +29,7 @@ import LanguageSelector from '../components/LanguageSelector';
 import ProfileEditModal from '../components/ProfileEditModal';
 import ComingSoonModal from '../components/ComingSoonModal';
 import HelpCenterModal from '../components/HelpCenterModal';
-
+import DeleteAccountButton from '../components/DeleteAccountButton';
 const translations = {
   EN: {
     personalInfo: "Personal Information",
@@ -302,8 +302,9 @@ const AccountScreen = ({ setIsAuthenticated }) => {
                   label={texts.helpCenter} 
                   value={texts.support} 
                   onPress={() => setShowHelpCenterModal(true)}
-                  isLast
+
                 />
+                <DeleteAccountButton setIsAuthenticated={setIsAuthenticated} language={language} isLast />
               </ProfileSection>
 
               <View style={[
@@ -327,6 +328,9 @@ const AccountScreen = ({ setIsAuthenticated }) => {
                   {texts.appVersion}
                 </Text>
               </View>
+              
+
+
             </ScrollView>
 
             <ProfileEditModal

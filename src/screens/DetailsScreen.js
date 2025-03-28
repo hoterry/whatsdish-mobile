@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { LanguageContext } from '../context/LanguageContext';
 import RestaurantHeader from '../context/RestaurantHeader';
 import MenuSection from '../context/MenuSection';
@@ -10,6 +11,30 @@ import LottieView from 'lottie-react-native';
 
 const { API_URL } = Constants.expoConfig.extra;
 
+const CustomBackButton = ({ navigation }) => {
+  const handleBackPress = () => {
+    if (navigation.canGoBack()) {
+      try {
+        navigation.goBack();
+      } catch (error) {
+        console.error('[Navigation] Go back failed:', error);
+        navigation.navigate('HomeTabs');
+      }
+    } else {
+      navigation.navigate('HomeTabs');
+    }
+  };
+  
+  return (
+    <TouchableOpacity
+      style={styles.backButton}
+      onPress={handleBackPress}
+    >
+      <Ionicons name="arrow-back" size={24} color="black" />
+    </TouchableOpacity>
+  );
+};
+
 function DetailsScreen({ route, navigation }) {
   const { restaurant, restaurants, isLoading: initialLoading } = route.params;
   const { language } = useContext(LanguageContext); 
@@ -18,7 +43,6 @@ function DetailsScreen({ route, navigation }) {
   const [orderIdReady, setOrderIdReady] = useState(false);
   const abortControllerRef = useRef(null);
   const currentRestaurantIdRef = useRef(restaurant.gid);
-
 
   useEffect(() => {
     currentRestaurantIdRef.current = restaurant.gid;
@@ -100,12 +124,7 @@ function DetailsScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}
-      >
-        <Ionicons name="arrow-back" size={24} color="black" />
-      </TouchableOpacity>
+      <CustomBackButton navigation={navigation} />
 
       <RestaurantHeader restaurant={restaurant} />
 

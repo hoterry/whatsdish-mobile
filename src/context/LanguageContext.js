@@ -20,6 +20,10 @@ export const LanguageProvider = ({ children }) => {
 
     loadLanguage();
   }, []);
+  
+  useEffect(() => {
+    console.log('Current language in HomeScreen:', language);
+  }, [language]);
 
   const changeLanguage = async (newLanguage) => {
     try {

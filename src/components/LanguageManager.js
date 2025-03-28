@@ -34,6 +34,10 @@ export const LanguageManager = ({ children }) => {
         const savedLanguage = await AsyncStorage.getItem('selectedLanguage');
         if (savedLanguage) {
           changeLanguage(savedLanguage);
+        } else {
+          // Set default language to English if nothing saved
+          await AsyncStorage.setItem('selectedLanguage', 'EN');
+          changeLanguage('EN');
         }
       } catch (error) {
         console.log('Error loading language from AsyncStorage', error);
