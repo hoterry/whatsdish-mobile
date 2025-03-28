@@ -159,11 +159,11 @@ const RestaurantList = ({ restaurants, userLocation }) => {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
+    <Text style={styles.Featured}>{t('Featured Restaurants')}</Text>
       {restaurants.data
         .filter((item) => item.is_shown) 
         .map((item) => (
           <View key={item.gid} style={styles.restaurantCard}>
-            <Text style={styles.Featured}>{t('Featured Restaurants')}</Text>
             <Pressable 
               onPress={() => handlePressRestaurant(item)}
               android_ripple={{ color: 'rgba(0, 0, 0, 0.1)' }}

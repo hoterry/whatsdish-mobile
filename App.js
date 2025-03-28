@@ -53,7 +53,7 @@ import OrderStatusScreen from './src/screens/OrderStatusScreen';
 import HistoryDetailScreen from './src/screens/HistoryDetail';
 import ArticleDetail from './src/components/ArticleDetail';
 import VideoDetailScreen from './src/components/VideoDetailScreen';
-import VideoPreloader from './src/components/VideoPreloader'; // 引入新創建的VideoPreloader組件
+import VideoPreloader from './src/components/VideoPreloader';
 import CartScreen from './src/screens/CartScreen';
 import CustomTabNavigator from './CustomTabNavigator';
 import CLCustomTabNavigator from './CLCustomTabNavigator';
