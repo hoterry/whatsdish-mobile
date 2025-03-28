@@ -349,7 +349,6 @@ function CheckoutScreen({ route }) {
         </Text>
       </View>
 
-      // 在 ScrollView 部分加入條件渲染邏輯
 <ScrollView contentContainerStyle={styles.scrollContainer}>
   <DeliveryOptionsButton
     deliveryMethod={deliveryMethod}
@@ -377,7 +376,6 @@ function CheckoutScreen({ route }) {
     restaurants={restaurants}   
   />
 
-  {/* 只在 Pickup 模式下顯示這些內容 */}
   {deliveryMethod === 'pickup' && (
     <>
       <OrderSummary
@@ -401,7 +399,6 @@ function CheckoutScreen({ route }) {
   )}
 </ScrollView>
 
-{/* 同樣也要修改底部按鈕，只在 Pickup 模式下顯示 */}
 {deliveryMethod === 'pickup' ? (
   <View style={styles.buttonContainer}>
     <TouchableOpacity 

@@ -132,8 +132,8 @@ const DeliveryOptionsButton = ({
                       
         )}
       </View>
-      <View style={styles.emptyDeliveryContainer}>
-                      {/*<DeliveryOptions
+      {/*<View style={styles.emptyDeliveryContainer}>
+                      <DeliveryOptions
             deliveryOption={deliveryOption}
             deliveryScheduledTime={deliveryScheduledTime}
             currentTime={currentTime}
@@ -142,8 +142,8 @@ const DeliveryOptionsButton = ({
             onDeliveryTimeChange={onDeliveryTimeChange}
             formatDate={formatDate}
             address={address}
-            onAddressChange={onAddressChange}*/}
-          </View>
+            onAddressChange={onAddressChange}
+          </View>*/}
     </View>
   );
 };

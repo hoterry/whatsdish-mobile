@@ -173,7 +173,10 @@ const AccountScreen = ({ setIsAuthenticated }) => {
       }
       await SecureStore.deleteItemAsync('token');
       await SecureStore.deleteItemAsync('accountId');
+      
+      // Just set isAuthenticated to false and let the conditional rendering handle navigation
       setIsAuthenticated(false);
+      
     } catch (error) {
       if (__DEV__) {
         console.error('[AccountScreen] Logout error:', error);
