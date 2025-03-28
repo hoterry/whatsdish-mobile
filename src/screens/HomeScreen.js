@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { 
   View, 
@@ -251,7 +252,7 @@ const HomeScreen = () => {
                 ]}
                 showsVerticalScrollIndicator={false}
               >
-                <AdCarousel />
+                {/*<AdCarousel />*/}
 
                 <View style={[
                   styles.menuSection,
@@ -263,7 +264,7 @@ const HomeScreen = () => {
                     style={styles.menuRow}
                     contentContainerStyle={isTablet && styles.menuRowTablet}
                   >
-                    {menus.map((item) => (
+                    {/*{menus.map((item) => (
                       <TouchableOpacity 
                         key={item.id} 
                         style={[
@@ -285,7 +286,7 @@ const HomeScreen = () => {
                           {language === 'EN' ? item.title_en : item.title_zh}
                         </Text>
                       </TouchableOpacity>
-                    ))}
+                    ))}*/}
                   </ScrollView>
                 </View>
 

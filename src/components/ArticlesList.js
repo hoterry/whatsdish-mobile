@@ -15,18 +15,19 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.85;
 const ARTICLE_CARD_HEIGHT = 160; 
 
+// Updated color system with black, white, and green
 const COLORS = {
-  primary: '#000000',          
-  secondary: '#222222',        
-  accent: '#444444',           
-  highlight: '#666666',       
-  light: '#E0E0E0',          
-  lighter: '#F5F5F5',          
-  white: '#FFFFFF',         
-  background: '#FAFAFA',       
-  cardBg: '#FFFFFF',          
-  shadow: 'rgba(0, 0, 0, 0.12)',
-  accent1: '#1A73E8',       
+  primary: '#000000',          // Black
+  secondary: '#222222',        // Dark gray (nearly black)
+  accent: '#2E8B57',           // Sea Green
+  highlight: '#3CB371',        // Medium Sea Green (lighter green)
+  light: '#E0E0E0',            // Light gray
+  lighter: '#F5F5F5',          // Very light gray
+  white: '#FFFFFF',            // White
+  background: '#FFFFFF',       // White background
+  cardBg: '#FFFFFF',           // White card background
+  shadow: 'rgba(0, 0, 0, 0.12)', // Shadow
+  accent1: '#2E8B57',          // Sea Green (same as accent)
 };
 
 const ArticlesList = ({ articles, featuredArticles, language, contentType, navigation }) => {
@@ -49,7 +50,7 @@ const ArticlesList = ({ articles, featuredArticles, language, contentType, navig
           <Text style={styles.viewAllText}>
             {language.toUpperCase() === 'EN' ? 'View All' : '查看全部'}
           </Text>
-          <AntDesign name="right" size={16} color={COLORS.secondary} />
+          <AntDesign name="right" size={16} color={COLORS.accent} />
         </TouchableOpacity>
       </View>
       <ScrollView
@@ -154,7 +155,7 @@ const ArticlesList = ({ articles, featuredArticles, language, contentType, navig
                     ? (language.toUpperCase() === 'EN' ? 'Read more' : '繼續閱讀')
                     : (language.toUpperCase() === 'EN' ? 'Watch now' : '立即觀看')}
                 </Text>
-                <AntDesign name="arrowright" size={16} color={COLORS.accent1} />
+                <AntDesign name="arrowright" size={16} color={COLORS.accent} />
               </View>
             </View>
           </View>
@@ -208,7 +209,6 @@ const ArticlesList = ({ articles, featuredArticles, language, contentType, navig
 };
 
 const styles = StyleSheet.create({
-
   sectionTitleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 15,
-    color: COLORS.secondary,
+    color: COLORS.accent,
     marginRight: 4,
   },
 
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: COLORS.accent, // Changed from rgba(255, 255, 255, 0.2) to accent green
   },
   tagText: {
     color: COLORS.white,
@@ -375,12 +375,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 4,
-    backgroundColor: COLORS.light,
+    backgroundColor: COLORS.lighter, // Kept light background for contrast
   },
   articleTagText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: COLORS.secondary,
+    color: COLORS.accent, // Changed from secondary to green accent
     letterSpacing: 0.5,
   },
   articleTags: {
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   readMoreText: {
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.accent1,
+    color: COLORS.accent, // Changed from accent1 (blue) to accent (green)
     marginRight: 6,
   },
   articleImageWrapper: {

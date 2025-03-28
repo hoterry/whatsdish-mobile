@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -16,94 +17,85 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { AntDesign } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
+import { LanguageContext } from '../context/LanguageContext';
 
 const { width, height } = Dimensions.get('window');
 
-// 改進的黑白灰色彩系統 - 更強對比度
 const COLORS = {
-  primary: '#000000',          // 更純黑
-  secondary: '#222222',        // 更深黑灰
-  accent: '#444444',           // 中灰
-  highlight: '#666666',        // 亮灰
-  light: '#E8E8E8',            // 淺灰
-  lighter: '#F5F5F5',          // 更淺灰
-  white: '#FFFFFF',            // 純白
-  background: '#FAFAFA',       // 背景色
-  cardBg: '#FFFFFF',           // 卡片背景
-  shadow: 'rgba(0, 0, 0, 0.12)', // 更強陰影
-  overlay: 'rgba(0, 0, 0, 0.75)', // 更強覆蓋層
-  overlaySoft: 'rgba(0, 0, 0, 0.5)', // 半透明覆蓋層
-  accent1: '#3D5AFE',          // 藍色強調
-  accent2: '#FF3D00',          // 紅色強調
-  goldStar: '#FFD700',         // 金色星星
+  primary: '#000000',
+  secondary: '#222222',
+  accent: '#2E8B57',
+  highlight: '#3CB371',
+  light: '#E0E0E0',
+  lighter: '#F5F5F5',
+  white: '#FFFFFF',
+  background: '#FAFAFA',
+  cardBg: '#FFFFFF',
+  shadow: 'rgba(0, 0, 0, 0.12)',
+  overlay: 'rgba(0, 0, 0, 0.75)',
+  overlaySoft: 'rgba(0, 0, 0, 0.5)',
+  accent1: '#2E8B57',
+  accent2: '#2E8B57',
+  goldStar: '#FFD700',
 };
 
 const ArticleDetail = ({ route, navigation }) => {
   const { article } = route.params || {};
+  const { language } = useContext(LanguageContext);
   const [loading, setLoading] = useState(true);
   const [relatedArticles, setRelatedArticles] = useState([]);
   const [bookmarked, setBookmarked] = useState(false);
   const [readTime, setReadTime] = useState('5 min');
 
-  // 計算閱讀時間
   useEffect(() => {
     if (article?.content) {
       const words = article.content.split(/\s+/).length;
-      const minutes = Math.round(words / 200); // 假設平均閱讀速度為每分鐘200字
-      setReadTime(`${Math.max(1, minutes)} min`);
+      const minutes = Math.round(words / 200);
+      setReadTime(`${Math.max(1, minutes)} ${language.toUpperCase() === 'EN' ? 'min' : '分鐘'}`);
     }
-  }, [article]);
+  }, [article, language]);
 
-  // 模擬文章加載
   useEffect(() => {
-    // 在真實應用中，您可能需要根據文章 ID 加載完整內容
     setTimeout(() => {
       setLoading(false);
     }, 500);
     
-    // 模擬獲取相關文章
     setRelatedArticles([
       {
         id: 1,
-        title: '相關文章標題示例',
-        excerpt: '這是一個相關文章的簡短摘要，說明文章的主要內容和重點。',
+        title: language.toUpperCase() === 'EN' ? 'Related Article Example' : '相關文章標題示例',
+        excerpt: language.toUpperCase() === 'EN' ? 'This is a brief summary of a related article.' : '這是一個相關文章的簡短摘要，說明文章的主要內容和重點。',
         cover_image_url: 'https://via.placeholder.com/300',
-        type: 'Blog'
+        type: language.toUpperCase() === 'EN' ? 'Blog' : '部落格'
       },
       {
         id: 2,
-        title: '另一篇相關視頻內容',
-        excerpt: '這是另一個相關視頻的簡短摘要，包含視頻的主要內容介紹。',
+        title: language.toUpperCase() === 'EN' ? 'Another Related Video Content' : '另一篇相關視頻內容',
+        excerpt: language.toUpperCase() === 'EN' ? 'This is a brief summary of another related video.' : '這是另一個相關視頻的簡短摘要，包含視頻的主要內容介紹。',
         cover_image_url: 'https://via.placeholder.com/300',
-        type: 'Video'
+        type: language.toUpperCase() === 'EN' ? 'Video' : '視頻'
       }
     ]);
-  }, [article]);
+  }, [article, language]);
 
-  // 切換書籤狀態
   const toggleBookmark = () => {
     setBookmarked(!bookmarked);
   };
 
-  // 分享文章
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `${article.title}\n\n${article.excerpt || ''}\n\n閱讀全文`,
-        // 在實際應用中，您會添加一個可點擊的 URL
-        // url: `https://yourapp.com/articles/${article.slug}`
+        message: `${article.title}\n\n${article.excerpt || ''}\n\n${language.toUpperCase() === 'EN' ? 'Read full article' : '閱讀全文'}`,
       });
     } catch (error) {
       console.error('Error sharing article:', error);
     }
   };
 
-  // 返回按鈕
   const handleGoBack = () => {
     navigation.goBack();
   };
 
-  // 文章日期格式化
   const formatDate = (dateString) => {
     if (!dateString) return '';
     
@@ -111,7 +103,7 @@ const ArticleDetail = ({ route, navigation }) => {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return '';
       
-      return date.toLocaleDateString('zh-TW', {
+      return date.toLocaleDateString(language.toUpperCase() === 'EN' ? 'en-US' : 'zh-TW', {
         year: 'numeric', 
         month: 'long', 
         day: 'numeric'
@@ -121,7 +113,6 @@ const ArticleDetail = ({ route, navigation }) => {
     }
   };
 
-  // 渲染文章標題部分 - 增強視覺衝擊力
   const renderHeader = () => (
     <View style={styles.headerSection}>
       <Image
@@ -167,7 +158,7 @@ const ArticleDetail = ({ route, navigation }) => {
       <View style={styles.headerContent}>
         <View style={styles.tagRow}>
           <View style={styles.tag}>
-            <Text style={styles.tagText}>{article.type || '文章'}</Text>
+            <Text style={styles.tagText}>{article.type || (language.toUpperCase() === 'EN' ? 'Article' : '文章')}</Text>
           </View>
           
           <View style={styles.timeToRead}>
@@ -204,11 +195,11 @@ const ArticleDetail = ({ route, navigation }) => {
   const markdownStyles = {
     body: {
       color: COLORS.primary,
-      fontSize: 18,          // 增大正文字體
-      lineHeight: 30,        // 增大行高
+      fontSize: 18,
+      lineHeight: 30,
     },
     heading1: {
-      fontSize: 28,          // 更大標題
+      fontSize: 28,
       marginTop: 32,
       marginBottom: 16,
       fontWeight: 'bold',
@@ -216,7 +207,7 @@ const ArticleDetail = ({ route, navigation }) => {
       letterSpacing: 0.3,
     },
     heading2: {
-      fontSize: 24,          // 更大二級標題
+      fontSize: 24,
       marginTop: 28,
       marginBottom: 14,
       fontWeight: 'bold',
@@ -224,20 +215,20 @@ const ArticleDetail = ({ route, navigation }) => {
       letterSpacing: 0.2,
     },
     heading3: {
-      fontSize: 22,          // 更大三級標題
+      fontSize: 22,
       marginTop: 24,
       marginBottom: 12,
       fontWeight: 'bold',
       color: COLORS.primary,
     },
     paragraph: {
-      marginBottom: 22,      // 段落間距加大
-      fontSize: 18,          // 增大字體
-      lineHeight: 30,        // 增大行高
+      marginBottom: 22,
+      fontSize: 18,
+      lineHeight: 30,
       color: COLORS.secondary,
     },
     link: {
-      color: COLORS.accent1,  // 藍色強調
+      color: COLORS.accent1,
       textDecorationLine: 'underline',
       fontWeight: '600',
     },
@@ -257,29 +248,29 @@ const ArticleDetail = ({ route, navigation }) => {
     },
     list_item: {
       flexDirection: 'row',
-      marginBottom: 12,      // 列表項間距加大
+      marginBottom: 12,
     },
     bullet_list_icon: {
       marginRight: 10,
-      fontSize: 18,          // 增大項標記
-      color: COLORS.primary, // 更深色項標記
+      fontSize: 18,
+      color: COLORS.primary,
     },
     bullet_list_content: {
       flex: 1,
     },
     image: {
-      width: width - 40,     // 圖片稍大些
-      height: 240,           // 高度更大
-      borderRadius: 12,      // 圓角更大
-      marginVertical: 28,    // 上下間距更大
+      width: width - 40,
+      height: 240,
+      borderRadius: 12,
+      marginVertical: 28,
     },
     code_block: {
       backgroundColor: COLORS.lighter,
-      padding: 18,           // 更大內邊距
-      borderRadius: 10,      // 更大圓角
+      padding: 18,
+      borderRadius: 10,
       marginVertical: 20,
       fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-      fontSize: 16,          // 代碼字體大小
+      fontSize: 16,
     },
     fence: {
       backgroundColor: COLORS.lighter,
@@ -323,7 +314,7 @@ const ArticleDetail = ({ route, navigation }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
   }
@@ -344,31 +335,40 @@ const ArticleDetail = ({ route, navigation }) => {
           <View style={styles.articleIntroBlock}>
             <View style={styles.introHeadingWrapper}>
               <View style={styles.introLine} />
-              <Text style={styles.introHeading}>內容精華</Text>
+              <Text style={styles.introHeading}>
+                {language.toUpperCase() === 'EN' ? 'Key Points' : '內容精華'}
+              </Text>
               <View style={styles.introLine} />
             </View>
             <Text style={styles.articleIntro}>
-              {article.excerpt || '這篇文章包含了重要的見解和實用的建議。以下內容將深入探討這個話題的關鍵點，幫助您全面理解並獲得實用價值。'}
+              {article.excerpt || (language.toUpperCase() === 'EN' 
+                ? 'This article contains important insights and practical advice. The following content will explore key points of this topic to help you gain comprehensive understanding and practical value.'
+                : '這篇文章包含了重要的見解和實用的建議。以下內容將深入探討這個話題的關鍵點，幫助您全面理解並獲得實用價值。'
+              )}
             </Text>
           </View>
           
-          {/* Markdown 內容 */}
           <Markdown style={markdownStyles}>
-            {article.content || '# 這是一個引人入勝的文章標題\n\n這裡是文章的詳細內容，支持Markdown格式。您可以添加**粗體**、*斜體*，或者[超鏈接](https://example.com)。\n\n## 核心觀點探討\n\n以下幾點是本文的關鍵內容:\n- 第一個重要觀點探討\n- 值得深入思考的第二點\n- 實用性極強的第三個要點\n\n> 這段引用包含了本文最精華的思想，值得您反覆思考和實踐。\n\n### 案例分析\n\n![示例圖片](https://via.placeholder.com/800x400)\n\n```javascript\n// 核心解決方案\nfunction solution() {\n  console.log("這是一個能夠真正解決問題的方法");\n}\n```'}
+            {article.content || (language.toUpperCase() === 'EN' 
+              ? '# This is an engaging article title\n\nHere is the detailed content of the article, supporting Markdown format. You can add **bold**, *italic*, or [hyperlinks](https://example.com).\n\n## Core Point Discussion\n\nThe following points are key content of this article:\n- First important point discussed\n- Second point worth deep thinking\n- Third highly practical point\n\n> This quote contains the most essence of this article, worth your repeated thinking and practice.\n\n### Case Analysis\n\n![Example Image](https://via.placeholder.com/800x400)\n\n```javascript\n// Core solution\nfunction solution() {\n  console.log("This is a method that can truly solve problems");\n}\n```'
+              : '# 這是一個引人入勝的文章標題\n\n這裡是文章的詳細內容，支持Markdown格式。您可以添加**粗體**、*斜體*，或者[超鏈接](https://example.com)。\n\n## 核心觀點探討\n\n以下幾點是本文的關鍵內容:\n- 第一個重要觀點探討\n- 值得深入思考的第二點\n- 實用性極強的第三個要點\n\n> 這段引用包含了本文最精華的思想，值得您反覆思考和實踐。\n\n### 案例分析\n\n![示例圖片](https://via.placeholder.com/800x400)\n\n```javascript\n// 核心解決方案\nfunction solution() {\n  console.log("這是一個能夠真正解決問題的方法");\n}\n```'
+            )}
           </Markdown>
           
-          {/* 分類信息 */}
           {article.categories && (
             <View style={styles.categories}>
               <AntDesign name="appstore1" size={18} color={COLORS.accent} />
-              <Text style={styles.categoriesLabel}>分類：</Text>
+              <Text style={styles.categoriesLabel}>
+                {language.toUpperCase() === 'EN' ? 'Categories:' : '分類：'}
+              </Text>
               <Text style={styles.categoriesText}>{article.categories}</Text>
             </View>
           )}
           
-          {/* 文章評價互動區 */}
           <View style={styles.interactionSection}>
-            <Text style={styles.interactionTitle}>讀者評價</Text>
+            <Text style={styles.interactionTitle}>
+              {language.toUpperCase() === 'EN' ? 'Reader Ratings' : '讀者評價'}
+            </Text>
             
             <View style={styles.ratingContainer}>
               <View style={styles.ratingValueContainer}>
@@ -387,25 +387,13 @@ const ArticleDetail = ({ route, navigation }) => {
                     />
                   ))}
                 </View>
-                <Text style={styles.ratingText}>基於 86 位讀者的評價</Text>
+                <Text style={styles.ratingText}>
+                  {language.toUpperCase() === 'EN' 
+                    ? 'Based on 86 reader ratings' 
+                    : '基於 86 位讀者的評價'}
+                </Text>
               </View>
             </View>
-            
-            {/*<View style={styles.feedbackPrompt}>
-              <Text style={styles.feedbackQuestion}>這篇文章對您有幫助嗎？</Text>
-              
-              <View style={styles.feedbackButtons}>
-                <TouchableOpacity style={styles.feedbackButton}>
-                  <AntDesign name="like2" size={22} color={COLORS.accent1} />
-                  <Text style={styles.feedbackButtonText}>有幫助</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.feedbackButton}>
-                  <AntDesign name="dislike2" size={22} color={COLORS.accent2} />
-                  <Text style={styles.feedbackButtonText}>沒幫助</Text>
-                </TouchableOpacity>
-              </View>
-            </View>*/}
 
             <View style={styles.actionButtons}>
               <TouchableOpacity 
@@ -418,7 +406,9 @@ const ArticleDetail = ({ route, navigation }) => {
                   color={bookmarked ? COLORS.goldStar : COLORS.white} 
                 />
                 <Text style={styles.primaryButtonText}>
-                  {bookmarked ? '已加入收藏' : '收藏文章'}
+                  {bookmarked 
+                    ? (language.toUpperCase() === 'EN' ? 'Bookmarked' : '已加入收藏')
+                    : (language.toUpperCase() === 'EN' ? 'Bookmark' : '收藏文章')}
                 </Text>
               </TouchableOpacity>
               
@@ -427,31 +417,12 @@ const ArticleDetail = ({ route, navigation }) => {
                 onPress={handleShare}
               >
                 <AntDesign name="sharealt" size={22} color={COLORS.primary} />
-                <Text style={styles.secondaryButtonText}>分享</Text>
+                <Text style={styles.secondaryButtonText}>
+                  {language.toUpperCase() === 'EN' ? 'Share' : '分享'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
-
-          {/*<View style={styles.readingPrompt}>
-            <View style={styles.promptIconContainer}>
-              <AntDesign name="bulb1" size={28} color={COLORS.primary} />
-            </View>
-            <Text style={styles.promptText}>
-              閱讀是最好的學習方式，每天閱讀 30 分鐘，持續成長。探索更多精彩內容，拓展您的視野！
-            </Text>
-          </View>*/}
-          
-          {/* 
-          {relatedArticles.length > 0 && (
-            <View style={styles.relatedSection}>
-              <Text style={styles.relatedSectionTitle}>相關推薦</Text>
-              <View style={styles.relatedList}>
-                {relatedArticles.map((item, index) => 
-                  renderRelatedArticleCard(item, index)
-                )}
-              </View>
-            </View>
-          )}*/}
         </View>
       </ScrollView>
     </View>
@@ -511,6 +482,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
+
   },
   headerContent: {
     position: 'absolute',
@@ -518,12 +490,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 24,                // 更大的內邊距
+    top: 70
   },
   tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 14,
+    
   },
   tag: {
     paddingHorizontal: 14,      // 更寬標籤
@@ -584,7 +558,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.white,
     borderTopLeftRadius: 28,    // 更大圓角
     borderTopRightRadius: 28,   // 更大圓角
-    marginTop: -28,             // 更大的負邊距
+    marginTop: 0,             // 更大的負邊距
     padding: 24,                // 更大的內邊距
     paddingTop: 32,             // 更大的頂部內邊距
     elevation: 10,              // 更強的陰影
@@ -594,7 +568,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   
-  // 全新的導讀區塊
+
   articleIntroBlock: {
     backgroundColor: COLORS.lighter,
     padding: 20,

@@ -2,19 +2,20 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 
-// Color system - 保持與父組件相同的顏色系統
+// 更正後的顏色系統，使用#2E8B57綠色
 const COLORS = {
-  primary: '#000000',
-  secondary: '#222222',
-  accent: '#444444',
-  highlight: '#666666',
-  light: '#E0E0E0',
-  lighter: '#F5F5F5',
-  white: '#FFFFFF',
-  background: '#FAFAFA',
-  cardBg: '#FFFFFF',
-  shadow: 'rgba(0, 0, 0, 0.12)',
-  accent1: '#1A73E8',
+  primary: '#000000',          // 黑色
+  secondary: '#222222',        // 深灰（接近黑色）
+  accent: '#2E8B57',           // 海綠色
+  highlight: '#3CB371',        // 中海綠色（稍淺）
+  light: '#E0E0E0',            // 淺灰色
+  lighter: '#F5F5F5',          // 非常淺的灰色
+  white: '#FFFFFF',            // 白色
+  background: '#FFFFFF',       // 白色背景
+  cardBg: '#FFFFFF',           // 白色卡片背景
+  shadow: 'rgba(0, 0, 0, 0.12)', // 陰影
+  accent1: '#2E8B57',          // 與accent相同的海綠色
+  borderColor: '#E5E5EA',      // 邊框顏色
 };
 
 const ArticleCard = ({ article, onPress, language }) => {
@@ -32,7 +33,7 @@ const ArticleCard = ({ article, onPress, language }) => {
       <View style={styles.articleContentWrapper}>
         <View style={styles.articleHeader}>
           <View style={styles.articleTag}>
-            <Text style={styles.articleTagText}>{article.type || 'Article'}</Text>
+            <Text style={styles.articleTagText}>{article.type || 'blog'}</Text>
           </View>
           {article.tags && (
             <Text style={styles.articleTags} numberOfLines={1}>{article.tags}</Text>
@@ -57,7 +58,7 @@ const ArticleCard = ({ article, onPress, language }) => {
             <Text style={styles.readMoreText}>
               {language.toUpperCase() === 'EN' ? 'Read more' : '繼續閱讀'}
             </Text>
-            <AntDesign name="arrowright" size={16} color={COLORS.accent1} />
+            <AntDesign name="arrowright" size={16} color={COLORS.accent} />
           </View>
         </View>
       </View>
@@ -85,7 +86,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     overflow: 'hidden',
-    height: 160, // 保持與原ARTICLE_CARD_HEIGHT常量一致
+    height: 160,
+    borderWidth: 1,
+    borderColor: COLORS.borderColor,
   },
   articleContentWrapper: {
     flex: 3,
@@ -98,10 +101,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   articleTag: {
-    backgroundColor: COLORS.accent1,
+    backgroundColor: COLORS.accent,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 16,
     marginRight: 8,
   },
   articleTagText: {
@@ -125,6 +128,7 @@ const styles = StyleSheet.create({
     color: COLORS.secondary,
     marginBottom: 8,
     flex: 1,
+    lineHeight: 18,
   },
   articleFooter: {
     flexDirection: 'row',
@@ -150,7 +154,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   readMoreText: {
-    color: COLORS.accent1,
+    color: COLORS.accent,
     fontSize: 14,
     fontWeight: '500',
     marginRight: 4,

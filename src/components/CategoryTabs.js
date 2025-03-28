@@ -1,19 +1,19 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 
-// Color system
+// Updated color system with black, white, and green
 const COLORS = {
-  primary: '#000000',
-  secondary: '#222222',
-  accent: '#444444',
-  highlight: '#666666',
-  light: '#E0E0E0',
-  lighter: '#F5F5F5',
-  white: '#FFFFFF',
-  background: '#FAFAFA',
-  cardBg: '#FFFFFF',
-  shadow: 'rgba(0, 0, 0, 0.12)',
-  accent1: '#1A73E8',
+  primary: '#000000',          // Black
+  secondary: '#222222',        // Dark gray (nearly black)
+  accent: '#2E8B57',           // Sea Green
+  highlight: '#3CB371',        // Medium Sea Green (lighter green)
+  light: '#E0E0E0',            // Light gray
+  lighter: '#F5F5F5',          // Very light gray
+  white: '#FFFFFF',            // White
+  background: '#FFFFFF',       // White background
+  cardBg: '#FFFFFF',           // White card background
+  shadow: 'rgba(0, 0, 0, 0.12)', // Shadow
+  accent1: '#2E8B57',          // Sea Green (same as accent)
 };
 
 const CategoryTabs = ({ categories, selectedCategory, onSelectCategory }) => {
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   selectedCategoryTab: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.accent, // Changed from primary (black) to accent (green)
   },
   categoryText: {
     color: COLORS.secondary,

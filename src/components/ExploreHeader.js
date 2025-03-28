@@ -1,25 +1,24 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Animated, Dimensions, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { AntDesign, Feather } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
-const HEADER_GRADIENT_HEIGHT = 110;
+const HEADER_HEIGHT = 110;
 const TOGGLE_HEIGHT = 60;
 
-// Color system
+// Updated color system with black, white, and green
 const COLORS = {
-  primary: '#000000',
-  secondary: '#222222',
-  accent: '#444444',
-  highlight: '#666666',
-  light: '#E0E0E0',
-  lighter: '#F5F5F5',
-  white: '#FFFFFF',
-  background: '#FAFAFA',
-  cardBg: '#FFFFFF',
-  shadow: 'rgba(0, 0, 0, 0.12)',
-  accent1: '#1A73E8',
+  primary: '#000000',          // Black
+  secondary: '#222222',        // Dark gray (nearly black)
+  accent: '#2E8B57',           // Sea Green
+  highlight: '#3CB371',        // Medium Sea Green (lighter green)
+  light: '#E0E0E0',            // Light gray
+  lighter: '#F5F5F5',          // Very light gray
+  white: '#FFFFFF',            // White
+  background: '#FFFFFF',       // White background
+  cardBg: '#FFFFFF',           // White card background
+  shadow: 'rgba(0, 0, 0, 0.12)', // Shadow
+  accent1: '#2E8B57',          // Sea Green (same as accent)
 };
 
 const ExploreHeader = ({
@@ -32,19 +31,14 @@ const ExploreHeader = ({
 }) => {
   return (
     <View style={styles.headerContainer}>
-      <LinearGradient
-        colors={[COLORS.primary, COLORS.secondary]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.headerGradient}
-      >
+      <View style={styles.headerMain}>
         <Text style={styles.headerTitle}>
           {language.toUpperCase() === 'EN' ? 'Discover' : '探索'}
         </Text>
         <TouchableOpacity style={styles.searchButton} onPress={onSearchPress}>
-          <Feather name="search" size={24} color={COLORS.white} />
+          <Feather name="search" size={24} color={COLORS.primary} />
         </TouchableOpacity>
-      </LinearGradient>
+      </View>
       
       <Animated.View 
         style={[
@@ -140,17 +134,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 4,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.light,
   },
-  headerGradient: {
-    height: HEADER_GRADIENT_HEIGHT,
+  headerMain: {
+    height: HEADER_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 50, // Account for status bar
+    backgroundColor: COLORS.white,
   },
   headerTitle: {
-    color: COLORS.white,
+    color: COLORS.primary,
     fontSize: 28,
     fontWeight: '700',
   },
@@ -158,7 +156,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.lighter,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -182,7 +180,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '50%',
     height: 40,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.accent,
     borderRadius: 20,
     zIndex: 1,
   },
