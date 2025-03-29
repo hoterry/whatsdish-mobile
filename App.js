@@ -18,7 +18,6 @@ Sentry.init({
   debug: true,
 });
 
-
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
   
@@ -40,26 +39,24 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
-import DetailsScreen from './src/screens/DetailsScreen';
-import ProductDetailsScreen from './src/screens/ProductDetailsScreen';
-import CheckoutScreen from './src/screens/CheckoutScreen';
-import ExploreScreen from './src/screens/ExploreScreen';
-import AccountScreen from './src/screens/AccountScreen';
-import OrderStatusScreen from './src/screens/OrderStatusScreen';
-import HistoryDetailScreen from './src/screens/HistoryDetail';
-import ArticleDetail from './src/components/ArticleDetail';
+import LoginScreen from './src/screens/LoginScreen/LoginScreen';
+import DetailsScreen from './src/screens/DetailScreen/DetailsScreen';
+import ProductDetailsScreen from './src/screens/ProductDetailsScreen/ProductDetailsScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen/CheckoutScreen';
+import ExploreScreen from './src/screens/ExploreScreen/ExploreScreen';
+import AccountScreen from './src/screens/AccountScreen/AccountScreen';
+import HistoryDetailScreen from './src/screens/HistoryDetail/HistoryDetail';
+import ArticleDetail from './src/screens/ExploreScreen/ArticleDetail';
 import VideoDetailScreen from './src/components/VideoDetailScreen';
-import VideoPreloader from './src/components/VideoPreloader';
-import CartScreen from './src/screens/CartScreen';
-import CustomTabNavigator from './CustomTabNavigator';
-import CLCustomTabNavigator from './CLCustomTabNavigator';
-import CLHomeScreen from './src/screens/CLHomeScreen';
-import CLDetailsScreen from './src/components/CLDetailsScreen';
+import VideoPreloader from './src/components/App.js/VideoPreloader';
+import CartScreen from './src/screens/CartScreen/CartScreen';
+import CustomTabNavigator from './src/components/App.js/CustomTabNavigator';
+import CLCustomTabNavigator from './src/components/App.js/CLCustomTabNavigator';
+import CLHomeScreen from './src/ClScreens/CLHomeScreen/CLHomeScreen';
+import CLDetailsScreen from './src/ClScreens/CLDetailsScreen/CLDetailsScreen';
 import { CartProvider } from './src/context/CartContext';
 import { LanguageProvider } from './src/context/LanguageContext';
-import CLArticleDetail from './src/components/CLArticleDetail';
+import CLArticleDetail from './src/ClScreens/CLExploreScreen/CLArticleDetail';
 
 const Stack = createStackNavigator();
 
@@ -100,7 +97,6 @@ function AppStack({ setIsAuthenticated }) {
       <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ProductDetail" component={ProductDetailsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="OrderStatusScreen" component={OrderStatusScreen} options={{ headerShown: false }} />
       <Stack.Screen name="HistoryDetail" component={HistoryDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ArticleDetail" component={ArticleDetail} options={{ headerShown: false }} />
       <Stack.Screen name="VideoDetailScreen" component={VideoDetailScreen} options={{ headerShown: false }} />
