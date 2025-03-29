@@ -12,8 +12,6 @@ import * as SecureStore from 'expo-secure-store';
 import { Button } from 'react-native';
 import { LoadingProvider } from './src/context/LoadingContext';
 
-
-
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
   enableInExpoDevelopment: true,
@@ -65,7 +63,6 @@ import CLArticleDetail from './src/components/CLArticleDetail';
 
 const Stack = createStackNavigator();
 
-// 無需登入的頁面堆疊
 function GuestStack({ setIsAuthenticated }) {
   return (
     <Stack.Navigator initialRouteName="CLHomeTabs">
@@ -118,8 +115,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [navigationState, setNavigationState] = useState(null);
-  // 新增狀態控制是否跳過登入驗證直接使用訪客模式
-  const [useGuestMode, setUseGuestMode] = useState(true); // 預設啟用訪客模式
+  const [useGuestMode, setUseGuestMode] = useState(true); 
 
   useEffect(() => {
     if (__DEV__) {

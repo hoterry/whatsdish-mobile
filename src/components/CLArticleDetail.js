@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
     paddingBottom: 50,
   },
   headerSection: {
-    height: 420,                // 增高標題區域
+    height: 470,             
     width: '100%',
     position: 'relative',
   },
@@ -474,8 +474,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   iconButton: {
-    width: 46,                  // 更大的按鈕
-    height: 46,                 // 更大的按鈕
+    width: 46,                 
+    height: 46,            
     borderRadius: 23,
     backgroundColor: COLORS.overlaySoft,
     justifyContent: 'center',
@@ -488,8 +488,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 24,                // 更大的內邊距
-    top: 70
+    padding: 24,               
+    top: 90
   },
   tagRow: {
     flexDirection: 'row',

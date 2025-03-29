@@ -6,7 +6,7 @@ import Distance from '../context/DistanceCalculator';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Font from 'expo-font';
-import LottieView from 'lottie-react-native'; // 確保導入LottieView
+import LottieView from 'lottie-react-native'; 
 
 const { API_URL } = Constants.expoConfig.extra;
 
@@ -193,8 +193,7 @@ const CLRestaurantList = ({ restaurants, userLocation }) => {
                 </View>
               </View>
             </Pressable>
-            
-            {/* 收藏按鈕 - 點擊提示登入 */}
+
             {/*<Pressable 
               onPress={promptLogin} 
               style={styles.bookmarkIcon}
@@ -206,8 +205,7 @@ const CLRestaurantList = ({ restaurants, userLocation }) => {
             </Pressable>*/}
           </View>
         ))}
-        
-        {/* 訪客模式提示橫幅 */}
+
         <View style={styles.guestModeBanner}>
           <Text style={styles.guestModeBannerText}>
             {language === 'EN' 

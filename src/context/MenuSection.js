@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import MenuFetcher from './MenuFetcher';
 import FetchCartItems from './FetchCartItems';
 import { LanguageContext } from '../context/LanguageContext';
-import { useLoading } from '../context/LoadingContext';
+import { useLoading } from '../context/LoadingContext'; 
 
 const { width, height } = Dimensions.get('window');
 const scaleWidth = width / 375;
@@ -25,6 +25,7 @@ const scaleHeight = height / 812;
 const fontScale = Math.min(PixelRatio.getFontScale(), 1.3);
 
 const MenuSection = ({ restaurantId, restaurants }) => {
+
   const [menu, setMenu] = useState([]);
   const [groupedMenu, setGroupedMenu] = useState([]);
   const [categoryHeights, setCategoryHeights] = useState({});
@@ -35,80 +36,44 @@ const MenuSection = ({ restaurantId, restaurants }) => {
   const [scrollPosition, setScrollPosition] = useState(0);
   const [categoryOffsets, setCategoryOffsets] = useState({});
 
+  // 使用全局的加載狀態控制
   const { setIsLoading } = useLoading();
 
-  const mountedRef = useRef(false);
-  const loadingSetRef = useRef(false);
   const menuListRef = useRef(null);
   const categoryScrollRef = useRef(null);
   const categoryMeasurements = useRef({}).current;
   const menuMeasurements = useRef({}).current;
   const timeoutRef = useRef(null);
   const isScrollingRef = useRef(false);
-  const layoutUpdateTimeoutRef = useRef(null);
 
   const navigation = useNavigation();
   const { addToCart, getTotalItems, syncCartToContext } = useCart();
   const { language } = useContext(LanguageContext);
 
   useEffect(() => {
-    mountedRef.current = true;
-    
-    return () => {
-      mountedRef.current = false;
-      clearTimeout(timeoutRef.current);
-      clearTimeout(layoutUpdateTimeoutRef.current);
-      setIsLoading(false);
-    };
-  }, [setIsLoading]);
-
-  useEffect(() => {
     if (Object.keys(categoryWidths).length > 0 && groupedMenu.length > 0) {
-      const prevOffsets = {...categoryOffsets};
-      const newOffsets = {};
+      const offsets = {};
       let currentOffset = 0;
       
       groupedMenu.forEach((category) => {
         const categoryId = category.category_name;
-        newOffsets[categoryId] = currentOffset;
-        currentOffset += (categoryWidths[categoryId] || 100) + 20 * scaleWidth;
+        offsets[categoryId] = currentOffset;
+        currentOffset += (categoryWidths[categoryId] || 100) + 20 * scaleWidth; // 加上margin
       });
       
-      const hasChanged = Object.keys(newOffsets).some(key => 
-        newOffsets[key] !== prevOffsets[key]
-      );
-      
-      if (hasChanged) {
-        setCategoryOffsets(newOffsets);
+      // Only update if offsets are actually different
+      if (JSON.stringify(offsets) !== JSON.stringify(categoryOffsets)) {
+        setCategoryOffsets(offsets);
       }
     }
-  }, [categoryWidths, groupedMenu, scaleWidth]);
+  }, [categoryWidths, groupedMenu, categoryOffsets]);
 
-  useEffect(() => {
-    if (menuLoaded && groupedMenu.length > 0 && !selectedCategory) {
-      setSelectedCategory(groupedMenu[0].category_name);
-      
-      if (menuListRef.current) {
-        menuListRef.current.scrollToOffset({
-          offset: 0,
-          animated: false
-        });
-      }
-      
-      if (categoryScrollRef.current) {
-        categoryScrollRef.current.scrollTo({
-          x: 0,
-          animated: false
-        });
-      }
-    }
-  }, [menuLoaded, groupedMenu, selectedCategory]);
 
   const handleCategoryPress = useCallback((categoryId, index) => {
     setSelectedCategory(categoryId);
     setIsManualScroll(true);
 
-    if (menuListRef.current && index >= 0 && index < groupedMenu.length) {
+    if (menuListRef.current) {
       try {
         menuListRef.current.scrollToIndex({
           index,
@@ -116,10 +81,12 @@ const MenuSection = ({ restaurantId, restaurants }) => {
           viewPosition: 0,
         });
       } catch (error) {
+        console.warn("[MenuSection] Scroll to index failed:", error);
+
         let offset = 0;
         for (let i = 0; i < index; i++) {
           const catId = groupedMenu[i]?.category_name;
-          offset += menuMeasurements[catId]?.height || categoryHeights[catId] || 0;
+          offset += categoryHeights[catId] || 0;
         }
         
         menuListRef.current.scrollToOffset({
@@ -129,29 +96,24 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       }
     }
 
-    if (categoryScrollRef.current && categoryOffsets[categoryId] !== undefined) {
-      try {
-        const offset = categoryOffsets[categoryId] || 0;
-        const itemWidth = categoryWidths[categoryId] || 100;
-        const centerPosition = offset - (width / 2) + (itemWidth / 2);
-        const scrollTo = Math.max(0, centerPosition);
-        
-        categoryScrollRef.current.scrollTo({
-          x: scrollTo,
-          animated: true,
-        });
-      } catch (error) {
-        console.warn("[MenuSection] Category scroll failed:", error);
-      }
+    if (categoryScrollRef.current) {
+      const offset = categoryOffsets[categoryId] || 0;
+      const itemWidth = categoryWidths[categoryId] || 100;
+      const centerPosition = offset - (width / 2) + (itemWidth / 2);
+
+      const scrollTo = Math.max(0, centerPosition);
+      
+      categoryScrollRef.current.scrollTo({
+        x: scrollTo,
+        animated: true,
+      });
     }
 
     clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
-      if (mountedRef.current) {
-        setIsManualScroll(false);
-      }
+      setIsManualScroll(false);
     }, 800);
-  }, [groupedMenu, categoryHeights, categoryWidths, categoryOffsets, width, menuMeasurements]);
+  }, [groupedMenu, categoryHeights, categoryWidths, categoryOffsets]);
 
   const handleMenuScroll = useCallback((event) => {
     if (isManualScroll || !groupedMenu.length) return;
@@ -162,28 +124,21 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     if (isScrollingRef.current) return;
     isScrollingRef.current = true;
 
-    const determineVisibleCategory = () => {
-      if (!mountedRef.current) return;
-      
+    requestAnimationFrame(() => {
+
       let accumulatedHeight = 0;
       let currentCategoryIndex = 0;
-      let currentCategoryFound = false;
       
       for (let i = 0; i < groupedMenu.length; i++) {
         const categoryId = groupedMenu[i].category_name;
-        const categoryHeight = menuMeasurements[categoryId]?.height || categoryHeights[categoryId] || 0;
+        const categoryHeight = categoryHeights[categoryId] || 0;
         
-        if (yOffset >= accumulatedHeight && yOffset < accumulatedHeight + categoryHeight) {
+        if (yOffset < accumulatedHeight + categoryHeight) {
           currentCategoryIndex = i;
-          currentCategoryFound = true;
           break;
         }
         
         accumulatedHeight += categoryHeight;
-      }
-      
-      if (!currentCategoryFound && groupedMenu.length > 0) {
-        currentCategoryIndex = groupedMenu.length - 1;
       }
       
       const currentCategoryId = groupedMenu[currentCategoryIndex]?.category_name;
@@ -195,6 +150,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
           const offset = categoryOffsets[currentCategoryId] || 0;
           const itemWidth = categoryWidths[currentCategoryId] || 100;
           const centerPosition = offset - (width / 2) + (itemWidth / 2);
+
           const scrollTo = Math.max(0, centerPosition);
           
           categoryScrollRef.current.scrollTo({
@@ -203,22 +159,17 @@ const MenuSection = ({ restaurantId, restaurants }) => {
           });
         }
       }
-    };
-    
-    determineVisibleCategory();
-    
-    setTimeout(() => {
+      
       isScrollingRef.current = false;
-    }, 50);
-  }, [isManualScroll, groupedMenu, categoryHeights, selectedCategory, categoryOffsets, width, categoryWidths, menuMeasurements]);
+    });
+  }, [isManualScroll, groupedMenu, categoryHeights, selectedCategory, categoryOffsets, categoryWidths]);
 
-  const handleDataFetched = useCallback((data) => {
-    if (!mountedRef.current) return;
-    
-    if (!data || !data.categories || !data.groupedItems) {
-      console.error('[Menu Section Error] Invalid data received:', data);
-      return;
-    }
+
+const handleDataFetched = useCallback((data) => {
+  if (!data || !data.categories || !data.groupedItems) {
+    console.error('[Menu Section Error] Invalid data received:', data);
+    return;
+  }
 
     const categories = data.categories;
     const groupedItems = data.groupedItems;
@@ -255,6 +206,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     setGroupedMenu(grouped);
     setMenu(data.groupedItems);
 
+
     if (!menuLoaded) {
       const initialHeights = {};
       const initialWidths = {};
@@ -276,65 +228,41 @@ const MenuSection = ({ restaurantId, restaurants }) => {
   }, [menuLoaded]);
 
   const handleCartFetched = useCallback((fetchedCartItems) => {
-    if (!mountedRef.current) return;
-    
     syncCartToContext(restaurantId, fetchedCartItems);
     
-    loadingSetRef.current = false;
-    setIsLoading(false);
+    // 在所有數據加載完成後關閉加載狀態，並添加1秒延遲確保動畫顯示足夠時間
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
   }, [restaurantId, syncCartToContext, setIsLoading]);
 
   const handleLoading = useCallback((isLoading) => {
-    if (!mountedRef.current) return;
-    
-    if (isLoading) {
-      if (!loadingSetRef.current) {
-        setIsLoading(true);
-        loadingSetRef.current = true;
-      }
-    } else {
-      loadingSetRef.current = false;
-      setIsLoading(false);
-    }
+    // 透過全局 LoadingContext 控制加載狀態
+    setIsLoading(isLoading);
   }, [setIsLoading]);
 
   const handleCategoryLayout = useCallback((event, categoryId) => {
-    if (!mountedRef.current) return;
-    
     const { height } = event.nativeEvent.layout;
     
-    menuMeasurements[categoryId] = { height };
+    setCategoryHeights(prev => ({
+      ...prev,
+      [categoryId]: height
+    }));
     
-    clearTimeout(layoutUpdateTimeoutRef.current);
-    layoutUpdateTimeoutRef.current = setTimeout(() => {
-      setCategoryHeights(prev => {
-        if (Math.abs((prev[categoryId] || 0) - height) < 1) return prev;
-        return {
-          ...prev,
-          [categoryId]: height
-        };
-      });
-    }, 50);
-  }, []);
+    menuMeasurements[categoryId] = { height };
+  }, [menuMeasurements]);
+
 
   const handleCategoryItemLayout = useCallback((event, categoryId) => {
-    if (!mountedRef.current) return;
-    
     const { width } = event.nativeEvent.layout;
     
-    categoryMeasurements[categoryId] = { width };
+    setCategoryWidths(prev => ({
+      ...prev,
+      [categoryId]: width
+    }));
     
-    clearTimeout(layoutUpdateTimeoutRef.current);
-    layoutUpdateTimeoutRef.current = setTimeout(() => {
-      setCategoryWidths(prev => {
-        if (Math.abs((prev[categoryId] || 0) - width) < 1) return prev;
-        return {
-          ...prev,
-          [categoryId]: width
-        };
-      });
-    }, 50);
-  }, []);
+    categoryMeasurements[categoryId] = { width };
+  }, [categoryMeasurements]);
 
   const handleAddToCart = useCallback((item) => {
     const price = item.price || 
@@ -373,12 +301,12 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     if (!data || !groupedMenu[index]) return { length: 0, offset: 0, index };
     
     const categoryId = groupedMenu[index].category_name;
-    const height = menuMeasurements[categoryId]?.height || categoryHeights[categoryId] || 0;
+    const height = categoryHeights[categoryId] || 0;
     
     let offset = 0;
     for (let i = 0; i < index; i++) {
       const catId = groupedMenu[i]?.category_name;
-      offset += menuMeasurements[catId]?.height || categoryHeights[catId] || 0;
+      offset += categoryHeights[catId] || 0;
     }
     
     return {
@@ -386,7 +314,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       offset,
       index,
     };
-  }, [groupedMenu, categoryHeights, menuMeasurements]);
+  }, [groupedMenu, categoryHeights]);
 
   const getViewCartText = useCallback(() => {
     const cartItemCount = getTotalItems(restaurantId);
@@ -404,11 +332,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       <View
         style={styles.categorySection}
         key={categoryId}
-        onLayout={(event) => {
-          const { height } = event.nativeEvent.layout;
-          menuMeasurements[categoryId] = { height };
-          handleCategoryLayout(event, categoryId);
-        }}
+        onLayout={(event) => handleCategoryLayout(event, categoryId)}
       >
         <Text style={styles.categoryHeader} numberOfLines={1} ellipsizeMode="tail">
           {language === 'ZH' ? category.category_name_zh : category.category_name}
@@ -469,7 +393,8 @@ const MenuSection = ({ restaurantId, restaurants }) => {
         })}
       </View>
     );
-  }, [language, handleCategoryLayout, handleProductPress, handleAddToCart, menuMeasurements]);
+  }, [language, handleCategoryLayout, handleProductPress, handleAddToCart]);
+
 
   const renderCategoryItem = useCallback((category, index) => {
     const categoryId = category.category_name;
@@ -483,11 +408,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
           isSelected && styles.selectedCategory
         ]}
         onPress={() => handleCategoryPress(categoryId, index)}
-        onLayout={(event) => {
-          const { width } = event.nativeEvent.layout;
-          categoryMeasurements[categoryId] = { width };
-          handleCategoryItemLayout(event, categoryId);
-        }}
+        onLayout={(event) => handleCategoryItemLayout(event, categoryId)}
       >
         <Text 
           style={[
@@ -501,7 +422,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
         </Text>
       </TouchableOpacity>
     );
-  }, [selectedCategory, handleCategoryPress, handleCategoryItemLayout, language, categoryMeasurements]);
+  }, [selectedCategory, handleCategoryPress, handleCategoryItemLayout, language]);
 
   const renderCartButton = useCallback(() => {
     const cartItemCount = getTotalItems(restaurantId);
@@ -519,8 +440,16 @@ const MenuSection = ({ restaurantId, restaurants }) => {
     return null;
   }, [menuLoaded, getTotalItems, restaurantId, handleViewCart, getViewCartText]);
 
+  // 在組件卸載時清除加載狀態
+  useEffect(() => {
+    return () => {
+      setIsLoading(false);
+    };
+  }, [setIsLoading]);
+
   return (
     <SafeAreaView style={styles.container}>
+
       <MenuFetcher
         restaurantId={restaurantId}
         onDataFetched={handleDataFetched}
@@ -535,6 +464,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       )}
 
       {!menuLoaded ? (
+        // 載入中顯示空白，實際載入畫面由 LoadingContext 處理
         <View style={styles.emptyContainer} />
       ) : groupedMenu.length > 0 ? (
         <>
@@ -544,7 +474,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
               ref={categoryScrollRef}
               style={styles.categoryList}
               showsHorizontalScrollIndicator={false}
-              scrollEventThrottle={50}
+              scrollEventThrottle={16}
               contentContainerStyle={styles.categoryListContent}
               keyboardShouldPersistTaps="handled"
             >
@@ -561,19 +491,20 @@ const MenuSection = ({ restaurantId, restaurants }) => {
             renderItem={renderCategory}
             style={styles.flatList}
             onScroll={handleMenuScroll}
-            scrollEventThrottle={50}
+            scrollEventThrottle={16}
             contentContainerStyle={styles.flatListContent}
-            initialNumToRender={3}
-            maxToRenderPerBatch={3}
-            windowSize={3}
-            removeClippedSubviews={true}
+            initialNumToRender={5}
+            maxToRenderPerBatch={5}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'android'}
             getItemLayout={getItemLayout}
             onMomentumScrollEnd={() => setIsManualScroll(false)}
             keyboardShouldPersistTaps="handled"
           />
         </>
       ) : (
-        <Text style={styles.emptyMessage}></Text>
+        <Text style={styles.emptyMessage}>
+        </Text>
       )}
 
       {renderCartButton()}
