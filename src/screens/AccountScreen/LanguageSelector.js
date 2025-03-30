@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { LanguageContext } from '../context/LanguageContext';
+import { LanguageContext } from '../../context/LanguageContext';
 
 const { width } = Dimensions.get('window');
 

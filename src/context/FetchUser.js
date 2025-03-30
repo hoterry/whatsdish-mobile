@@ -77,7 +77,24 @@ const useUserFetcher = () => {
           console.log('[Fetch User Log] Updated user data in state:', user);
         }
 
-        return user.accountId; 
+        // Store the accountId in SecureStore for easier access
+        if (user.accountId) {
+          await SecureStore.setItemAsync('accountId', user.accountId);
+          if (__DEV__) {
+            console.log('[Fetch User Log] Stored accountId in SecureStore:', user.accountId);
+          }
+        }
+
+        // Store the phone in SecureStore for verification purposes
+        if (user.phone) {
+          await SecureStore.setItemAsync('userPhoneNumber', user.phone);
+          if (__DEV__) {
+            console.log('[Fetch User Log] Stored phone number in SecureStore:', user.phone);
+          }
+        }
+
+        // Return the full user object instead of just the accountId
+        return user;
       } else {
         if (__DEV__) {
           console.log('[Fetch User Log] Failed to fetch user data:', data);

@@ -46,9 +46,12 @@ const HomeScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { fetchUserData, userData } = useUserFetcher();
   const { changeLanguage } = useContext(LanguageContext);
-  const languageCheckRef = useRef(false);
   const statusBarHeight = StatusBar.currentHeight || 0;
-
+  
+  // 使用 ref 來記錄是否正在獲取語言，避免無限循環
+  const isFetchingLanguage = useRef(false);
+  
+  // Load fonts on component mount
   useEffect(() => {
     async function loadFonts() {
       await Font.loadAsync({
@@ -59,39 +62,65 @@ const HomeScreen = () => {
     loadFonts();
   }, []);
 
+  // Function to fetch and apply user language preference
+  const fetchAndSetUserLanguage = useCallback(async () => {
+    // 如果已經在獲取語言，則跳過以避免循環
+    if (isFetchingLanguage.current) {
+      return;
+    }
+    
+    try {
+      // 標記正在獲取語言
+      isFetchingLanguage.current = true;
+      
+      // Always fetch user data when this function is called
+      const userData = await fetchUserData();
+      
+      if (__DEV__) {
+        console.log('[HomeScreen] Fetched user data result:', userData);
+      }
+      
+      // 使用 fetchUserData 返回的結果，而不是依賴 userData 狀態
+      if (userData && userData.languagePreference) {
+        const languageMapping = {
+          '中文': 'ZH',
+          'English': 'EN',
+          'en': 'EN',
+          'zh-hant': 'ZH'
+        };
+        
+        const appLanguage = languageMapping[userData.languagePreference] || 'EN';
+        
+        if (__DEV__) {
+          console.log('[HomeScreen] Setting language to:', appLanguage);
+        }
+        
+        changeLanguage(appLanguage);
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[HomeScreen] Error fetching user data:', error);
+      }
+    } finally {
+      // 完成後重置標記
+      isFetchingLanguage.current = false;
+    }
+  }, [fetchUserData, changeLanguage]); // 移除 userData 依賴
+
+  // Fetch user language on component mount
+  useEffect(() => {
+    fetchAndSetUserLanguage();
+  }, [fetchAndSetUserLanguage]);
+
+  // Fetch user language when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      languageCheckRef.current = false;
-      
-      const fetchAndSetUserLanguage = async () => {
-        if (languageCheckRef.current) return;
-        languageCheckRef.current = true;
-        
-        try {
-          const accountId = await fetchUserData();
-          
-          if (accountId && userData.languagePreference) {
-            const languageMapping = {
-              '中文': 'ZH',
-              'English': 'EN',
-              'en': 'EN',
-              'zh-hant': 'ZH'
-            };
-            
-            const appLanguage = languageMapping[userData.languagePreference] || 'EN';
-            changeLanguage(appLanguage);
-          }
-        } catch (error) {
-          if (__DEV__) {
-            console.error('[HomeScreen] Error:', error);
-          }
-        }
-      };
-
+      // 每次獲得焦點時，重置狀態並重新獲取語言
+      isFetchingLanguage.current = false;
       fetchAndSetUserLanguage();
       
       return () => {};
-    }, [fetchUserData, changeLanguage])
+    }, [fetchAndSetUserLanguage])
   );
 
   const handleDataFetched = (data) => {

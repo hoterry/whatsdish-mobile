@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Constants from 'expo-constants';
 import * as Sentry from 'sentry-expo';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, View, Platform, Text } from 'react-native';
+import { ActivityIndicator, View, Text, Animated, StyleSheet, Dimensions } from 'react-native';
 import * as Font from 'expo-font';  
 import * as SecureStore from 'expo-secure-store';
-import { Button } from 'react-native';
 import { LoadingProvider } from './src/context/LoadingContext';
+import LottieView from 'lottie-react-native';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
   enableInExpoDevelopment: true,
   debug: true,
 });
+
+const { width, height } = Dimensions.get('window');
 
 class ErrorBoundary extends React.Component {
   state = { hasError: false, error: null };
@@ -40,6 +40,7 @@ class ErrorBoundary extends React.Component {
 }
 
 import LoginScreen from './src/screens/LoginScreen/LoginScreen';
+import RegistrationScreen from './src/screens/LoginScreen/RegistrationScreen'; // Import the Registration screen
 import DetailsScreen from './src/screens/DetailScreen/DetailsScreen';
 import ProductDetailsScreen from './src/screens/ProductDetailsScreen/ProductDetailsScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen/CheckoutScreen';
@@ -58,49 +59,134 @@ import { CartProvider } from './src/context/CartContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import CLArticleDetail from './src/ClScreens/CLExploreScreen/CLArticleDetail';
 
+// 創建一個使用 Lottie 動畫的轉場加載組件
+const LottieTransition = ({ visible }) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const lottieRef = useRef(null);
+  
+  useEffect(() => {
+    if (visible) {
+      // 立即顯示沒有淡入效果，確保瞬間覆蓋整個屏幕
+      fadeAnim.setValue(1);
+      
+      // 播放 Lottie 動畫
+      if (lottieRef.current) {
+        lottieRef.current.play();
+      }
+    } else {
+      // 隱藏時使用淡出效果
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+      
+      // 停止 Lottie 動畫
+      if (lottieRef.current) {
+        lottieRef.current.pause();
+      }
+    }
+  }, [visible, fadeAnim]);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View style={[styles.lottieContainer, { opacity: fadeAnim }]}>
+      <View style={styles.lottieInnerContainer}>
+        <LottieView
+          ref={lottieRef}
+          source={require('./assets/wd-loading-animation.json')}
+          autoPlay
+          loop
+          style={styles.lottieAnimation}
+        />
+      </View>
+    </Animated.View>
+  );
+};
+
 const Stack = createStackNavigator();
 
-function GuestStack({ setIsAuthenticated }) {
-  return (
-    <Stack.Navigator initialRouteName="CLHomeTabs">
-      <Stack.Screen name="CLHomeTabs" options={{ headerShown: false }}>
-        {props => <CLCustomTabNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
-      </Stack.Screen>
-      <Stack.Screen name="Login" options={{ headerShown: false }}>
-        {props => <LoginScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
-      </Stack.Screen>
-      <Stack.Screen name="Details" component={CLDetailsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="VideoDetailScreen" component={VideoDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="CLArticleDetail" component={CLArticleDetail} options={{ headerShown: false }} />
-    </Stack.Navigator>
-  );
-}
+// 全局狀態管理 - 用於控制頁面凍結
+const FreezeContext = React.createContext({
+  isFrozen: false,
+  setIsFrozen: () => {},
+});
 
-function AuthStack({ setIsAuthenticated }) {
-  return (
-    <Stack.Navigator initialRouteName="Login">
-      <Stack.Screen name="Login" options={{ headerShown: false }}>
-        {props => <LoginScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
-      </Stack.Screen>
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
-    </Stack.Navigator>
-  );
-}
+// 提供一個 HOC 來凍結頁面
+const withFreeze = (Component) => {
+  return (props) => {
+    const { isFrozen } = React.useContext(FreezeContext);
+    
+    if (isFrozen) {
+      return <View style={{ flex: 1, backgroundColor: 'transparent' }} pointerEvents="none" />;
+    }
+    
+    return <Component {...props} />;
+  };
+};
 
-function AppStack({ setIsAuthenticated }) {
+// 包裝需要可能凍結的組件
+const FreezableDetailsScreen = withFreeze(CLDetailsScreen);
+const FreezableVideoDetailScreen = withFreeze(VideoDetailScreen);
+const FreezableCLArticleDetail = withFreeze(CLArticleDetail);
+
+function MainStack({ isAuthenticated, setIsAuthenticated, navigationRef, showTransition, setShowTransition, isFrozen }) {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="HomeTabs" options={{ headerShown: false }}>
-        {props => <CustomTabNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
-      </Stack.Screen>
-      <Stack.Screen name="Details" component={DetailsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="ProductDetail" component={ProductDetailsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="HistoryDetail" component={HistoryDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="ArticleDetail" component={ArticleDetail} options={{ headerShown: false }} />
-      <Stack.Screen name="VideoDetailScreen" component={VideoDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Video" component={VideoDetailScreen} options={{ headerShown: false }} />
+      {isAuthenticated ? (
+        <>
+          <Stack.Screen name="HomeTabs" options={{ headerShown: false }}>
+            {props => <CustomTabNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
+          </Stack.Screen>
+          <Stack.Screen name="Details" component={DetailsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ProductDetail" component={ProductDetailsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="HistoryDetail" component={HistoryDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ArticleDetail" component={ArticleDetail} options={{ headerShown: false }} />
+          <Stack.Screen name="VideoDetailScreen" component={VideoDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Video" component={VideoDetailScreen} options={{ headerShown: false }} />
+        </>
+      ) : (
+        // 未登入用戶的路由
+        <>
+          <Stack.Screen name="CLHomeTabs" options={{ headerShown: false }}>
+            {props => <CLCustomTabNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
+          </Stack.Screen>
+          <Stack.Screen name="Login" options={{ headerShown: false }}>
+            {props => <LoginScreen {...props} setIsAuthenticated={(val) => {
+              if (val === true) {
+                // 登入成功時，先顯示轉場動畫並立即凍結頁面
+                setShowTransition(true);
+                // 然後再更新認證狀態
+                setTimeout(() => {
+                  setIsAuthenticated(true);
+                }, 300);
+              } else {
+                setIsAuthenticated(val);
+              }
+            }} />}
+          </Stack.Screen>
+          <Stack.Screen name="Registration" options={{ headerShown: false }}>
+            {props => <RegistrationScreen {...props} setIsAuthenticated={(val) => {
+              if (val === true) {
+                // 註冊成功時，先顯示轉場動畫並立即凍結頁面
+                setShowTransition(true);
+                // 然後再更新認證狀態
+                setTimeout(() => {
+                  setIsAuthenticated(true);
+                }, 300);
+              } else {
+                setIsAuthenticated(val);
+              }
+            }} />}
+          </Stack.Screen>
+          <Stack.Screen name="Details" component={FreezableDetailsScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="VideoDetailScreen" component={FreezableVideoDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="CLArticleDetail" component={FreezableCLArticleDetail} options={{ headerShown: false }} />
+        </>
+      )}
     </Stack.Navigator>
   );
 }
@@ -110,8 +196,10 @@ export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [navigationState, setNavigationState] = useState(null);
-  const [useGuestMode, setUseGuestMode] = useState(true); 
+  const navigationRef = useRef(null);
+  const [previousAuthState, setPreviousAuthState] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
 
   useEffect(() => {
     if (__DEV__) {
@@ -164,33 +252,36 @@ export default function App() {
     checkAuth();
   }, []);
 
+  // 監聽轉場動畫狀態，控制頁面凍結
   useEffect(() => {
-    if (!navigationState || !navigationState.routes || navigationState.routes.length < 2) return;
-    
-    const currentRoute = navigationState.routes[navigationState.routes.length - 1];
-    const prevRoute = navigationState.routes[navigationState.routes.length - 2];
-  
-    if (__DEV__) {
-      console.log('[Navigation] Previous route:', prevRoute.name);
-      console.log('[Navigation] Current route:', currentRoute.name);
-    }
+    setIsFrozen(showTransition);
+  }, [showTransition]);
 
-    if (prevRoute.name === 'HistoryDetail' && prevRoute.params?.resetOrderState === true) {
-      if (__DEV__) {
-        console.log('[Navigation] Will clear order_id after order completion');
-      }
-
-      SecureStore.deleteItemAsync('order_id')
-        .then(() => {
+  useEffect(() => {
+    if (isAuthenticated && !previousAuthState && navigationRef.current) {
+      // 確保導航在轉場動畫顯示一段時間後進行
+      setTimeout(() => {
+        if (navigationRef.current) {
+          navigationRef.current.resetRoot({
+            index: 0,
+            routes: [{ name: 'HomeTabs' }],
+          });
+          
           if (__DEV__) {
-            console.log('[Navigation] Successfully cleared order_id');
+            console.log('[Navigation] Successfully reset navigation to HomeTabs');
           }
-        })
-        .catch(error => {
-          console.error('[Navigation] Error clearing order_id:', error);
-        });
+          
+          // 在導航完成後，再等一會兒再隱藏轉場動畫，讓用戶有更流暢的體驗
+          setTimeout(() => {
+            setShowTransition(false);
+          }, 500);
+        }
+      }, 800); // 延長動畫顯示時間，讓用戶能夠看到完整的 Lottie 動畫
     }
-  }, [navigationState]);
+    
+    // 更新上一個認證狀態
+    setPreviousAuthState(isAuthenticated);
+  }, [isAuthenticated, previousAuthState]);
 
   if (isLoading || !fontsLoaded) {
     return (
@@ -203,31 +294,81 @@ export default function App() {
 
   return (
     <LoadingProvider>
-    <ErrorBoundary>
-      <LanguageProvider>
-        <CartProvider>
+      <ErrorBoundary>
+        <LanguageProvider>
+          <CartProvider>
+            <FreezeContext.Provider value={{ isFrozen, setIsFrozen }}>
+              <View style={{ flex: 1 }}>
+                <VideoPreloader isAuthenticated={isAuthenticated} isLoading={isLoading} />
+                <NavigationContainer 
+                  ref={navigationRef}
+                  fallback={<ActivityIndicator size="large" />}
+                  onStateChange={(state) => {
+                    // 處理導航狀態的變化
+                    if (!state || !state.routes || state.routes.length < 2) return;
+                    
+                    const currentRoute = state.routes[state.routes.length - 1];
+                    const prevRoute = state.routes[state.routes.length - 2];
+                  
+                    if (__DEV__) {
+                      console.log('[Navigation] Previous route:', prevRoute.name);
+                      console.log('[Navigation] Current route:', currentRoute.name);
+                    }
 
-          <VideoPreloader isAuthenticated={isAuthenticated} isLoading={isLoading} />
-          
-          <NavigationContainer 
-            fallback={<ActivityIndicator size="large" />}
-            onStateChange={(state) => {
-              setNavigationState(state);
-            }}
-          >
-            {isAuthenticated ? (
-              <AppStack setIsAuthenticated={setIsAuthenticated} />
-            ) : (
-              useGuestMode ? (
-                <GuestStack setIsAuthenticated={setIsAuthenticated} />
-              ) : (
-                <AuthStack setIsAuthenticated={setIsAuthenticated} />
-              )
-            )}
-          </NavigationContainer>
-        </CartProvider>
-      </LanguageProvider>
-    </ErrorBoundary>
+                    if (prevRoute.name === 'HistoryDetail' && prevRoute.params?.resetOrderState === true) {
+                      if (__DEV__) {
+                        console.log('[Navigation] Will clear order_id after order completion');
+                      }
+
+                      SecureStore.deleteItemAsync('order_id')
+                        .then(() => {
+                          if (__DEV__) {
+                            console.log('[Navigation] Successfully cleared order_id');
+                          }
+                        })
+                        .catch(error => {
+                          console.error('[Navigation] Error clearing order_id:', error);
+                        });
+                    }
+                  }}
+                >
+                  <MainStack 
+                    isAuthenticated={isAuthenticated} 
+                    setIsAuthenticated={setIsAuthenticated}
+                    navigationRef={navigationRef}
+                    showTransition={showTransition}
+                    setShowTransition={setShowTransition}
+                    isFrozen={isFrozen}
+                  />
+                </NavigationContainer>
+                
+                {/* 使用 Lottie 過渡動畫 */}
+                <LottieTransition visible={showTransition} />
+              </View>
+            </FreezeContext.Provider>
+          </CartProvider>
+        </LanguageProvider>
+      </ErrorBoundary>
     </LoadingProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  lottieContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)', // 更高的不透明度
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  lottieInnerContainer: {
+    width: width * 0.6,
+    height: width * 0.6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lottieAnimation: {
+    width: '100%',
+    height: '100%',
+  }
+});

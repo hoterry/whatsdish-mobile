@@ -1,13 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
-  TextInput,
   TouchableOpacity,
   View,
   Text,
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Image,
   Keyboard,
   Platform,
   Dimensions,
@@ -19,10 +17,15 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import useUserFetcher from '../../context/FetchUser';
 import * as Haptics from 'expo-haptics';
+import LoginHeader from './LoginHeader';
+import BackButton from './BackButton';
+import PhoneInput from './PhoneInput';
+import VerificationCode from './VerificationCode';
+import { useLoading } from '../../context/LoadingContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -37,6 +40,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
   const [resendTimer, setResendTimer] = useState(0);
   const { API_URL } = Constants.expoConfig.extra; 
   const { fetchUserData } = useUserFetcher();
+  const { setLoading: setGlobalLoading } = useLoading();
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -162,7 +166,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
       setErrorMessage('Please enter the complete verification code.');
       return;
     }
-
+  
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     Keyboard.dismiss();
@@ -172,10 +176,12 @@ export default function LoginScreen({ setIsAuthenticated }) {
       const phoneWithCountryCode = formattedPhoneNumber();
       
       if (__DEV__) {
-        console.log('[Login Screen Log] Verifying code:', code.join(''));
-        console.log('[Login Screen Log] Phone number with country code:', phoneWithCountryCode);
+        console.log('===================== PHONE NUMBER LOGGING =====================');
+        console.log('[Phone Log] Raw phone input:', phoneNumber);
+        console.log('[Phone Log] Phone with country code for API:', phoneWithCountryCode);
+        console.log('================================================================');
       }
-
+  
       const response = await fetch(`${API_URL}/api/verify-code`, { 
         method: 'POST',
         headers: {
@@ -186,44 +192,72 @@ export default function LoginScreen({ setIsAuthenticated }) {
           code: code.join('') 
         }),
       });
-
+  
       const data = await response.json();
-
+  
       if (__DEV__) {
         console.log('[Login Screen Log] Response from verify-code:', data);
       }
-
+  
       if (response.ok) {
         await SecureStore.setItemAsync('token', data.token);
         
         if (__DEV__) {
-          console.log('[Login Screen Log] Stored userPhoneNumber:', phoneWithCountryCode);
+          console.log('[Phone Log] Stored token successfully');
         }
-
+  
         try {
-          const accountId = await fetchUserData();
-          if (accountId) {
-            await SecureStore.setItemAsync('accountId', accountId);
-            if (__DEV__) {
-              console.log('[Login Screen Log] Stored accountId:', accountId);
+          // Use the updated fetchUserData which now returns the full user object
+          const user = await fetchUserData();
+          
+          if (__DEV__) {
+            console.log('[Phone Log] User data returned from fetchUserData:', user);
+            
+            if (user) {
+              console.log('[Phone Log] User contains phone?', !!user.phone);
+              console.log('[Phone Log] Phone from user data:', user.phone);
             }
+          }
+          
+          // Check if user data contains a valid phone number
+          if (user && user.phone) {
+            // User exists, proceed with authentication
+            if (__DEV__) {
+              console.log('[Phone Log] USER EXISTS ✓ - Phone number found in user data');
+              console.log('[Phone Log] User accountId:', user.accountId);
+            }
+
+            // 登入成功動畫
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }).start(() => {
+              // 設置全局加載狀態為 true, 這會觸發轉場動畫
+              setIsAuthenticated(true);
+            });
+  
+            if (__DEV__) {
+              console.log('[Login Screen Log] User authenticated successfully');
+            }
+          } else {
+            // User doesn't exist or has no phone number, navigate to registration
+            if (__DEV__) {
+              console.log('[Phone Log] USER DOES NOT EXIST ✗ - No valid phone found in user data');
+              console.log('[Phone Log] Will navigate to Registration with phone:', phoneWithCountryCode);
+            }
+            
+            // Navigate to registration page with the phone number
+            navigation.navigate('Registration', { phoneNumber: phoneWithCountryCode });
           }
         } catch (userError) {
           if (__DEV__) {
             console.error('[Login Screen Log] Error fetching user data:', userError);
+            console.error('[Phone Log] Error details:', userError.message);
           }
-        }
-
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }).start(() => {
-          setIsAuthenticated(true);
-        });
-
-        if (__DEV__) {
-          console.log('[Login Screen Log] User authenticated successfully');
+          
+          // If there's an error fetching user data, assume user doesn't exist and navigate to registration
+          navigation.navigate('Registration', { phoneNumber: phoneWithCountryCode });
         }
       } else {
         setErrorMessage(data.error || 'Invalid verification code.');
@@ -241,12 +275,15 @@ export default function LoginScreen({ setIsAuthenticated }) {
     } catch (err) {
       if (__DEV__) {
         console.error('[Login Screen Log] Error during verify-code request:', err);
+        console.error('[Phone Log] Error during verification with phone:', phoneWithCountryCode);
+        console.error('[Phone Log] Error details:', err.message);
       }
       setErrorMessage('Unexpected error during verification.');
     } finally {
       setLoading(false);
     }
-  }, [code, phoneNumber, API_URL, fetchUserData, setIsAuthenticated, formattedPhoneNumber]);
+  }, [code, phoneNumber, API_URL, fetchUserData, setIsAuthenticated, formattedPhoneNumber, navigation, fadeAnim, setGlobalLoading]);
+
 
   const handleCodeChange = useCallback((text, index) => {
     const numericText = text.replace(/[^0-9]/g, '');
@@ -338,12 +375,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
-      <TouchableOpacity 
-        style={styles.backButtonTop}
-        onPress={() => navigation.goBack()}
-      >
-        <Ionicons name="arrow-back-circle" size={36} color="#2E8B57" />
-      </TouchableOpacity>
+      <BackButton onPress={() => navigation.goBack()} />
       
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -358,22 +390,11 @@ export default function LoginScreen({ setIsAuthenticated }) {
             style={styles.backgroundGradient}
           />
           
-          <View style={styles.headerSection}>
-            <Image 
-              source={require('../../../assets/logo-green.png')} 
-              style={styles.logo} 
-              resizeMode="contain" 
-            />
-            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-              <Text style={styles.header}>Welcome</Text>
-              <Text style={styles.subHeader}>
-                {!isCodeSent 
-                  ? 'Sign in to your secure account'
-                  : 'Enter the verification code'
-                }
-              </Text>
-            </Animated.View>
-          </View>
+          <LoginHeader 
+            isCodeSent={isCodeSent}
+            fadeAnim={fadeAnim}
+            slideAnim={slideAnim}
+          />
 
           <Animated.View 
             style={[
@@ -382,78 +403,22 @@ export default function LoginScreen({ setIsAuthenticated }) {
             ]}
           >
             {!isCodeSent ? (
-              <>
-                <View style={styles.inputLabel}>
-                  <MaterialIcons name="smartphone" size={20} color="#2E8B57" />
-                  <Text style={styles.labelText}>Mobile Number</Text>
-                </View>
-                <View style={styles.phoneInputContainer}>
-                  <View style={styles.countryCodeContainer}>
-                    <Image source={require('../../../assets/canada-flag.png')} style={styles.flag} />
-                    <Text style={styles.countryCode}>+1</Text>
-                  </View>
-                  <TextInput
-                    style={styles.phoneInput}
-                    placeholder="Enter your number"
-                    placeholderTextColor="rgba(0,0,0,0.4)"
-                    value={phoneNumber}
-                    onChangeText={handlePhoneChange}
-                    keyboardType="phone-pad"
-                    returnKeyType="send"
-                    onSubmitEditing={handleSendCode}
-                    maxLength={12}
-                    selectionColor="#2E8B57"
-                  />
-                </View>
-              </>
+              <PhoneInput 
+                phoneNumber={phoneNumber}
+                handlePhoneChange={handlePhoneChange}
+                handleSendCode={handleSendCode}
+              />
             ) : (
-              <View style={styles.codeSection}>
-                <TouchableOpacity 
-                  onPress={handleBack} 
-                  style={styles.backButton}
-                >
-                  <Ionicons name="arrow-back-circle" size={30} color="#2E8B57" />
-                </TouchableOpacity>
-                
-                <Text style={styles.codeSentText}>
-                  Code sent to {formattedPhoneNumber()}
-                </Text>
-                
-                <View style={styles.codeContainer}>
-                  {code.map((digit, index) => (
-                    <TextInput
-                      key={index}
-                      style={[
-                        styles.codeInput,
-                        digit ? styles.codeInputFilled : null
-                      ]}
-                      placeholder="•"
-                      placeholderTextColor="rgba(255,255,255,0.5)"
-                      value={digit}
-                      onChangeText={(text) => handleCodeChange(text, index)}
-                      keyboardType="number-pad"
-                      maxLength={1}
-                      ref={(ref) => (codeInputs.current[index] = ref)}
-                      textContentType="oneTimeCode"
-                      onKeyPress={(e) => handleKeyPress(e, index)}
-                      selectionColor="#2E8B57"
-                    />
-                  ))}
-                </View>
-                
-                <TouchableOpacity 
-                  onPress={handleSendCode} 
-                  style={styles.resendButton} 
-                  disabled={resendTimer > 0}
-                >
-                  <Text style={[
-                    styles.resendButtonText,
-                    resendTimer > 0 ? styles.resendButtonTextDisabled : null
-                  ]}>
-                    {resendTimer > 0 ? `Resend Code (${resendTimer}s)` : 'Resend Code'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <VerificationCode 
+                formattedPhoneNumber={formattedPhoneNumber}
+                handleBack={handleBack}
+                code={code}
+                handleCodeChange={handleCodeChange}
+                handleKeyPress={handleKeyPress}
+                codeInputs={codeInputs}
+                handleSendCode={handleSendCode}
+                resendTimer={resendTimer}
+              />
             )}
 
             {errorMessage ? (
@@ -501,6 +466,8 @@ export default function LoginScreen({ setIsAuthenticated }) {
   );
 }
 
+
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -523,125 +490,10 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
-  headerSection: {
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  logo: {
-    width: 70,
-    height: 70,
-    marginBottom: 5,
-  },
-  header: {
-    fontSize: 34,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#000',
-    marginBottom: 10,
-    letterSpacing: 0.5,
-  },
-  subHeader: {
-    fontSize: 18,
-    textAlign: 'center',
-    color: '#666',
-    marginBottom: 5,
-  },
   formContainer: {
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
-  },
-  inputLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  labelText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 8,
-    fontWeight: '500',
-  },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    backgroundColor: '#f9f9f9',
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    height: 60,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  countryCodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 16,
-    borderRightWidth: 1,
-    borderRightColor: '#e0e0e0',
-    height: '100%',
-  },
-  flag: {
-    width: 24,
-    height: 24,
-    marginRight: 8,
-    borderRadius: 4,
-  },
-  countryCode: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  phoneInput: {
-    flex: 1,
-    height: 60,
-    fontSize: 18,
-    paddingLeft: 16,
-    color: '#333',
-    fontWeight: '500',
-  },
-  codeSection: {
-    marginTop: 10,
-    marginBottom: 10,
-    width: '100%',
-  },
-  codeSentText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  codeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    paddingHorizontal: 10,
-  },
-  codeInput: {
-    width: 52,
-    height: 64,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 12,
-    textAlign: 'center',
-    color: '#333',
-    borderColor: '#e0e0e0',
-    borderWidth: 1,
-    fontSize: 24,
-    fontWeight: 'bold',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  codeInputFilled: {
-    backgroundColor: 'rgba(46,139,87,0.1)',
-    borderColor: '#2E8B57',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -686,44 +538,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 0.5,
-  },
-  backButton: {
-    position: 'absolute',
-    top: -10,
-    left: 0,
-    zIndex: 1,
-    padding: 8,
-  },
-  backButtonTop: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight + 10,
-    left: 20,
-    zIndex: 10,
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  resendButton: {
-    alignSelf: 'center',
-    marginTop: 5,
-    marginBottom: 5,
-    padding: 10,
-  },
-  resendButtonText: {
-    color: '#2E8B57',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resendButtonTextDisabled: {
-    color: '#999',
   },
   footerTextContainer: {
     marginTop: 20,

@@ -25,7 +25,7 @@ import ProfileSection from './ProfileSection';
 import ProfileItem from './ProfileItem';
 import LogoutButton from './LogoutButton';
 import LogoutConfirmModal from './LogoutConfirmModal';
-import LanguageSelector from '../../components/LanguageSelector';
+import LanguageSelector from './LanguageSelector';
 import ProfileEditModal from './ProfileEditModal';
 import ComingSoonModal from './ComingSoonModal';
 import HelpCenterModal from './HelpCenterModal';

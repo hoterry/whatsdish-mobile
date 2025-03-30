@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LanguageContext } from '../../context/LanguageContext';
 import RestaurantHeader from './RestaurantHeader';
 import MenuSection from './MenuSection';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import LottieView from 'lottie-react-native';
+import useUserFetcher from '../../context/FetchUser';
 
 const { API_URL } = Constants.expoConfig.extra;
 
@@ -37,12 +38,73 @@ const CustomBackButton = ({ navigation }) => {
 
 function DetailsScreen({ route, navigation }) {
   const { restaurant, restaurants, isLoading: initialLoading } = route.params;
-  const { language } = useContext(LanguageContext); 
+  const { language, changeLanguage } = useContext(LanguageContext); 
   const [menu, setMenu] = useState([]);
   const [isLoading, setIsLoading] = useState(initialLoading || false);
   const [orderIdReady, setOrderIdReady] = useState(false);
   const abortControllerRef = useRef(null);
   const currentRestaurantIdRef = useRef(restaurant.gid);
+  const { fetchUserData, userData } = useUserFetcher();
+  const isFetchingLanguage = useRef(false);
+
+  // Function to fetch and apply user language preference
+  const fetchAndSetUserLanguage = useCallback(async () => {
+
+    if (isFetchingLanguage.current) {
+      return;
+    }
+    
+    try {
+
+      isFetchingLanguage.current = true;
+      
+      if (__DEV__) {
+        console.log('[DetailsScreen] Fetching user language...');
+      }
+      
+      // Always fetch user data when this function is called
+      const userData = await fetchUserData();
+      
+      if (__DEV__) {
+        console.log('[DetailsScreen] Fetched user data result:', userData);
+      }
+
+      if (userData && userData.languagePreference) {
+        const languageMapping = {
+          '中文': 'ZH',
+          'English': 'EN',
+          'en': 'EN',
+          'zh-hant': 'ZH'
+        };
+        
+        const appLanguage = languageMapping[userData.languagePreference] || 'EN';
+        
+        if (__DEV__) {
+          console.log('[DetailsScreen] Setting language to:', appLanguage);
+        }
+        
+        changeLanguage(appLanguage);
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.error('[DetailsScreen] Error fetching user data:', error);
+      }
+    } finally {
+
+      isFetchingLanguage.current = false;
+    }
+  }, [fetchUserData, changeLanguage]);
+
+  // Fetch user language when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+
+      isFetchingLanguage.current = false;
+      fetchAndSetUserLanguage();
+      
+      return () => {};
+    }, [fetchAndSetUserLanguage])
+  );
 
   useEffect(() => {
     currentRestaurantIdRef.current = restaurant.gid;

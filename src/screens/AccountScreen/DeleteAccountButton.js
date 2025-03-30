@@ -3,14 +3,11 @@ import React from 'react';
 import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
-import { useNavigation } from '@react-navigation/native';
 import ProfileItem from './ProfileItem';
 
 const { API_URL } = Constants.expoConfig.extra;
 
 const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN', isLast }) => {
-  const navigation = useNavigation();
-  
   const texts = {
     EN: {
       deleteLabel: 'Delete Account',
@@ -18,7 +15,9 @@ const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN', isLast }) =>
       confirmMessage: 'Are you sure you want to permanently delete your account? This action cannot be undone.',
       cancel: 'Cancel',
       confirm: 'Delete',
-      error: 'Failed to delete account. Please try again later.'
+      error: 'Failed to delete account. Please try again later.',
+      success: 'Account Deleted',
+      successMessage: 'Your account has been successfully deleted.'
     },
     ZH: {
       deleteLabel: '刪除帳戶',
@@ -26,7 +25,9 @@ const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN', isLast }) =>
       confirmMessage: '您確定要永久刪除帳戶嗎？此操作無法還原。',
       cancel: '取消',
       confirm: '刪除',
-      error: '刪除帳戶失敗，請稍後再試。'
+      error: '刪除帳戶失敗，請稍後再試。',
+      success: '帳戶已刪除',
+      successMessage: '您的帳戶已成功刪除。'
     }
   };
 
@@ -45,7 +46,6 @@ const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN', isLast }) =>
             try {
               const token = await SecureStore.getItemAsync('token');
               
-              // Call the specific API endpoint
               const response = await fetch('https://dev.whatsdish.com/api/profile', {
                 method: 'DELETE',
                 headers: {
@@ -54,24 +54,35 @@ const DeleteAccountButton = ({ setIsAuthenticated, language = 'EN', isLast }) =>
                 },
               });
               
-              // Log the response
               if (__DEV__) {
                 const responseData = await response.json().catch(() => ({}));
                 console.log('[DeleteAccountButton] API Response:', response.status, responseData);
               }
 
               if (response.ok) {
-                // Account deleted successfully
-                await SecureStore.deleteItemAsync('token');
-                await SecureStore.deleteItemAsync('accountId');
-                setIsAuthenticated(false);
-                // Navigate to CLHomeScreen
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'CLHomeScreen' }],
-                });
+                Alert.alert(
+                  t.success,
+                  t.successMessage,
+                  [
+                    {
+                      text: 'OK',
+                      onPress: async () => {
+                        try {
+                          await SecureStore.deleteItemAsync('token');
+                          await SecureStore.deleteItemAsync('accountId');
+                          await SecureStore.setItemAsync('needs_clean_start', 'true');
+                          setIsAuthenticated(false);
+                        } catch (error) {
+                          if (__DEV__) {
+                            console.error('Error during cleanup:', error);
+                          }
+                          setIsAuthenticated(false);
+                        }
+                      }
+                    }
+                  ]
+                );
               } else {
-                // Handle error response
                 Alert.alert('Error', t.error);
               }
             } catch (err) {

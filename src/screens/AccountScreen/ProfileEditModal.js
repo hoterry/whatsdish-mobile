@@ -86,7 +86,7 @@ const ProfileEditModal = ({
         Alert.alert('', texts.invalidEmail);
         return;
       }
-
+  
       setLoading(true);
       
       // Prepare data based on field type
@@ -99,13 +99,26 @@ const ProfileEditModal = ({
       } else if (fieldType === 'email') {
         data = { email: email.trim() };
       }
-
+  
+      // Enhanced logging for request data
+      if (__DEV__) {
+        console.log('===== PROFILE EDIT API REQUEST LOGGING =====');
+        console.log('[API Log] Field being updated:', fieldType);
+        console.log('[API Log] Data being sent:', JSON.stringify(data, null, 2));
+        console.log('===========================================');
+      }
+  
       // Get token for authorization
       const token = await SecureStore.getItemAsync('token');
       if (!token) {
         throw new Error('Authentication token not found');
       }
-
+  
+      if (__DEV__) {
+        console.log('[API Log] Authorization Token available:', !!token);
+        console.log('[API Log] Token prefix:', token.substring(0, 10) + '...');
+      }
+  
       // Make API request
       const response = await fetch('https://dev.whatsdish.com/api/profile', {
         method: 'PUT',
@@ -115,30 +128,49 @@ const ProfileEditModal = ({
         },
         body: JSON.stringify(data)
       });
-
+  
+      if (__DEV__) {
+        console.log('[API Log] Response Status:', response.status);
+        console.log('[API Log] Response Status Text:', response.statusText);
+      }
+  
       if (!response.ok) {
         throw new Error(`API error: ${response.status}`);
       }
-
+  
       const result = await response.json();
       
       if (__DEV__) {
-        console.log('[ProfileEditModal] API response:', result);
+        console.log('===== PROFILE EDIT API RESPONSE LOGGING =====');
+        console.log('[API Log] Complete API response:');
+        console.log(JSON.stringify(result, null, 2));
+        console.log('============================================');
       }
-
+  
       // Update UI with new value
       if (fieldType === 'name') {
         const fullName = [givenName, familyName].filter(Boolean).join(' ');
+        if (__DEV__) {
+          console.log('[ProfileEditModal] Updating name display to:', fullName);
+        }
         onSave(fieldType, fullName);
       } else {
+        if (__DEV__) {
+          console.log('[ProfileEditModal] Updating email display to:', email);
+        }
         onSave(fieldType, email);
       }
-
+  
       Alert.alert('', texts.updateSuccess);
       onClose();
     } catch (error) {
       if (__DEV__) {
-        console.error('[ProfileEditModal] Error updating profile:', error);
+        console.error('===== PROFILE EDIT API ERROR LOGGING =====');
+        console.error('[API Log] Error occurred during profile update');
+        console.error('[API Log] Error Type:', error.name);
+        console.error('[API Log] Error Message:', error.message);
+        console.error('[API Log] Complete Error:', error);
+        console.error('===========================================');
       }
       Alert.alert('', texts.updateError);
     } finally {
