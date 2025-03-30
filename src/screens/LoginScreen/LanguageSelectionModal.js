@@ -1,5 +1,5 @@
 // LanguageSelectionModal.js
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -16,23 +16,19 @@ import * as Haptics from 'expo-haptics';
 const translations = {
   en: {
     selectLanguage: "Select Language",
-    save: "Save",
-    cancel: "Cancel"
+    close: "Close"
   },
   "zh-hant": {
     selectLanguage: "選擇語言",
-    save: "保存",
-    cancel: "取消"
+    close: "關閉"
   },
   es: {
     selectLanguage: "Seleccionar Idioma",
-    save: "Guardar",
-    cancel: "Cancelar"
+    close: "Cerrar"
   },
   fr: {
     selectLanguage: "Sélectionner la Langue",
-    save: "Enregistrer",
-    cancel: "Annuler"
+    close: "Fermer"
   }
 };
 
@@ -40,7 +36,6 @@ const translations = {
 const languages = [
   { code: 'en', name: 'English' },
   { code: 'zh-hant', name: '中文' },
-
 ];
 
 const LanguageSelectionModal = ({ 
@@ -49,20 +44,16 @@ const LanguageSelectionModal = ({
   currentLanguage = "en",
   onSave
 }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState(currentLanguage);
   const texts = translations[currentLanguage] || translations["en"];
 
-  useEffect(() => {
-    setSelectedLanguage(currentLanguage);
-  }, [currentLanguage, visible]);
-
   const handleLanguageSelect = (langCode) => {
-    setSelectedLanguage(langCode);
+    // 提供觸覺反饋
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  const handleSave = () => {
-    onSave(selectedLanguage);
+    
+    // 立即應用選擇的語言
+    onSave(langCode);
+    
+    // 關閉模態框
     onClose();
   };
 
@@ -70,19 +61,19 @@ const LanguageSelectionModal = ({
     <TouchableOpacity 
       style={[
         styles.languageOption,
-        selectedLanguage === item.code && styles.languageOptionSelected
+        currentLanguage === item.code && styles.languageOptionSelected
       ]} 
       onPress={() => handleLanguageSelect(item.code)}
     >
       <Text 
         style={[
           styles.languageText,
-          selectedLanguage === item.code && styles.languageTextSelected
+          currentLanguage === item.code && styles.languageTextSelected
         ]}
       >
         {item.name}
       </Text>
-      {selectedLanguage === item.code && (
+      {currentLanguage === item.code && (
         <Ionicons name="checkmark" size={20} color="#2E8B57" style={styles.checkIcon} />
       )}
     </TouchableOpacity>
@@ -112,21 +103,6 @@ const LanguageSelectionModal = ({
                 keyExtractor={(item) => item.code}
                 style={styles.languageList}
               />
-            </View>
-            
-            <View style={styles.modalFooter}>
-              <TouchableOpacity 
-                style={[styles.button, styles.cancelButton]} 
-                onPress={onClose}
-              >
-                <Text style={styles.cancelButtonText}>{texts.cancel}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.button, styles.saveButton]} 
-                onPress={handleSave}
-              >
-                <Text style={styles.saveButtonText}>{texts.save}</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -197,37 +173,6 @@ const styles = StyleSheet.create({
   },
   checkIcon: {
     marginLeft: 8
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee'
-  },
-  button: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 100
-  },
-  cancelButton: {
-    backgroundColor: '#f2f2f2',
-    marginRight: 12
-  },
-  saveButton: {
-    backgroundColor: '#2E8B57'
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#333'
-  },
-  saveButtonText: {
-    fontSize: 16,
-    color: 'white',
-    fontWeight: '500'
   }
 });
 
