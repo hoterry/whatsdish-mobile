@@ -7,8 +7,8 @@ import RestaurantHeader from './RestaurantHeader';
 import MenuSection from './MenuSection';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
-import LottieView from 'lottie-react-native';
 import useUserFetcher from '../../context/FetchUser';
+import { useLoading } from '../../context/LoadingContext';
 
 const { API_URL } = Constants.expoConfig.extra;
 
@@ -40,22 +40,20 @@ function DetailsScreen({ route, navigation }) {
   const { restaurant, restaurants, isLoading: initialLoading } = route.params;
   const { language, changeLanguage } = useContext(LanguageContext); 
   const [menu, setMenu] = useState([]);
-  const [isLoading, setIsLoading] = useState(initialLoading || false);
   const [orderIdReady, setOrderIdReady] = useState(false);
   const abortControllerRef = useRef(null);
   const currentRestaurantIdRef = useRef(restaurant.gid);
   const { fetchUserData, userData } = useUserFetcher();
   const isFetchingLanguage = useRef(false);
+  const { setIsLoading } = useLoading();
 
   // Function to fetch and apply user language preference
   const fetchAndSetUserLanguage = useCallback(async () => {
-
     if (isFetchingLanguage.current) {
       return;
     }
     
     try {
-
       isFetchingLanguage.current = true;
       
       if (__DEV__) {
@@ -90,7 +88,6 @@ function DetailsScreen({ route, navigation }) {
         console.error('[DetailsScreen] Error fetching user data:', error);
       }
     } finally {
-
       isFetchingLanguage.current = false;
     }
   }, [fetchUserData, changeLanguage]);
@@ -98,7 +95,6 @@ function DetailsScreen({ route, navigation }) {
   // Fetch user language when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-
       isFetchingLanguage.current = false;
       fetchAndSetUserLanguage();
       
@@ -110,6 +106,7 @@ function DetailsScreen({ route, navigation }) {
     currentRestaurantIdRef.current = restaurant.gid;
     const ensureCorrectOrderId = async () => {
       try {
+        // Set global loading state to true
         setIsLoading(true);
 
         const storedOrderId = await SecureStore.getItemAsync('order_id');
@@ -118,7 +115,6 @@ function DetailsScreen({ route, navigation }) {
         if (storedRestaurantId === restaurant.gid && storedOrderId) {
           console.log(`[Details] Found matching orderId for restaurant ${restaurant.gid}`);
           setOrderIdReady(true);
-          setIsLoading(false);
           return;
         }
 
@@ -133,7 +129,6 @@ function DetailsScreen({ route, navigation }) {
         const token = await SecureStore.getItemAsync('token');
         if (!token) {
           console.error('[Details] Token not found');
-          setIsLoading(false);
           return;
         }
 
@@ -166,6 +161,7 @@ function DetailsScreen({ route, navigation }) {
         }
         console.error('[Details] Error ensuring correct orderId:', error);
       } finally {
+        // Always set loading to false when done
         setIsLoading(false);
       }
     };
@@ -177,7 +173,7 @@ function DetailsScreen({ route, navigation }) {
         abortControllerRef.current.abort();
       }
     };
-  }, [restaurant.gid]);
+  }, [restaurant.gid, setIsLoading]);
 
   useEffect(() => {
     const currentMenu = restaurant.menu || [];
@@ -187,30 +183,19 @@ function DetailsScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <CustomBackButton navigation={navigation} />
-
       <RestaurantHeader restaurant={restaurant} />
-
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <LottieView
-            source={require('../../../assets/loading-animation.json')}
-            autoPlay
-            loop
-            style={styles.loadingAnimation}
-          />
-        </View>
-      ) : (
-        orderIdReady && (
-          <MenuSection
-            restaurantId={restaurant.gid}
-            restaurants={restaurants}
-            language={language}
-          />
-        )
+      
+      {orderIdReady && (
+        <MenuSection
+          restaurantId={restaurant.gid}
+          restaurants={restaurants}
+          language={language}
+        />
       )}
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

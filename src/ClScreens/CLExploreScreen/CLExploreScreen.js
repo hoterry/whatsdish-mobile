@@ -2,9 +2,7 @@ import React, { useEffect, useState, useContext, useCallback, useRef } from 'rea
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   Dimensions,
   RefreshControl,
@@ -16,6 +14,7 @@ import {
 } from 'react-native';
 import _ from 'lodash';
 import { LanguageContext } from '../../context/LanguageContext';
+import { useLoading } from '../../context/LoadingContext';
 import { AntDesign, Feather, Ionicons } from '@expo/vector-icons';
 import CLVideoGridComponent from './CLVideoGridComponent';
 import CLArticleCard from './CLArticleCard';
@@ -33,7 +32,6 @@ const HEADER_MAX_HEIGHT = HEADER_GRADIENT_HEIGHT + TOGGLE_HEIGHT;
 const HEADER_MIN_HEIGHT = HEADER_GRADIENT_HEIGHT;
 const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
 
-// Color system
 const COLORS = {
   primary: '#000000',
   secondary: '#222222',
@@ -50,22 +48,25 @@ const COLORS = {
 
 const CLExploreScreen = ({ navigation }) => {
   const { language } = useContext(LanguageContext);
+  const { setIsLoading } = useLoading();
   const [articles, setArticles] = useState([]);
   const [categories, setCategories] = useState([]);
   const [featuredArticles, setFeaturedArticles] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dataReady, setDataReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   
-  // Content type state
   const [contentType, setContentType] = useState('articles');
   const slideAnimation = useState(new Animated.Value(0))[0];
   
-  // Scroll animations
   const scrollY = useRef(new Animated.Value(0)).current;
 
 const fetchArticles = useCallback(async () => {
   try {
+    if (!refreshing) {
+      setIsLoading(true);
+    }
+    
     console.log(`Fetching ${contentType === 'videos' ? 'videos' : 'articles'} data...`);
     
     const response = await fetch(
@@ -73,7 +74,6 @@ const fetchArticles = useCallback(async () => {
     );
     let data = await response.json();
     
-    // Language mapping
     let mappedLanguage;
     if (language.toUpperCase() === 'EN') {
       mappedLanguage = 'en';
@@ -83,21 +83,17 @@ const fetchArticles = useCallback(async () => {
       mappedLanguage = language.toLowerCase();
     }
     
-    // Process data based on content type
     let filtered = [];
     
     if (contentType === 'videos') {
-      // Video mode: filter for video type content
       const videoItems = _.filter(data, (item) => {
         const isVideo = item.type && item.type.toLowerCase().includes('video');
         return isVideo;
       });
       
-      // Process video data for display
       filtered = videoItems.map(item => {
         const videoItem = { ...item };
         
-        // Handle cover image
         if (!videoItem.cover_image_url && videoItem.video_url) {
           if (videoItem.video_url.includes('cloudinary.com')) {
             videoItem.cover_image_url = videoItem.video_url
@@ -108,7 +104,6 @@ const fetchArticles = useCallback(async () => {
           }
         }
         
-        // Handle title and excerpt
         if (!videoItem.title && videoItem.content) {
           const firstLine = videoItem.content.split('\n')[0];
           videoItem.title = firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine;
@@ -118,12 +113,10 @@ const fetchArticles = useCallback(async () => {
           videoItem.excerpt = videoItem.content.length > 120 ? videoItem.content.substring(0, 120) + '...' : videoItem.content;
         }
         
-        // Set default read time
         if (!videoItem.read_time) {
           videoItem.read_time = '2';
         }
         
-        // Add data for video grid layout
         videoItem.location = videoItem.title;
         videoItem.author = videoItem.creator || 'user' + Math.floor(Math.random() * 1000);
         videoItem.likes = Math.floor(Math.random() * 50);
@@ -131,7 +124,6 @@ const fetchArticles = useCallback(async () => {
         videoItem.view_count = Math.floor(Math.random() * 10000);
         videoItem.avatar_url = `https://api.dicebear.com/7.x/adventurer/png?seed=${videoItem.author}`;
         
-        // Extract overlay text
         if (videoItem.content) {
           const lines = videoItem.content.split('\n');
           if (lines.length > 1) {
@@ -147,7 +139,6 @@ const fetchArticles = useCallback(async () => {
         console.log('Set processed videos to global.videoEvents, count:', filtered.length);
       }
     } else {
-      // Article mode: filter by language and published status
       filtered = _.filter(data, (item) => {
         return item.language?.toLowerCase() === mappedLanguage && 
                item.is_published === 'TRUE' &&
@@ -155,7 +146,6 @@ const fetchArticles = useCallback(async () => {
       });
     }
     
-    // Extract and deduplicate categories
     const allCategories = filtered
       .map(item => item.categories ? item.categories.split(', ') : [])
       .flat()
@@ -163,19 +153,19 @@ const fetchArticles = useCallback(async () => {
     const uniqueCategories = ['All', ...new Set(allCategories)];
     setCategories(uniqueCategories);
     
-    // Sort by creation date
     const sortedArticles = _.sortBy(filtered, item => -new Date(item.created_at_display || Date.now()));
     
     setFeaturedArticles(sortedArticles.slice(0, FEATURED_ARTICLES_COUNT));
     setArticles(sortedArticles);
+    setDataReady(true);
     
   } catch (error) {
     console.error('[CLExploreScreen Error] Failed to fetch articles:', error);
   } finally {
-    setLoading(false);
+    setIsLoading(false);
     setRefreshing(false);
   }
-}, [language, contentType]);
+}, [language, contentType, refreshing, setIsLoading]);
   
   useEffect(() => {
     fetchArticles();
@@ -186,14 +176,12 @@ const fetchArticles = useCallback(async () => {
     fetchArticles();
   }, [fetchArticles]);
 
-  // Toggle content type
   const toggleContentType = (type) => {
     if (type === contentType) return;
     
-    setLoading(true);
+    setDataReady(false);
     setContentType(type);
     
-    // Animation effect
     Animated.timing(slideAnimation, {
       toValue: type === 'articles' ? 0 : 1,
       duration: 300,
@@ -201,7 +189,6 @@ const fetchArticles = useCallback(async () => {
     }).start();
   };
 
-  // Filter articles by category
   const filteredArticles = selectedCategory === 'All' 
     ? articles 
     : articles.filter(article => {
@@ -217,13 +204,12 @@ const fetchArticles = useCallback(async () => {
     />
   );
 
-  // PREPARE SECTION DATA
   const getSectionData = () => {
-    if (loading) {
+    if (!dataReady) {
       return [
         {
-          title: 'loading',
-          data: [{ type: 'loading' }]
+          title: 'empty',
+          data: [{ type: 'empty' }]
         }
       ];
     }
@@ -244,7 +230,6 @@ const fetchArticles = useCallback(async () => {
       }
     ];
     
-    // Only add featured section for articles, not for videos
     if (contentType === 'articles') {
       sections.push({
         title: 'featured',
@@ -266,15 +251,6 @@ const fetchArticles = useCallback(async () => {
     
     return sections;
   };
-
-  // SECTION RENDERERS
-  const renderLoading = () => (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color={COLORS.primary} />
-      <Text style={styles.loadingText}>
-      </Text>
-    </View>
-  );
   
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -321,16 +297,12 @@ const renderFeatured = () => (
     </View>
   );
 
-  // RENDER THE SECTION LIST
   const renderSection = ({ section, item }) => {
-    if (section.title === 'loading') {
-      return renderLoading();
-    } else if (section.title === 'empty') {
+    if (section.title === 'empty') {
       return renderEmpty();
     } else if (section.title === 'categories') {
       return renderCategoryTabs();
     } else if (section.title === 'featured') {
-      // Only render featured section for articles
       if (contentType === 'articles') {
         return renderFeatured();
       }
@@ -349,7 +321,6 @@ const renderFeatured = () => (
     return null;
   };
 
-  // Handle scroll events to animate header
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     { useNativeDriver: false }
@@ -404,20 +375,6 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingBottom: 30,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    minHeight: 300,
-    marginTop: HEADER_GRADIENT_HEIGHT,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 17,
-    color: COLORS.accent,
-    letterSpacing: 0.2,
   },
   emptyContainer: {
     flex: 1,

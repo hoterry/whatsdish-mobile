@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useCart } from '../../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
 import OrderSummary from './OrderSummary';
@@ -8,11 +8,13 @@ import Payment from './Payment';
 import DeliveryOptionsButton from './DeliveryOptionsButton';
 import { Ionicons } from '@expo/vector-icons';
 import { LanguageContext } from '../../context/LanguageContext';
+import { useLoading } from '../../context/LoadingContext';
 import * as SecureStore from 'expo-secure-store';
 
 function CheckoutScreen({ route }) {
   const { cartItems, getTotalPrice, clearCart } = useCart();
   const { language } = useContext(LanguageContext);
+  const { setIsLoading } = useLoading();
   const navigation = useNavigation();
   const { restaurantId, restaurants } = route.params;
   
@@ -28,7 +30,6 @@ function CheckoutScreen({ route }) {
   const [showDeliveryFee, setShowDeliveryFee] = useState(false);
   const [calculatedTip, setCalculatedTip] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
   const [hasCartItems, setHasCartItems] = useState(false);
 
   const cart = cartItems[restaurantId] || [];
@@ -36,22 +37,22 @@ function CheckoutScreen({ route }) {
   useEffect(() => {
     const checkCart = async () => {
       try {
+        setIsLoading(true);
         const hasItems = cart.length > 0;
         setHasCartItems(hasItems);
         
         if (__DEV__) {
           console.log('[CheckoutScreen] Checking cart status:', hasItems ? 'Has items' : 'Empty');
         }
-        
-        setIsInitializing(false);
       } catch (error) {
         console.error('[CheckoutScreen] Error checking cart:', error);
-        setIsInitializing(false);
+      } finally {
+        setIsLoading(false);
       }
     };
     
     checkCart();
-  }, [cart]);
+  }, [cart, setIsLoading]);
 
   useEffect(() => {
     if (__DEV__) {
@@ -109,6 +110,7 @@ function CheckoutScreen({ route }) {
   const handlePlaceOrder = async () => {
     try {
       setIsProcessing(true);
+      setIsLoading(true);
       
       if (__DEV__) {
         console.log('[Check Out Screen Log] Processing order...');
@@ -242,7 +244,7 @@ function CheckoutScreen({ route }) {
                 console.warn('[Check Out Screen Log] No printer ID configured for restaurant:', merchantSetting.name);
               } else {
                 const printOrderRequest = await fetch(
-                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=0162410240002`,//${printerSerialNumber}
+                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=0162410240008`,//${printerSerialNumber}
                   {
                     method: 'GET',
                     headers: {
@@ -306,16 +308,9 @@ function CheckoutScreen({ route }) {
       console.error('[Check Out Screen Log] Order processing error:', error);
     } finally {
       setIsProcessing(false);
+      setIsLoading(false);
     }
   };
-
-  if (isInitializing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
 
   if (!hasCartItems) {
     return (
@@ -349,75 +344,74 @@ function CheckoutScreen({ route }) {
         </Text>
       </View>
 
-<ScrollView contentContainerStyle={styles.scrollContainer}>
-  <DeliveryOptionsButton
-    deliveryMethod={deliveryMethod}
-    pickupOption={pickupOption}
-    pickupScheduledTime={pickupScheduledTime}
-    deliveryOption={deliveryOption}
-    deliveryScheduledTime={deliveryScheduledTime}
-    address={address}
-    currentTime={currentTime}
-    scheduleTimes={scheduleTimes}
-    onDeliveryMethodChange={handleDeliveryMethodChange}
-    onPickupOptionChange={setPickupOption}
-    onPickupTimeChange={(itemValue) => {
-      const newTime = new Date(itemValue);
-      setPickupScheduledTime(newTime);
-    }}
-    onDeliveryOptionChange={setDeliveryOption}
-    onDeliveryTimeChange={(itemValue) => {
-      const newTime = new Date(itemValue);
-      setDeliveryScheduledTime(newTime);
-    }}
-    onAddressChange={handleChangeAddress}
-    formatDate={formatDate}
-    restaurantId={restaurantId} 
-    restaurants={restaurants}   
-  />
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <DeliveryOptionsButton
+          deliveryMethod={deliveryMethod}
+          pickupOption={pickupOption}
+          pickupScheduledTime={pickupScheduledTime}
+          deliveryOption={deliveryOption}
+          deliveryScheduledTime={deliveryScheduledTime}
+          address={address}
+          currentTime={currentTime}
+          scheduleTimes={scheduleTimes}
+          onDeliveryMethodChange={handleDeliveryMethodChange}
+          onPickupOptionChange={setPickupOption}
+          onPickupTimeChange={(itemValue) => {
+            const newTime = new Date(itemValue);
+            setPickupScheduledTime(newTime);
+          }}
+          onDeliveryOptionChange={setDeliveryOption}
+          onDeliveryTimeChange={(itemValue) => {
+            const newTime = new Date(itemValue);
+            setDeliveryScheduledTime(newTime);
+          }}
+          onAddressChange={handleChangeAddress}
+          formatDate={formatDate}
+          restaurantId={restaurantId} 
+          restaurants={restaurants}   
+        />
 
-  {deliveryMethod === 'pickup' && (
-    <>
-      <OrderSummary
-        cart={cart}
-        subtotal={subtotal}
-        showDeliveryFee={showDeliveryFee}
-        deliveryFee={deliveryFee}
-        taxes={taxes}
-        totalPrice={totalPrice}
-      />
+        {deliveryMethod === 'pickup' && (
+          <>
+            <OrderSummary
+              cart={cart}
+              subtotal={subtotal}
+              showDeliveryFee={showDeliveryFee}
+              deliveryFee={deliveryFee}
+              taxes={taxes}
+              totalPrice={totalPrice}
+            />
 
-      <Payment
-        creditCardNumber={creditCardNumber}
-        setCreditCardNumber={setCreditCardNumber}
-        expirationDate={expirationDate}
-        setExpirationDate={setExpirationDate}
-        cvv={cvv}
-        setCvv={setCvv}
-      />
-    </>
-  )}
-</ScrollView>
+            <Payment
+              creditCardNumber={creditCardNumber}
+              setCreditCardNumber={setCreditCardNumber}
+              expirationDate={expirationDate}
+              setExpirationDate={setExpirationDate}
+              cvv={cvv}
+              setCvv={setCvv}
+            />
+          </>
+        )}
+      </ScrollView>
 
-{deliveryMethod === 'pickup' ? (
-  <View style={styles.buttonContainer}>
-    <TouchableOpacity 
-      style={[styles.placeOrderButton, isProcessing && styles.disabledButton]} 
-      onPress={handlePlaceOrder}
-      disabled={isProcessing}
-    >
-      <Text style={styles.placeOrderText}>
-        {isProcessing 
-          ? (language === 'ZH' ? '處理中...' : 'Processing...') 
-          : (language === 'ZH' ? '確認下單' : 'Place Order')}
-      </Text>
-    </TouchableOpacity>
-  </View>
-) : null}
+      {deliveryMethod === 'pickup' ? (
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity 
+            style={[styles.placeOrderButton, isProcessing && styles.disabledButton]} 
+            onPress={handlePlaceOrder}
+            disabled={isProcessing}
+          >
+            <Text style={styles.placeOrderText}>
+              {isProcessing 
+                ? (language === 'ZH' ? '處理中...' : 'Processing...') 
+                : (language === 'ZH' ? '確認下單' : 'Place Order')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -486,6 +480,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  emptyCartContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  emptyCartText: {
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

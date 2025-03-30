@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { View, Text } from 'react-native';
+import { useLoading } from '../../context/LoadingContext';
 
-const FetchMenu = ({ orderId, lang, onSuccess, onError, onLoading }) => {
-  const [loading, setLoading] = useState(true);
+const FetchMenu = ({ orderId, lang, onSuccess, onError }) => {
+  const { setIsLoading } = useLoading();
   const [error, setError] = useState(null);
   const [menu, setMenu] = useState([]);
   
@@ -12,6 +13,8 @@ const FetchMenu = ({ orderId, lang, onSuccess, onError, onLoading }) => {
 
   useEffect(() => {
     const fetchMenu = async () => {
+      setIsLoading(true);
+      
       try {
         const token = await SecureStore.getItemAsync('token');
         if (!token) {
@@ -39,7 +42,10 @@ const FetchMenu = ({ orderId, lang, onSuccess, onError, onLoading }) => {
 
         const data = await response.json();
         setMenu(data.categories || []);  // Assuming 'categories' is the key in response
-        onSuccess(data);
+        
+        if (onSuccess && typeof onSuccess === 'function') {
+          onSuccess(data);
+        }
         
         if (__DEV__) {
           console.log('[Fetched Menu Log] Data:', data);
@@ -47,22 +53,19 @@ const FetchMenu = ({ orderId, lang, onSuccess, onError, onLoading }) => {
       } catch (err) {
         console.error('Error fetching menu:', err.message);
         setError('Unable to load menu, please try again later.');
-        onError(err.message);
+        
+        if (onError && typeof onError === 'function') {
+          onError(err.message);
+        }
       } finally {
-        setLoading(false);
-        onLoading(false); // Notify parent that loading is complete
+        setIsLoading(false);
       }
     };
 
     if (orderId && lang) {
-      onLoading(true); // Notify parent that loading has started
       fetchMenu();
     }
-  }, [orderId, lang, onSuccess, onError, onLoading, API_URL]);
-
-  if (loading) {
-    return null; // Or add a loading spinner
-  }
+  }, [orderId, lang, onSuccess, onError, setIsLoading, API_URL]);
 
   if (error) {
     return <Text>{error}</Text>; // Display error message

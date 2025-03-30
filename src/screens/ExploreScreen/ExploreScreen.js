@@ -2,9 +2,7 @@ import React, { useEffect, useState, useContext, useCallback, useRef } from 'rea
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   Dimensions,
   RefreshControl,
@@ -16,6 +14,7 @@ import {
 } from 'react-native';
 import _ from 'lodash';
 import { LanguageContext } from '../../context/LanguageContext';
+import { useLoading } from '../../context/LoadingContext';
 import { AntDesign, Feather, Ionicons } from '@expo/vector-icons';
 import VideoGridComponent from './VideoGridComponent';
 import ArticleCard from './ArticleCard';
@@ -50,10 +49,11 @@ const COLORS = {
 
 const ExploreScreen = ({ navigation }) => {
   const { language } = useContext(LanguageContext);
+  const { setIsLoading } = useLoading();
   const [articles, setArticles] = useState([]);
   const [categories, setCategories] = useState([]);
   const [featuredArticles, setFeaturedArticles] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [dataReady, setDataReady] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   
@@ -66,6 +66,10 @@ const ExploreScreen = ({ navigation }) => {
 
 const fetchArticles = useCallback(async () => {
   try {
+    if (!refreshing) {
+      setIsLoading(true);
+    }
+    
     console.log(`Fetching ${contentType === 'videos' ? 'videos' : 'articles'} data...`);
     
     const response = await fetch(
@@ -168,14 +172,15 @@ const fetchArticles = useCallback(async () => {
     
     setFeaturedArticles(sortedArticles.slice(0, FEATURED_ARTICLES_COUNT));
     setArticles(sortedArticles);
+    setDataReady(true);
     
   } catch (error) {
     console.error('[ExploreScreen Error] Failed to fetch articles:', error);
   } finally {
-    setLoading(false);
+    setIsLoading(false);
     setRefreshing(false);
   }
-}, [language, contentType]);
+}, [language, contentType, refreshing, setIsLoading]);
   
   useEffect(() => {
     fetchArticles();
@@ -190,7 +195,7 @@ const fetchArticles = useCallback(async () => {
   const toggleContentType = (type) => {
     if (type === contentType) return;
     
-    setLoading(true);
+    setDataReady(false);
     setContentType(type);
     
     // Animation effect
@@ -219,11 +224,11 @@ const fetchArticles = useCallback(async () => {
 
   // PREPARE SECTION DATA
   const getSectionData = () => {
-    if (loading) {
+    if (!dataReady) {
       return [
         {
-          title: 'loading',
-          data: [{ type: 'loading' }]
+          title: 'empty',
+          data: [{ type: 'empty' }]
         }
       ];
     }
@@ -266,15 +271,6 @@ const fetchArticles = useCallback(async () => {
     
     return sections;
   };
-
-  // SECTION RENDERERS
-  const renderLoading = () => (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color={COLORS.primary} />
-      <Text style={styles.loadingText}>
-      </Text>
-    </View>
-  );
   
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -323,9 +319,7 @@ const renderFeatured = () => (
 
   // RENDER THE SECTION LIST
   const renderSection = ({ section, item }) => {
-    if (section.title === 'loading') {
-      return renderLoading();
-    } else if (section.title === 'empty') {
+    if (section.title === 'empty') {
       return renderEmpty();
     } else if (section.title === 'categories') {
       return renderCategoryTabs();
@@ -404,20 +398,6 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingBottom: 30,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    minHeight: 300,
-    marginTop: HEADER_GRADIENT_HEIGHT,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 17,
-    color: COLORS.accent,
-    letterSpacing: 0.2,
   },
   emptyContainer: {
     flex: 1,
