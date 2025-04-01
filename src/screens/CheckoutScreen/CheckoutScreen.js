@@ -117,12 +117,14 @@ function CheckoutScreen({ route }) {
       }
 
       let orderId;
+      let orderIdForHistory; 
       try {
         orderId = await SecureStore.getItemAsync('order_id');
         if (!orderId) {
           console.warn('[Check Out Screen Log] order_id not found in SecureStore');
           throw new Error('Order ID not found');
         }
+        orderIdForHistory = orderId; 
         
         if (__DEV__) {
           console.log('[Check Out Screen Log] Retrieved order_id from SecureStore:', orderId);
@@ -239,12 +241,13 @@ function CheckoutScreen({ route }) {
               
               console.log(`[Check Out Screen Log] Printer Serial Number: ${printerSerialNumber}`);
               console.log(`[Check Out Screen Log] Printer Language: ${printerLanguage}`);
-              
+
               if (!printerSerialNumber) {
                 console.warn('[Check Out Screen Log] No printer ID configured for restaurant:', merchantSetting.name);
               } else {
                 const printOrderRequest = await fetch(
-                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=0162410240008`,//${printerSerialNumber}
+                  //`https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=0162410240008`,//${printerSerialNumber}
+                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=zh-hant&serial_number=0162410240002`,
                   {
                     method: 'GET',
                     headers: {
@@ -288,7 +291,8 @@ function CheckoutScreen({ route }) {
         navigation.navigate('HistoryDetail', { 
           order: {
             ...orderData,
-            orderId: orderId
+            orderId: orderId,
+            orderNumber: orderIdForHistory 
           }, 
           restaurantId, 
           restaurants,

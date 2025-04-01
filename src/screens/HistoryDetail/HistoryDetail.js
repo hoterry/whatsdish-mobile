@@ -198,7 +198,7 @@ function HistoryDetailScreen() {
               <Text style={styles.sectionTitle}>{t.orderInfo}</Text>
             </View>
   
-            {order.orderNumber && (
+            {(order.orderNumber || order.orderId) && (
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>{t.orderId}</Text>
                 <Text style={styles.infoValue}>{order.orderNumber}</Text>
