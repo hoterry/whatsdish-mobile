@@ -101,10 +101,7 @@ const CLHomeScreen = ({ navigation }) => {
         <SafeAreaView style={styles.safeArea}>
           <LocationFetcher onLocationFetched={(location) => setLocation(location)} />
           <View style={styles.fixedHeader}>
-            <View style={[
-              styles.topBar, 
-              isTablet && styles.topBarTablet,
-            ]}>
+            <View style={[styles.topBar, isTablet && styles.topBarTablet]}>
               <View style={styles.topBarRow}>
                 <View style={styles.logoWrapper}>
                   <Image 
@@ -116,16 +113,16 @@ const CLHomeScreen = ({ navigation }) => {
                 <View style={styles.iconContainer}>
                   {/* Login Button */}
                   <TouchableOpacity 
-                    style={styles.loginButton} 
+                    style={[styles.loginButton, isTablet && styles.loginButtonTablet]} 
                     onPress={handleLoginPress}
-                    >
+                  >
                     <View style={styles.loginButtonInner}>
-                        <MaterialCommunityIcons name="login-variant" size={wp(4)} color="#FFF" />
-                        <Text style={styles.loginButtonText}>
-                        {language === 'EN' ? 'LOGIN' : '登入'}
-                        </Text>
+                      <MaterialCommunityIcons name="login-variant" size={wp(4)} color="#222222" />
+                      <Text style={styles.loginButtonText}>
+                        {language === 'EN' ? 'Login' : '登入'}
+                      </Text>
                     </View>
-                    </TouchableOpacity>
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -219,12 +216,15 @@ const CLHomeScreen = ({ navigation }) => {
                 </View>
                 <View style={styles.iconContainer}>
                   <TouchableOpacity 
-                    style={styles.loginButton} 
+                    style={[styles.loginButton, isTablet && styles.loginButtonTablet]} 
                     onPress={handleLoginPress}
                   >
-                    <Text style={styles.loginButtonText}>
-                      {language === 'EN' ? 'Login' : '登入'}
-                    </Text>
+                    <View style={styles.loginButtonInner}>
+                      <MaterialCommunityIcons name="login-variant" size={wp(4)} color="#222222" />
+                      <Text style={styles.loginButtonText}>
+                        {language === 'EN' ? 'Login' : '登入'}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -321,27 +321,27 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   logo: {
-    width: wp(40), 
-    height: hp(5.5),
-    maxWidth: 200,
+    width: wp(35), 
+    height: hp(4.5),
+    maxWidth: 180,
   },
   logoTablet: {
-    width: wp(40),
-    height: hp(7),
-    maxWidth: 300,
+    width: wp(30),
+    height: hp(5.5),
+    maxWidth: 250,
   },
   topBar: {
-    padding: wp(1.2),
+    padding: wp(1),
     backgroundColor: '#fff',
     width: '100%',
   },
   topBarAndroid: {
-    paddingTop: hp(1.5),
-    marginTop: hp(0.5),
+    paddingTop: hp(1),
+    marginTop: hp(0.3),
   },
   topBarTablet: {
-    padding: wp(1.2),
-    paddingHorizontal: wp(1.8),
+    padding: wp(1),
+    paddingHorizontal: wp(1.5),
   },
   fixedHeader: {
     backgroundColor: '#fff',
@@ -352,25 +352,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    paddingHorizontal: wp(isTablet ? 1 : 0.8),
+    paddingHorizontal: wp(isTablet ? 0.8 : 0.6),
   },
   iconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: wp(isTablet ? 2 : 1),
+    paddingRight: wp(isTablet ? 1.5 : 0.8),
     width: '25%', 
     justifyContent: 'flex-end',
   },
   loginButton: {
-    backgroundColor: '#2E8B57', // 深綠色
+    backgroundColor: 'transparent',
     paddingHorizontal: wp(3),
-    paddingVertical: hp(0.8),
-    borderRadius: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
+    paddingVertical: hp(1),
+    borderRadius: 0,
+    elevation: 0,
+    borderWidth: 0,
   },
   loginButtonInner: {
     flexDirection: 'row',
@@ -378,102 +375,102 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loginButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: wp(3.2),
-    marginLeft: wp(1),
+    color: '#000000',
+    fontWeight: '700',
+    fontSize: wp(4),
+    marginLeft: wp(0.8),
     letterSpacing: 0.5,
   },
   languageContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: wp(2),
+    marginRight: wp(1.5),
   },
   languageText: {
-    fontSize: wp(4),
+    fontSize: wp(3.5),
     fontWeight: 'bold',
   },
   location: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: wp(isTablet ? 2 : 3),
+    paddingLeft: wp(isTablet ? 1.5 : 2.5),
     width: '95%',
   },
   locationText: {
-    fontSize: wp(4.5),
+    fontSize: wp(3.8),
     fontWeight: 'bold',
-    marginRight: wp(1),
+    marginRight: wp(0.8),
     width: '90%',
-    marginBottom: hp(1)
+    marginBottom: hp(0.8)
   },
   locationTextTablet: {
-    fontSize: wp(2.5), 
+    fontSize: wp(2.2), 
   },
   scrollContent: {
-    paddingBottom: hp(2.5),
+    paddingBottom: hp(2),
   },
   scrollContentTablet: {
-    paddingBottom: hp(3.5),
+    paddingBottom: hp(3),
   },
   menuSection: { 
-    padding: wp(1.2),
-    marginBottom: hp(-1),
+    padding: wp(1),
+    marginBottom: hp(-0.8),
     width: '100%',
   },
   menuSectionTablet: {
-    padding: wp(1),
-    marginBottom: hp(-0.5),
+    padding: wp(0.8),
+    marginBottom: hp(-0.4),
   },
   menuRow: { 
-    marginTop: hp(1),
+    marginTop: hp(0.8),
     width: '100%',
   },
   menuRowTablet: {
-    paddingHorizontal: wp(0.5),
+    paddingHorizontal: wp(0.4),
   },
   menuItem: { 
     alignItems: 'center',
-    marginHorizontal: wp(2.5), 
-    width: wp(10), 
+    marginHorizontal: wp(2), 
+    width: wp(9), 
   },
   menuItemTablet: {
-    marginHorizontal: wp(isSmallPad ? 1.5 : 2),
-    width: wp(isSmallPad ? 8 : 6),
+    marginHorizontal: wp(isSmallPad ? 1.2 : 1.6),
+    width: wp(isSmallPad ? 7 : 5),
   },
   menuIcon: {
-    width: wp(12),
-    height: wp(12), 
-    marginBottom: hp(0.5),
+    width: wp(10),
+    height: wp(10), 
+    marginBottom: hp(0.4),
   },
   menuIconTablet: {
-    width: wp(7), 
-    height: wp(7), 
-    marginBottom: hp(0.7),
+    width: wp(6), 
+    height: wp(6), 
+    marginBottom: hp(0.5),
   },
   menuTitle: { 
-    fontSize: wp(3.5),
+    fontSize: wp(3),
     textAlign: 'center',
-    width: wp(14), 
+    width: wp(12), 
   },
   menuTitleTablet: {
-    fontSize: wp(2),
-    width: wp(10), 
+    fontSize: wp(1.8),
+    width: wp(8), 
   },
   restaurantSection: {
-    paddingHorizontal: wp(1),
+    paddingHorizontal: wp(0.8),
     width: '100%',
-    paddingBottom: hp(8), // 為底部橫幅留出空間
+    paddingBottom: hp(6), // 為底部橫幅留出空間
   },
   restaurantSectionTablet: {
-    paddingHorizontal: wp(1.5),
+    paddingHorizontal: wp(1.2),
   },
   sectionTitle: {
-    fontSize: wp(4.5),
+    fontSize: wp(4),
     fontWeight: 'bold',
-    marginRight: wp(1),
-    marginLeft: wp(1),
+    marginRight: wp(0.8),
+    marginLeft: wp(0.8),
     width: '95%',
-    marginTop: hp(2),
+    marginTop: hp(1.5),
   },
   // 底部登入提示橫幅樣式
   loginBanner: {
@@ -485,27 +482,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: wp(4),
-    paddingVertical: hp(1.5),
+    paddingHorizontal: wp(3),
+    paddingVertical: hp(1.2),
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: 'rgba(224, 224, 224, 0.5)',
   },
   bannerText: {
-    fontSize: wp(3.5),
+    fontSize: wp(3),
     fontWeight: '500',
     flex: 1,
     color: '#333333',
   },
   bannerButton: {
-    backgroundColor: '#1E5631', // 深綠色
-    paddingHorizontal: wp(3.5),
-    paddingVertical: hp(1),
-    borderRadius: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
+    backgroundColor: 'transparent',
+    paddingHorizontal: wp(3),
+    paddingVertical: hp(0.8),
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222222',
   },
   bannerButtonInner: {
     flexDirection: 'row',
@@ -513,18 +508,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bannerButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: wp(3.2),
-    marginLeft: wp(1),
+    color: '#222222',
+    fontWeight: '700',
+    fontSize: wp(3),
+    marginLeft: wp(0.8),
     letterSpacing: 0.5,
-  },  loginButtonTablet: {
-    paddingHorizontal: wp(2.2),
-    paddingVertical: hp(0.9),
+  },  
+  loginButtonTablet: {
+    paddingHorizontal: wp(2.5),
+    paddingVertical: hp(1),
   },
   bannerButtonTablet: {
-    paddingHorizontal: wp(2.5),
-    paddingVertical: hp(1.1),
+    paddingHorizontal: wp(2),
+    paddingVertical: hp(0.9),
   },
 });
   

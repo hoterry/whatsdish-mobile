@@ -201,13 +201,12 @@ export default function LoginScreen({ setIsAuthenticated }) {
   
       if (response.ok) {
         await SecureStore.setItemAsync('token', data.token);
-        
+        await SecureStore.setItemAsync('phoneNumber', phoneWithCountryCode);
         if (__DEV__) {
           console.log('[Phone Log] Stored token successfully');
         }
   
         try {
-          // Use the updated fetchUserData which now returns the full user object
           const user = await fetchUserData();
           
           if (__DEV__) {
@@ -219,21 +218,17 @@ export default function LoginScreen({ setIsAuthenticated }) {
             }
           }
           
-          // Check if user data contains a valid phone number
           if (user && user.phone) {
-            // User exists, proceed with authentication
             if (__DEV__) {
               console.log('[Phone Log] USER EXISTS ✓ - Phone number found in user data');
               console.log('[Phone Log] User accountId:', user.accountId);
             }
 
-            // 登入成功動畫
             Animated.timing(fadeAnim, {
               toValue: 0,
               duration: 300,
               useNativeDriver: true,
             }).start(() => {
-              // 設置全局加載狀態為 true, 這會觸發轉場動畫
               setIsAuthenticated(true);
             });
   
@@ -241,13 +236,11 @@ export default function LoginScreen({ setIsAuthenticated }) {
               console.log('[Login Screen Log] User authenticated successfully');
             }
           } else {
-            // User doesn't exist or has no phone number, navigate to registration
             if (__DEV__) {
               console.log('[Phone Log] USER DOES NOT EXIST ✗ - No valid phone found in user data');
               console.log('[Phone Log] Will navigate to Registration with phone:', phoneWithCountryCode);
             }
             
-            // Navigate to registration page with the phone number
             navigation.navigate('Registration', { phoneNumber: phoneWithCountryCode });
           }
         } catch (userError) {
@@ -256,7 +249,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
             console.error('[Phone Log] Error details:', userError.message);
           }
           
-          // If there's an error fetching user data, assume user doesn't exist and navigate to registration
           navigation.navigate('Registration', { phoneNumber: phoneWithCountryCode });
         }
       } else {
@@ -423,7 +415,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
 
             {errorMessage ? (
               <Animated.View style={styles.errorContainer}>
-                <MaterialIcons name="error-outline" size={20} color="#ff4d4d" />
+                <MaterialIcons name="error-outline" size={14} color="#ff4d4d" />
                 <Text style={styles.errorText}>{errorMessage}</Text>
               </Animated.View>
             ) : null}
@@ -443,7 +435,7 @@ export default function LoginScreen({ setIsAuthenticated }) {
                 style={styles.buttonGradient}
               >
                 {loading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text style={styles.buttonText}>
                     {!isCodeSent ? 'Send Verification Code' : 'Verify & Login'}
@@ -466,8 +458,6 @@ export default function LoginScreen({ setIsAuthenticated }) {
   );
 }
 
-
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -479,9 +469,9 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 14,
   },
   backgroundGradient: {
     position: 'absolute',
@@ -492,36 +482,36 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 360,
     alignSelf: 'center',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,77,77,0.07)',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    marginBottom: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,77,77,0.2)',
   },
   errorText: {
     color: '#ff4d4d',
-    fontSize: 14,
-    marginLeft: 8,
+    fontSize: 11,
+    marginLeft: 5,
     flex: 1,
   },
   button: {
-    height: 56,
-    borderRadius: 12,
-    marginBottom: 10,
+    height: 42,
+    borderRadius: 8,
+    marginBottom: 6,
     overflow: 'hidden',
     shadowColor: '#2E8B57',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   buttonGradient: {
     width: '100%',
@@ -531,21 +521,21 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.7,
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
   footerTextContainer: {
-    marginTop: 20,
+    marginTop: 14,
     alignItems: 'center', 
   },
   footerText: {
     color: '#777',
-    fontSize: 14,
+    fontSize: 10,
     textAlign: 'center',
   },
   linkText: {

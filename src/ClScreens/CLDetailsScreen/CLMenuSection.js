@@ -16,12 +16,13 @@ import { useNavigation } from '@react-navigation/native';
 import { LanguageContext } from '../../context/LanguageContext';
 import Constants from 'expo-constants';
 import LottieView from 'lottie-react-native';
-import { useLoading } from '../../context/LoadingContext'; // 確保正確導入 LoadingContext
+import { useLoading } from '../../context/LoadingContext';
 
 const { width, height } = Dimensions.get('window');
 const scaleWidth = width / 375;
 const scaleHeight = height / 812;
-const fontScale = Math.min(PixelRatio.getFontScale(), 1.3);
+// Slightly reduced font scale to make text smaller, but not too small
+const fontScale = Math.min(PixelRatio.getFontScale(), 1.15); 
 
 const translations = {
   EN: {
@@ -44,13 +45,12 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
   const [categoryHeights, setCategoryHeights] = useState({});
   const [categoryWidths, setCategoryWidths] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [loading, setLoading] = useState(false); // 本地加載狀態設為 false
+  const [loading, setLoading] = useState(false);
   const [menuLoaded, setMenuLoaded] = useState(false);
   const [isManualScroll, setIsManualScroll] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [categoryOffsets, setCategoryOffsets] = useState({});
   
-  // 使用全局加載狀態
   const { setIsLoading } = useLoading();
 
   const menuListRef = useRef(null);
@@ -71,7 +71,6 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
 
   useEffect(() => {
     const fetchMenuItems = async () => {
-      // 使用全局加載狀態
       setIsLoading(true);
       
       try {
@@ -124,10 +123,9 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
           const uniqueCats = [...new Set(transformedData.map(item => item.category))].sort();
           setUniqueCategories(uniqueCats);
           
-          // 為FlatList製作分組數據
           const grouped = uniqueCats.map(category => ({
             category_name: category,
-            category_name_zh: category, // 假設API不提供類別中文名
+            category_name_zh: category,
             items: transformedData.filter(item => item.category === category)
           }));
           
@@ -135,7 +133,6 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
           setMenu(transformedData);
           setMenuLoaded(true);
           
-          // 初始化類別高度和寬度
           const initialHeights = {};
           const initialWidths = {};
           
@@ -154,7 +151,6 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
       } catch (error) {
         console.error('Failed to fetch menu data', error);
       } finally {
-        // 添加1秒延遲，確保動畫顯示足夠時間
         setTimeout(() => {
           setIsLoading(false);
         }, 1000);
@@ -163,13 +159,11 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
     
     fetchMenuItems();
     
-    // 組件卸載時清理
     return () => {
       setIsLoading(false);
     };
   }, [restaurantId, language, setIsLoading]);
 
-  // 計算類別偏移量
   useEffect(() => {
     if (Object.keys(categoryWidths).length > 0 && groupedMenu.length > 0) {
       const offsets = {};
@@ -178,15 +172,14 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
       groupedMenu.forEach((category) => {
         const categoryId = category.category_name;
         offsets[categoryId] = currentOffset;
-        currentOffset += (categoryWidths[categoryId] || 100) + 20 * scaleWidth; // 加上margin
+        currentOffset += (categoryWidths[categoryId] || 100) + 20 * scaleWidth;
       });
       
       setCategoryOffsets(offsets);
     }
   }, [categoryWidths, groupedMenu]);
 
-  // 處理類別點擊
-  const handleCategoryPress = useCallback((categoryId, index) => {
+  const handleCategoryPress = (categoryId, index) => {
     setSelectedCategory(categoryId);
     setIsManualScroll(true);
 
@@ -230,10 +223,9 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
     timeoutRef.current = setTimeout(() => {
       setIsManualScroll(false);
     }, 800);
-  }, [groupedMenu, categoryHeights, categoryWidths, categoryOffsets]);
+  };
 
-  // 處理菜單滾動
-  const handleMenuScroll = useCallback((event) => {
+  const handleMenuScroll = (event) => {
     if (isManualScroll || !groupedMenu.length) return;
     
     const yOffset = event.nativeEvent.contentOffset.y;
@@ -279,10 +271,9 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
       
       isScrollingRef.current = false;
     });
-  }, [isManualScroll, groupedMenu, categoryHeights, selectedCategory, categoryOffsets, categoryWidths]);
+  };
 
-  // 處理類別佈局
-  const handleCategoryLayout = useCallback((event, categoryId) => {
+  const handleCategoryLayout = (event, categoryId) => {
     const { height } = event.nativeEvent.layout;
     
     setCategoryHeights(prev => ({
@@ -291,10 +282,9 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
     }));
     
     menuMeasurements[categoryId] = { height };
-  }, [menuMeasurements]);
+  };
 
-  // 處理類別項目佈局
-  const handleCategoryItemLayout = useCallback((event, categoryId) => {
+  const handleCategoryItemLayout = (event, categoryId) => {
     const { width } = event.nativeEvent.layout;
     
     setCategoryWidths(prev => ({
@@ -303,10 +293,9 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
     }));
     
     categoryMeasurements[categoryId] = { width };
-  }, [categoryMeasurements]);
+  };
 
-  // 獲取項目佈局
-  const getItemLayout = useCallback((data, index) => {
+  const getItemLayout = (data, index) => {
     if (!data || !groupedMenu[index]) return { length: 0, offset: 0, index };
     
     const categoryId = groupedMenu[index].category_name;
@@ -323,10 +312,9 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
       offset,
       index,
     };
-  }, [groupedMenu, categoryHeights]);
+  };
 
-  // 渲染類別
-  const renderCategory = useCallback(({ item: category, index }) => {
+  const renderCategory = ({ item: category, index }) => {
     if (!category) return null;
     
     const categoryId = category.category_name;
@@ -356,7 +344,7 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
             <TouchableOpacity
               key={menuItem.id}
               style={styles.menuItem}
-              onPress={goToLogin} // 直接跳轉到登入頁面
+              onPress={goToLogin}
             >
               <View style={styles.info}>
                 <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
@@ -381,7 +369,7 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
               />
               <TouchableOpacity
                 style={styles.addButton}
-                onPress={goToLogin} // 直接跳轉到登入頁面
+                onPress={goToLogin}
               >
                 <Text style={styles.addButtonText}>+</Text>
               </TouchableOpacity>
@@ -390,10 +378,9 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
         })}
       </View>
     );
-  }, [language, handleCategoryLayout, goToLogin]);
+  };
 
-  // 渲染分類標題項
-  const renderCategoryItem = useCallback((category, index) => {
+  const renderCategoryItem = (category, index) => {
     const categoryId = category.category_name;
     const isSelected = selectedCategory === categoryId;
     
@@ -419,15 +406,14 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
         </Text>
       </TouchableOpacity>
     );
-  }, [selectedCategory, handleCategoryPress, handleCategoryItemLayout, language]);
+  };
 
-  // 渲染登入按鈕
-  const renderLoginButton = useCallback(() => {
+  const renderLoginButton = () => {
     return (
       <View style={styles.loginButtonContainer}>
         <TouchableOpacity 
           style={styles.loginButton}
-          onPress={goToLogin} // 直接跳轉到登入頁面
+          onPress={goToLogin}
         >
           <Text style={styles.loginButtonText}>
             {t('loginToOrder')}
@@ -435,13 +421,11 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
         </TouchableOpacity>
       </View>
     );
-  }, [t, goToLogin]);
+  };
 
-  // 主要渲染
   return (
     <SafeAreaView style={styles.container}>
       {!menuLoaded ? (
-        // 載入中顯示空白，實際載入畫面由 LoadingContext 處理
         <View style={styles.emptyContainer} />
       ) : groupedMenu.length > 0 ? (
         <>
@@ -503,81 +487,81 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   categoryHeader: {
-    fontSize: 24 * fontScale, 
+    fontSize: 19 * fontScale, // Made slightly larger than previous version
     fontFamily: 'Inter-SemiBold', 
     fontWeight: 'bold',
-    marginVertical: 12 * scaleHeight, 
-    paddingHorizontal: 18 * scaleWidth,
+    marginVertical: 10 * scaleHeight,
+    paddingHorizontal: 16 * scaleWidth,
   },
   separator: {
     height: 1 * scaleHeight,
     backgroundColor: '#ddd',
   },
   name: {
-    fontSize: 24 * fontScale, 
+    fontSize: 17 * fontScale, // Made slightly larger
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 6 * scaleHeight,
-    maxWidth: 260 * scaleWidth,
+    marginBottom: 4 * scaleHeight,
+    maxWidth: 240 * scaleWidth,
   },
   description: {
-    fontSize: 20 * fontScale,
+    fontSize: 15 * fontScale, // Made slightly larger
     fontFamily: 'Inter-Regular',
     color: '#555',
-    marginBottom: 6 * scaleHeight,
-    lineHeight: 22 * scaleHeight,
-    maxHeight: 50 * scaleHeight,
-    maxWidth: 260 * scaleWidth,
+    marginBottom: 4 * scaleHeight,
+    lineHeight: 19 * scaleHeight, // Made slightly larger
+    maxHeight: 42 * scaleHeight, // Made slightly larger
+    maxWidth: 240 * scaleWidth,
     overflow: 'hidden',
   },
   price: {
-    fontSize: 24 * fontScale,
+    fontSize: 17 * fontScale, // Made slightly larger
     color: '#000',
   },
   menuItem: {
     flexDirection: 'row',
-    padding: 16 * scaleWidth,
+    padding: 12 * scaleWidth, // Reduced from 14
     backgroundColor: '#fff',
-    borderRadius: 12 * scaleWidth,
+    borderRadius: 10 * scaleWidth, // Reduced from 11
     alignItems: 'center',
     borderBottomWidth: 1 * scaleHeight,
     borderBottomColor: '#ccc',
-    height: 120 * scaleHeight,
+    height: 100 * scaleHeight, // Reduced from 110
     justifyContent: 'space-between',
     width: '100%',
   },
   info: {
     flex: 1,
-    marginRight: 18 * scaleWidth,
+    marginRight: 16 * scaleWidth,
     justifyContent: 'center',
   },
   image: {
-    width: 100 * scaleWidth,
-    height: 100 * scaleHeight,
-    borderRadius: 12 * scaleWidth,
+    width: 80 * scaleWidth, // Reduced from 90
+    height: 80 * scaleHeight, // Reduced from 90
+    borderRadius: 10 * scaleWidth, // Reduced from 11
     resizeMode: 'cover',
   },
   categoryList: {
     paddingHorizontal: 12 * scaleWidth,
-    height: 56,
+    height: 45, // Reduced from 50
   },
   categoryListContent: {
     alignItems: 'center',
-    paddingRight: 20 * scaleWidth,
+    paddingRight: 18 * scaleWidth,
   },
   categoryItem: {
-    marginRight: 20 * scaleWidth,
-    paddingVertical: 12 * scaleHeight,
-    paddingHorizontal: 18 * scaleWidth,
-    height: 56,
+    marginRight: 16 * scaleWidth, // Reduced from 18
+    paddingVertical: 10 * scaleHeight, // Reduced from 11
+    paddingHorizontal: 14 * scaleWidth, // Reduced from 16
+    height: 45, // Reduced from 50
     justifyContent: 'center',
     alignItems: 'center',
   },
   selectedCategory: {
-    borderBottomWidth: 3 * scaleHeight,
+    borderBottomWidth: 2 * scaleHeight, // Reduced from 2.5
     borderBottomColor: 'black',
   },
   categoryText: {
-    fontSize: 24 * fontScale, 
+    fontSize: 17 * fontScale, // Made slightly larger
     color: '#333',
     textAlignVertical: 'center',
     textAlign: 'center',
@@ -587,27 +571,27 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    width: 34 * scaleWidth,
-    height: 34 * scaleHeight,
-    borderRadius: 50,
+    width: 28 * scaleWidth, // Reduced from 30
+    height: 28 * scaleHeight, // Reduced from 30
+    borderRadius: 38, // Reduced from 40
     position: 'absolute',
-    bottom: 18 * scaleHeight,
-    right: 18 * scaleWidth,
+    bottom: 14 * scaleHeight, // Reduced from 16
+    right: 14 * scaleWidth, // Reduced from 16
     justifyContent: 'center',
     alignItems: 'center',
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 22 * fontScale, 
+    fontSize: 18 * fontScale, // Reduced from 20
     fontWeight: 'bold',
   },
   flatListContent: {
-    paddingBottom: 100 * scaleHeight,
+    paddingBottom: 80 * scaleHeight, // Reduced from 90
   },
   emptyMessage: {
     textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16 * fontScale,
+    marginTop: 16, // Reduced from 18
+    fontSize: 14 * fontScale, // Reduced from 15
     color: '#666',
   },
   flatList: {
@@ -618,29 +602,29 @@ const styles = StyleSheet.create({
   },
   loginButtonContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 50 : 30,
+    bottom: Platform.OS === 'ios' ? 40 : 26, // Reduced from 45/28
     left: 0,
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16, // Reduced from 18
   },
   loginButton: {
     backgroundColor: '#000',
-    borderRadius: 10,
+    borderRadius: 8, // Reduced from 9
     width: '90%',
-    height: 50,
+    height: 42, // Reduced from 46
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.28,
     shadowRadius: 3,
-    elevation: 5,
+    elevation: 4,
   },
   loginButtonText: {
     color: '#fff',
-    fontSize: 20 * fontScale,
+    fontSize: 17 * fontScale, // Made slightly larger
     fontWeight: 'bold',
     textAlign: 'center',
   }

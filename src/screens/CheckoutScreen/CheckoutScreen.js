@@ -31,8 +31,47 @@ function CheckoutScreen({ route }) {
   const [calculatedTip, setCalculatedTip] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasCartItems, setHasCartItems] = useState(false);
+  const restaurantData = restaurants?.data?.find(r => r.gid === restaurantId);
+
 
   const cart = cartItems[restaurantId] || [];
+
+
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[CheckoutScreen] Restaurants object structure:', JSON.stringify(restaurants, null, 2));
+      console.log('[CheckoutScreen] Restaurant ID:', restaurantId);
+    }
+  }, [restaurants, restaurantId]);
+
+  useEffect(() => {
+    if (__DEV__ && restaurants?.data) {
+      console.log('[CheckoutScreen] Looking for restaurant with GID:', restaurantId);
+      const foundRestaurant = restaurants.data.find(r => r.gid === restaurantId);
+      console.log('[CheckoutScreen] Found restaurant by GID:', foundRestaurant);
+      if (!foundRestaurant) {
+        const foundBySlug = restaurants.data.find(r => r.slug === restaurantId);
+        console.log('[CheckoutScreen] Found restaurant by slug:', foundBySlug);
+      }
+    }
+  }, [restaurants, restaurantId]);
+
+  
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[CheckoutScreen] Restaurant Data:', restaurantData);
+      if (restaurantData) {
+        console.log('[CheckoutScreen] Restaurant Image URL:', 
+          restaurantData.image_url || 
+          restaurantData.logo_url || 
+          restaurantData.thumb_url || 
+          restaurantData.banner_url);
+        console.log('[CheckoutScreen] Restaurant Name:', 
+          restaurantData.name || 
+          restaurantData.title);
+      }
+    }
+  }, [restaurantData]);
 
   useEffect(() => {
     const checkCart = async () => {
@@ -247,14 +286,14 @@ function CheckoutScreen({ route }) {
               } else {
                 const printOrderRequest = await fetch(
                   //`https://dev.whatsdish.com/api/orders/${orderId}/print?language=${printerLanguage}&serial_number=0162410240008`,//${printerSerialNumber}
-                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=zh-hant&serial_number=0162410240002`,
+                  `https://dev.whatsdish.com/api/orders/${orderId}/print?language=zh-hant&serial_number=0162410240011`,
                   {
                     method: 'GET',
                     headers: {
                       'Content-Type': 'application/json',
                       'Authorization': `Bearer ${token}`
                     }
-                  }
+                  } 
                 );
                 
                 if (!printOrderRequest.ok) {
@@ -288,16 +327,48 @@ function CheckoutScreen({ route }) {
           console.error('[Check Out Screen Log] Error clearing order_id from SecureStore:', error);
         }
       
-        navigation.navigate('HistoryDetail', { 
-          order: {
-            ...orderData,
-            orderId: orderId,
-            orderNumber: orderIdForHistory 
-          }, 
-          restaurantId, 
-          restaurants,
-          resetOrderState: true
-        });
+        const foundRestaurant = restaurants?.data?.find(r => r.gid === restaurantId);
+
+ navigation.navigate('HistoryDetail', { 
+  responseData: {
+    success: true,
+    result: {
+      order: {
+        order_id: orderId,
+        mode: deliveryMethod,
+        status: 'confirmed',
+        merchants: [{
+          name: foundRestaurant?.name || "Restaurant",
+          formatted_address: foundRestaurant?.formatted_address || "",
+          address: foundRestaurant?.formatted_address || "",
+          image_url: foundRestaurant?.logo_url || foundRestaurant?.banner_url || null
+        }]
+      },
+      items: cart.map(item => ({
+        name: item.name || item.title || "Item",
+        count: item.quantity || 1,
+        applied_fee_in_cents: Math.round((item.price * (item.quantity || 1)) * 100),
+        image_thumb_url: item.image_url || item.imageUrl || item.image || null
+      })),
+      payments: [{
+        paid_at: new Date().toISOString(),
+        amount_in_cents: Math.round(totalPrice * 100),
+        payment_method: 'CREDIT',
+        tender: 'Card',
+        currency: 'CAD'
+      }],
+      restaurants: {
+        [restaurantId]: {
+          name: foundRestaurant?.name || "Restaurant",
+          formatted_address: foundRestaurant?.formatted_address || "",
+          address: foundRestaurant?.formatted_address || "",
+          image_url: foundRestaurant?.logo_url || foundRestaurant?.banner_url || null
+        }
+      }
+    }
+  },
+  resetOrderState: true
+});
       
       } catch (error) {
         console.error('[Check Out Screen Log] API call failed:', error);

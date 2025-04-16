@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { 
   View, 
@@ -47,11 +46,8 @@ const HomeScreen = () => {
   const { fetchUserData, userData } = useUserFetcher();
   const { changeLanguage } = useContext(LanguageContext);
   const statusBarHeight = StatusBar.currentHeight || 0;
-  
-  // 使用 ref 來記錄是否正在獲取語言，避免無限循環
   const isFetchingLanguage = useRef(false);
   
-  // Load fonts on component mount
   useEffect(() => {
     async function loadFonts() {
       await Font.loadAsync({
@@ -62,25 +58,20 @@ const HomeScreen = () => {
     loadFonts();
   }, []);
 
-  // Function to fetch and apply user language preference
   const fetchAndSetUserLanguage = useCallback(async () => {
-    // 如果已經在獲取語言，則跳過以避免循環
     if (isFetchingLanguage.current) {
       return;
     }
     
     try {
-      // 標記正在獲取語言
       isFetchingLanguage.current = true;
       
-      // Always fetch user data when this function is called
       const userData = await fetchUserData();
       
       if (__DEV__) {
         console.log('[HomeScreen] Fetched user data result:', userData);
       }
-      
-      // 使用 fetchUserData 返回的結果，而不是依賴 userData 狀態
+
       if (userData && userData.languagePreference) {
         const languageMapping = {
           '中文': 'ZH',
@@ -102,20 +93,16 @@ const HomeScreen = () => {
         console.error('[HomeScreen] Error fetching user data:', error);
       }
     } finally {
-      // 完成後重置標記
       isFetchingLanguage.current = false;
     }
-  }, [fetchUserData, changeLanguage]); // 移除 userData 依賴
+  }, [fetchUserData, changeLanguage]); 
 
-  // Fetch user language on component mount
   useEffect(() => {
     fetchAndSetUserLanguage();
   }, [fetchAndSetUserLanguage]);
 
-  // Fetch user language when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      // 每次獲得焦點時，重置狀態並重新獲取語言
       isFetchingLanguage.current = false;
       fetchAndSetUserLanguage();
       
@@ -163,9 +150,6 @@ const HomeScreen = () => {
                     </View>
                     <View style={styles.iconContainer}>
                       <NotificationComponent />
-                      {/* <TouchableOpacity onPress={() => setShowLanguageModal(true)} style={styles.languageContainer}>
-                        <Text style={styles.languageText}>{language}</Text>
-                      </TouchableOpacity> */}
                     </View>
                   </View>
 
@@ -189,8 +173,6 @@ const HomeScreen = () => {
                 ]}
                 showsVerticalScrollIndicator={false}
               >
-                {/*<AdCarousel />*/}
-
                 <View style={[
                   styles.menuSection,
                   isTablet && styles.menuSectionTablet
@@ -201,29 +183,6 @@ const HomeScreen = () => {
                     style={styles.menuRow}
                     contentContainerStyle={isTablet && styles.menuRowTablet}
                   >
-                    {/*{menus.map((item) => (
-                      <TouchableOpacity 
-                        key={item.id} 
-                        style={[
-                          styles.menuItem, 
-                          isTablet && styles.menuItemTablet
-                        ]}
-                      >
-                        <Image 
-                          source={item.icon} 
-                          style={[
-                            styles.menuIcon, 
-                            isTablet && styles.menuIconTablet
-                          ]} 
-                        />
-                        <Text style={[
-                          styles.menuTitle,
-                          isTablet && styles.menuTitleTablet
-                        ]}>
-                          {language === 'EN' ? item.title_en : item.title_zh}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}*/}
                   </ScrollView>
                 </View>
 
@@ -255,9 +214,6 @@ const HomeScreen = () => {
                     </View>
                     <View style={styles.iconContainer}>
                       <NotificationComponent />
-                      {/* <TouchableOpacity onPress={() => setShowLanguageModal(true)} style={styles.languageContainer}>
-                        <Text style={styles.languageText}>{language}</Text>
-                      </TouchableOpacity> */}
                     </View>
                   </View>
 
@@ -281,8 +237,6 @@ const HomeScreen = () => {
                 ]}
                 showsVerticalScrollIndicator={false}
               >
-                {/*<AdCarousel />*/}
-
                 <View style={[
                   styles.menuSection,
                   isTablet && styles.menuSectionTablet
@@ -293,29 +247,6 @@ const HomeScreen = () => {
                     style={styles.menuRow}
                     contentContainerStyle={isTablet && styles.menuRowTablet}
                   >
-                    {/*{menus.map((item) => (
-                      <TouchableOpacity 
-                        key={item.id} 
-                        style={[
-                          styles.menuItem, 
-                          isTablet && styles.menuItemTablet
-                        ]}
-                      >
-                        <Image 
-                          source={item.icon} 
-                          style={[
-                            styles.menuIcon, 
-                            isTablet && styles.menuIconTablet
-                          ]} 
-                        />
-                        <Text style={[
-                          styles.menuTitle,
-                          isTablet && styles.menuTitleTablet
-                        ]}>
-                          {language === 'EN' ? item.title_en : item.title_zh}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}*/}
                   </ScrollView>
                 </View>
 
@@ -345,33 +276,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   logoWrapper: {
-    paddingLeft: wp(isTablet ? 2 : 3),
-    paddingRight: wp(isTablet ? 1.5 : 1),
+    paddingLeft: wp(isTablet ? 1.8 : 2.8),
+    paddingRight: wp(isTablet ? 1.3 : 0.9),
     width: '40%', 
     justifyContent: 'flex-start',
   },
   logo: {
-    width: wp(40), 
-    height: hp(5.5),
-    maxWidth: 200,
+    width: wp(34), 
+    height: hp(4.8),
+    maxWidth: 170,
   },
   logoTablet: {
-    width: wp(40),
-    height: hp(7),
-    maxWidth: 300,
+    width: wp(32),
+    height: hp(6),
+    maxWidth: 240,
   },
   topBar: {
-    padding: wp(1.2),
+    padding: wp(1.1),
     backgroundColor: '#fff',
     width: '100%',
   },
   topBarAndroid: {
-    paddingTop: hp(1.5),
-    marginTop: hp(0.5),
+    paddingTop: hp(1.2),
+    marginTop: hp(0.4),
   },
   topBarTablet: {
-    padding: wp(1.2),
-    paddingHorizontal: wp(1.8),
+    padding: wp(1.1),
+    paddingHorizontal: wp(1.6),
   },
   fixedHeader: {
     backgroundColor: '#fff',
@@ -382,60 +313,60 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    paddingHorizontal: wp(isTablet ? 1 : 0.8),
+    paddingHorizontal: wp(isTablet ? 0.9 : 0.7),
   },
   iconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingRight: wp(isTablet ? 2 : 1),
-    width: '25%', 
+    paddingRight: wp(isTablet ? 1.8 : 0.9),
+    width: '24%', 
     justifyContent: 'flex-end',
   },
   notificationIcon: {
-    marginRight: wp(2),
+    marginRight: wp(1.8),
   },
   languageContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: wp(2),
+    marginRight: wp(1.8),
   },
   languageText: {
-    fontSize: wp(4),
+    fontSize: wp(3.6),
     fontWeight: 'bold',
   },
   location: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: wp(isTablet ? 2 : 3),
+    paddingLeft: wp(isTablet ? 1.8 : 2.8),
     width: '95%',
   },
   locationText: {
-    fontSize: wp(4.5),
+    fontSize: wp(3.8),
     fontWeight: 'bold',
-    marginRight: wp(1),
+    marginRight: wp(0.8),
     width: '90%',
-    marginBottom: hp(1)
+    marginBottom: hp(0.8)
   },
   locationTextTablet: {
-    fontSize: wp(2.5), 
+    fontSize: wp(2.2), 
   },
   scrollContent: {
-    paddingBottom: hp(2.5),
+    paddingBottom: hp(2.2),
   },
   scrollContentTablet: {
-    paddingBottom: hp(3.5),
+    paddingBottom: hp(3),
   },
   menuSection: { 
-    padding: wp(1.2),
-    marginBottom: hp(-1),
+    padding: wp(1.1),
+    marginBottom: hp(-0.9),
     width: '100%',
   },
   menuSectionTablet: {
-    padding: wp(1),
+    padding: wp(0.9),
     marginBottom: hp(-0.5),
   },
   menuRow: { 
-    marginTop: hp(1),
+    marginTop: hp(0.9),
     width: '100%',
   },
   menuRowTablet: {
@@ -443,46 +374,46 @@ const styles = StyleSheet.create({
   },
   menuItem: { 
     alignItems: 'center',
-    marginHorizontal: wp(2.5), 
-    width: wp(10), 
+    marginHorizontal: wp(2.2), 
+    width: wp(9), 
   },
   menuItemTablet: {
-    marginHorizontal: wp(isSmallPad ? 1.5 : 2),
-    width: wp(isSmallPad ? 8 : 6),
+    marginHorizontal: wp(isSmallPad ? 1.4 : 1.8),
+    width: wp(isSmallPad ? 7 : 5.5),
   },
   menuIcon: {
-    width: wp(12),
-    height: wp(12), 
-    marginBottom: hp(0.5),
+    width: wp(10),
+    height: wp(10), 
+    marginBottom: hp(0.4),
   },
   menuIconTablet: {
-    width: wp(7), 
-    height: wp(7), 
-    marginBottom: hp(0.7),
+    width: wp(6), 
+    height: wp(6), 
+    marginBottom: hp(0.5),
   },
   menuTitle: { 
-    fontSize: wp(3.5),
+    fontSize: wp(3),
     textAlign: 'center',
-    width: wp(14), 
+    width: wp(12), 
   },
   menuTitleTablet: {
-    fontSize: wp(2),
-    width: wp(10), 
+    fontSize: wp(1.8),
+    width: wp(8), 
   },
   restaurantSection: {
-    paddingHorizontal: wp(1),
+    paddingHorizontal: wp(0.9),
     width: '100%',
   },
   restaurantSectionTablet: {
-    paddingHorizontal: wp(1.5),
+    paddingHorizontal: wp(1.2),
   },
   sectionTitle: {
-    fontSize: wp(4.5),
+    fontSize: wp(4),
     fontWeight: 'bold',
-    marginRight: wp(1),
-    marginLeft: wp(1),
+    marginRight: wp(0.8),
+    marginLeft: wp(0.8),
     width: '95%',
-    marginTop: hp(2),
+    marginTop: hp(1.8),
   },
 });
   

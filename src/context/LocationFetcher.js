@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Alert, Platform, Linking } from 'react-native';
 import * as Location from 'expo-location';
 
 const LocationFetcher = ({ onLocationFetched }) => {
@@ -9,7 +10,27 @@ const LocationFetcher = ({ onLocationFetched }) => {
     let isMounted = true;
     let logTimeout = null;
     let locationAttemptStarted = false;
-    
+
+    const promptToEnableLocation = () => {
+      Alert.alert(
+        'Location Permission Denied',
+        'To use this feature, please enable location access in your device settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              if (Platform.OS === 'ios') {
+                Linking.openURL('app-settings:');
+              } else {
+                Linking.openSettings();
+              }
+            },
+          },
+        ]
+      );
+    };
+
     const fetchLocation = async () => {
       try {
         if (__DEV__ && !locationAttemptStarted) {
@@ -26,25 +47,26 @@ const LocationFetcher = ({ onLocationFetched }) => {
           if (__DEV__) {
             console.error('[Location] Permission denied');
           }
+
+          promptToEnableLocation();
           return;
         }
 
         const locationOptions = {
           accuracy: Location.Accuracy.Low,
           timeout: 5000,
-          maximumAge: 60000 
+          maximumAge: 60000,
         };
 
         let locationData;
         try {
           locationData = await Promise.race([
             Location.getCurrentPositionAsync(locationOptions),
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Location timeout')), 6000)
-            )
+            ),
           ]);
         } catch (error) {
-
           try {
             locationData = await Location.getLastKnownPositionAsync();
             if (!locationData && isMounted) {
@@ -58,7 +80,7 @@ const LocationFetcher = ({ onLocationFetched }) => {
             return;
           }
         }
-        
+
         if (!locationData || !locationData.coords) {
           if (isMounted) {
             setErrorMsg('Invalid location data');
@@ -74,14 +96,14 @@ const LocationFetcher = ({ onLocationFetched }) => {
 
         const geocodePromise = Location.reverseGeocodeAsync({
           latitude: coords.latitude,
-          longitude: coords.longitude
+          longitude: coords.longitude,
         });
 
         const results = await Promise.race([
           geocodePromise,
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Geocode timeout')), 3000)
-          )
+          ),
         ]);
 
         if (results && results.length > 0) {
@@ -92,18 +114,16 @@ const LocationFetcher = ({ onLocationFetched }) => {
           if (city) locationParts.push(city);
           if (region) locationParts.push(region);
           if (country) locationParts.push(country);
-          
 
           const uniqueParts = locationParts.filter((part, index) => {
-
             for (let i = 0; i < index; i++) {
               if (locationParts[i].includes(part)) return false;
             }
             return true;
           });
-          
+
           const userLocation = uniqueParts.join(', ');
-          
+
           if (isMounted) {
             setLocation(userLocation);
             onLocationFetched(userLocation);
@@ -113,9 +133,10 @@ const LocationFetcher = ({ onLocationFetched }) => {
             console.log('[Location] Complete');
           }
         } else {
+          const fallbackLocation = `${coords.latitude.toFixed(
+            2
+          )}, ${coords.longitude.toFixed(2)}`;
 
-          const fallbackLocation = `${coords.latitude.toFixed(2)}, ${coords.longitude.toFixed(2)}`;
-          
           if (isMounted) {
             setLocation(fallbackLocation);
             onLocationFetched(fallbackLocation);
@@ -142,7 +163,7 @@ const LocationFetcher = ({ onLocationFetched }) => {
     };
   }, [onLocationFetched]);
 
-  return null; 
+  return null;
 };
 
 export default LocationFetcher;

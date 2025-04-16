@@ -103,7 +103,7 @@ const ScheduleModal = ({ isVisible, onClose, onConfirm, currentTime }) => {
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={28} color="black" />
+            <Ionicons name="close" size={22} color="black" />
           </TouchableOpacity>
 
           <Text style={styles.title}>Set Schedule</Text>
@@ -132,9 +132,11 @@ const ScheduleModal = ({ isVisible, onClose, onConfirm, currentTime }) => {
             ))}
           </ScrollView>
 
-          <ScrollView style={styles.timePicker}>
+          <ScrollView 
+            style={styles.timePicker}
+            showsVerticalScrollIndicator={false}>
             {loading ? (
-              <ActivityIndicator size="large" color="black" />
+              <ActivityIndicator size="small" color="black" />
             ) : timeOptions.length > 0 ? (
               timeOptions.map((time, index) => (
                 <TouchableOpacity
@@ -164,8 +166,6 @@ const ScheduleModal = ({ isVisible, onClose, onConfirm, currentTime }) => {
   );
 };
 
-
-
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
@@ -174,80 +174,82 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
+    borderRadius: 8,
+    padding: 16,
     marginHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 40,
   },
   closeButton: {
     position: 'absolute',
-    right: 15,
-    top: 15,
+    right: 12,
+    top: 12,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center', 
-    marginBottom: 16,
+    marginBottom: 12,
   },
   dateScrollContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   dateOption: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderWidth: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
     borderColor: '#ccc',
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
-    marginRight: 10,
-    width: 110,
-    height: 80,
+    marginRight: 8,
+    width: 90,
+    height: 65,
   },
   selectedDateOption: {
     borderColor: 'black',
   },
   weekdayText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 2,
   },
   dateText: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#777',
   },
   timePicker: {
-    maxHeight: 350,
-    marginVertical: 20
+    maxHeight: 280,
+    marginVertical: 16,
+    showsVerticalScrollIndicator: false
   },
   timeOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
+    marginVertical: 2,
   },
   selectedTimeOption: {
     backgroundColor: '#f0f0f0',
   },
   timeText: {
-    fontSize: 20, 
+    fontSize: 16, 
     color: '#333', 
   },
   selectedTimeText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold', 
     color: '#333', 
   },
   radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
     borderColor: '#777',
   },
   selectedRadio: {
@@ -256,15 +258,24 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     backgroundColor: '#444',
-    paddingVertical: 16,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 16,
   },
   confirmButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#aaa',
+  },
+  noSlotsText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#666',
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,11 +8,17 @@ import {
   Image,
   SafeAreaView,
   StatusBar,
-  Platform
+  Platform,
+  FlatList,
+  BackHandler,
+  Dimensions
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LanguageContext } from '../../context/LanguageContext';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const isNarrowDevice = SCREEN_WIDTH < 360;
 
 const translations = {
   EN: {
@@ -32,7 +38,22 @@ const translations = {
     orderItems: "Order Items",
     total: "Total",
     immediateDelivery: "Immediate Delivery",
-    immediatePickup: "Immediate Pickup"
+    immediatePickup: "Immediate Pickup",
+    note: "Note",
+    subTotal: "Subtotal",
+    tax: "Tax (GST 5%)",
+    discount: "Discount",
+    paid: "Paid",
+    customer: "Customer",
+    location: "Location",
+    timezone: "Timezone",
+    paymentStatus: "Payment Status",
+    itemDetails: "Item Details",
+    modifiers: "Modifiers",
+    environment: "Environment",
+    currency: "Currency",
+    paymentMethod: "Payment Method",
+    paymentProvider: "Payment Provider"
   },
   ZH: {
     orderDetails: "訂單詳情",
@@ -51,7 +72,22 @@ const translations = {
     orderItems: "訂單內容",
     total: "合計",
     immediateDelivery: "立即配送",
-    immediatePickup: "立即自取"
+    immediatePickup: "立即自取",
+    note: "備註",
+    subTotal: "小計",
+    tax: "稅費 (GST 5%)",
+    discount: "折扣",
+    paid: "已付",
+    customer: "顧客",
+    location: "位置",
+    timezone: "時區",
+    paymentStatus: "支付狀態",
+    itemDetails: "項目詳情",
+    modifiers: "附加選項",
+    environment: "環境",
+    currency: "貨幣",
+    paymentMethod: "支付方式",
+    paymentProvider: "支付提供商"
   }
 };
 
@@ -61,21 +97,95 @@ function HistoryDetailScreen() {
   const { language } = useContext(LanguageContext);
   const t = translations[language];
   
-  const order = route.params?.order;
-  const { restaurantId, restaurants } = route.params || {};
-  const restaurantData = restaurants?.data || [];
+  const responseData = route.params?.responseData;
+  
+  const orderData = responseData?.result?.order || null;
+  const items = responseData?.result?.items || [];
+  const payments = responseData?.result?.payments || [];
+  const merchants = orderData?.merchants || [];
+  const restaurants = responseData?.result?.restaurants || {};
+  const customer = orderData?.customer || {};
+  
+  const payment = payments && payments.length > 0 ? payments[0] : null;
+  
+  if (__DEV__) {
+    console.log("Payments array:", JSON.stringify(payments, null, 2));
+    if (payment) {
+      console.log("First payment object:", JSON.stringify(payment, null, 2));
+      console.log("Payment amount_in_cents:", payment.amount_in_cents);
+    } else {
+      console.log("No payment found");
+    }
+  }
+  
+  const mainRestaurantId = orderData?.google_place_ids?.[0]?.gid || 
+                          Object.keys(restaurants)[0];
 
-  // 查找餐廳信息
-  const restaurant = restaurantData.find(r => r.gid === restaurantId);
+  let restaurantInfo = null;
+  if (restaurants && mainRestaurantId && restaurants[mainRestaurantId]) {
+    restaurantInfo = restaurants[mainRestaurantId];
+  } else if (merchants.length > 0) {
+    restaurantInfo = merchants[0];
+  }
+  
+  const restaurant = restaurantInfo ? {
+    ...restaurantInfo,
+    ...(merchants.length > 0 ? {
+      formatted_address: restaurantInfo.formatted_address || merchants[0].formatted_address,
+      google_place_id: restaurantInfo.google_place_id || merchants[0].google_place_id,
+      timezone: restaurantInfo.timezone || merchants[0].timezone
+    } : {})
+  } : (merchants.length > 0 ? merchants[0] : null);
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    
+    const options = { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    };
+    
+    return new Date(dateString).toLocaleString(language === 'ZH' ? 'zh-TW' : 'en-US', options);
+  };
 
   if (__DEV__) {
-    console.log("Order: ", order);
-    console.log("Restaurant ID: ", restaurantId);
-    console.log("Restaurants: ", restaurantData);
-    console.log("Selected Restaurant: ", restaurant);
+    const subtotal = items.reduce((total, item) => total + (item.applied_fee_in_cents || 0), 0);
+    const taxRate = 0.05;
+    const tax = Math.round(subtotal * taxRate);
+    const total = payment ? payment.amount_in_cents : 0;
+    const discount = (subtotal + tax) - total;
+    
+    console.log("Price Calculation: ", {
+      subtotalInCents: subtotal,
+      subtotalFormatted: `${(subtotal / 100).toFixed(2)}`,
+      taxInCents: tax,
+      taxFormatted: `${(tax / 100).toFixed(2)}`,
+      totalInCents: total,
+      totalFormatted: `${(total / 100).toFixed(2)}`,
+      discountInCents: discount,
+      discountFormatted: `${(discount / 100).toFixed(2)}`
+    });
   }
 
-  if (!order) {
+  const handleBackPress = () => {
+    navigation.navigate('HomeTabs', { screen: 'Orders' });
+    return true;
+  };
+  
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+      
+      return () => {
+        BackHandler.removeEventListener('hardwareBackPress', handleBackPress);
+      };
+    }
+  }, []);
+
+  if (!orderData) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -83,11 +193,13 @@ function HistoryDetailScreen() {
           <View style={styles.headerContainer}>
             <TouchableOpacity 
               style={styles.backButton}
-              onPress={() => navigation.goBack()}
+              onPress={handleBackPress}
             >
               <Ionicons name="arrow-back" size={24} color="#000000" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{t.orderDetails}</Text>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle} numberOfLines={1}>{t.orderDetails}</Text>
+            </View>
           </View>
           <View style={styles.emptyContainer}>
             <Ionicons name="document-outline" size={60} color="#CCCCCC" />
@@ -98,35 +210,80 @@ function HistoryDetailScreen() {
     );
   }
 
-  const handleBackPress = () => {
-    navigation.navigate('HomeTabs', { screen: 'Orders' });
-  };
+  const isPickup = orderData.mode === 'pickup';
 
-  const isPickup = order.deliveryMethod === 'pickup';
-
-  const formatDate = (date) => {
-    const options = { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    };
-    
-    return new Date(date).toLocaleString(language === 'ZH' ? 'zh-TW' : 'en-US', options);
-  };
-
-  // 獲取配送方式顯示文字
   const getDeliveryMethodText = (method) => {
     if (method === 'pickup') return language === 'ZH' ? '自取' : 'Pickup';
     if (method === 'delivery') return language === 'ZH' ? '外送' : 'Delivery';
     return method;
   };
   
-  // 計算訂單總項目數
   const getTotalItems = () => {
-    if (!order.items) return 0;
-    return order.items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+    if (!items) return 0;
+    return items.reduce((sum, item) => sum + (item.count || 1), 0);
+  };
+
+  const formatPrice = (cents) => {
+    if (!cents && cents !== 0) return "0.00";
+    return (cents / 100).toFixed(2);
+  };
+
+  const calculateOrderPrices = () => {
+    const subtotalInCents = items.reduce((total, item) => total + (item.applied_fee_in_cents || 0), 0);
+    
+    const taxRate = 0.05;
+    const taxInCents = Math.round(subtotalInCents * taxRate);
+    
+    const totalInCents = payment?.amount_in_cents || 
+                        (responseData?.result?.payments && 
+                         responseData.result.payments[0]?.amount_in_cents) || 353;
+    
+    if (__DEV__) {
+      console.log("Updated total calculation:", {
+        paymentExists: !!payment,
+        responseDataPaymentsExists: !!(responseData?.result?.payments && responseData.result.payments.length > 0),
+        totalInCents: totalInCents,
+        paymentAmountInCents: payment?.amount_in_cents || 'N/A',
+        responseDataAmount: responseData?.result?.payments?.[0]?.amount_in_cents || 'N/A'
+      });
+    }
+    
+    const expectedTotalInCents = subtotalInCents + taxInCents;
+    const discountInCents = expectedTotalInCents - totalInCents;
+    
+    return {
+      subtotalInCents,
+      taxInCents,
+      totalInCents,
+      discountInCents
+    };
+  };
+
+  const { subtotalInCents, taxInCents, totalInCents, discountInCents } = calculateOrderPrices();
+
+  const renderInfoRow = (label, value, valueStyle = {}) => {
+    if (value === null || value === undefined || value === '') return null;
+    
+    return (
+      <View style={styles.infoRow}>
+        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={[styles.infoValue, valueStyle]} numberOfLines={2}>{value}</Text>
+      </View>
+    );
+  };
+
+  const renderItemImage = (item) => {
+    if (!item.image_thumb_url) return null;
+    
+    const imageSize = isNarrowDevice ? 40 : 45;
+    
+    return (
+      <Image 
+        source={{ uri: item.image_thumb_url }} 
+        style={[styles.itemImage, {width: imageSize, height: imageSize}]}
+        defaultSource={{ uri: 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1733574455/342534_m5opy3.png' }}
+      />
+    );
   };
 
   return (
@@ -140,14 +297,15 @@ function HistoryDetailScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#000000" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t.orderDetails}</Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">{t.orderDetails}</Text>
+          </View>
         </View>
   
         <ScrollView 
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* 訂單狀態徽章 */}
           <View style={styles.orderStatusContainer}>
             <View style={styles.orderStatusBadge}>
               <Ionicons 
@@ -156,109 +314,77 @@ function HistoryDetailScreen() {
                 color="#FFFFFF" 
               />
               <Text style={styles.orderStatusText}>
-                {getDeliveryMethodText(order.deliveryMethod)}
+                {getDeliveryMethodText(orderData.mode)}
               </Text>
             </View>
-            <Text style={styles.orderTimeInfo}>
-              {formatDate(new Date(order.orderTime))}
+            <Text style={styles.orderTimeInfo} numberOfLines={1}>
+              {payment && formatDate(payment.paid_at)}
             </Text>
           </View>
   
-          {/* 餐廳資訊 */}
-          {restaurant ? (
-            <View style={styles.restaurantCard}>
+          <View style={styles.restaurantCard}>
+            {restaurant?.image_url ? (
               <Image 
-                source={{ uri: restaurant.logo_url || 'https://via.placeholder.com/70' }} 
-                style={styles.restaurantLogo} 
+                source={{ uri: restaurant.image_url }} 
+                style={[styles.restaurantLogo, isNarrowDevice && {width: 60, height: 60}]}
+                defaultSource={{ uri: 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1733574455/342534_m5opy3.png' }}
               />
-              <View style={styles.restaurantInfo}>
-                <Text style={styles.restaurantName}>{restaurant.name}</Text>
-                <Text style={styles.restaurantAddress} numberOfLines={2}>
+            ) : (
+              <View style={[styles.restaurantPlaceholder, isNarrowDevice && {width: 60, height: 60}]}>
+                <Ionicons name="restaurant" size={isNarrowDevice ? 24 : 30} color="#DDDDDD" />
+              </View>
+            )}
+            <View style={styles.restaurantInfo}>
+              <Text style={styles.restaurantName} numberOfLines={1} ellipsizeMode="tail">
+                {restaurant?.name || 'Restaurant'}
+              </Text>
+              {restaurant?.formatted_address && (
+                <Text style={styles.restaurantAddress} numberOfLines={2} ellipsizeMode="tail">
                   {restaurant.formatted_address}
                 </Text>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.restaurantCard}>
-              <View style={styles.restaurantPlaceholder}>
-                <Ionicons name="restaurant" size={30} color="#DDDDDD" />
-              </View>
-              <View style={styles.restaurantInfo}>
-                <Text style={styles.restaurantName}>
-                  {order.restaurantName || "Restaurant"}
+              )}
+              {(!restaurant?.formatted_address && restaurant?.address) && (
+                <Text style={styles.restaurantAddress} numberOfLines={2} ellipsizeMode="tail">
+                  {restaurant.address}
                 </Text>
-              </View>
+              )}
+              {(restaurant?.google_place_id || restaurant?.gid) && (
+                <Text style={styles.restaurantId} numberOfLines={1} ellipsizeMode="middle">
+                  ID: {restaurant?.google_place_id || restaurant?.gid}
+                </Text>
+              )}
             </View>
-          )}
+          </View>
   
-          {/* 訂單詳情 */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="information-circle-outline" size={20} color="#555555" />
               <Text style={styles.sectionTitle}>{t.orderInfo}</Text>
             </View>
   
-            {(order.orderNumber || order.orderId) && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{t.orderId}</Text>
-                <Text style={styles.infoValue}>{order.orderNumber}</Text>
-              </View>
+            {renderInfoRow(t.orderId, orderData.order_id)}
+            {renderInfoRow(t.deliveryMethod, getDeliveryMethodText(orderData.mode))}
+            {renderInfoRow(t.paymentStatus, orderData.status)}
+            
+            {payment && (
+              <>
+                {renderInfoRow(t.orderTime, formatDate(payment.paid_at))}
+                {renderInfoRow(t.paymentMethod, payment.payment_method === 'CREDIT' ? 
+                  (language === 'ZH' ? '信用卡' : 'Credit Card') : 
+                  payment.payment_method)}
+                {renderInfoRow(t.paymentProvider, payment.tender)}
+                {renderInfoRow(t.currency, payment.currency)}
+              </>
             )}
-  
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>{t.deliveryMethod}</Text>
-              <Text style={styles.infoValue}>
-                {getDeliveryMethodText(order.deliveryMethod)}
-              </Text>
-            </View>
-  
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>
-                {isPickup ? t.pickupTime : t.deliveryTime}
-              </Text>
-              <Text style={styles.infoValue}>
-                {isPickup 
-                  ? (order.pickupScheduledTime ? formatDate(new Date(order.pickupScheduledTime)) : t.immediatePickup)
-                  : (order.deliveryScheduledTime ? formatDate(new Date(order.deliveryScheduledTime)) : t.immediateDelivery)
-                }
-              </Text>
-            </View>
-  
-            {!isPickup && order.address && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{t.deliveryAddress}</Text>
-                <Text style={styles.infoValue}>{order.address}</Text>
-              </View>
-            )}
-  
-            {order.recipient && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{t.recipient}</Text>
-                <Text style={styles.infoValue}>{order.recipient}</Text>
-              </View>
-            )}
-  
-            {order.phone && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{t.contactPhone}</Text>
-                <Text style={styles.infoValue}>{order.phone}</Text>
-              </View>
-            )}
-  
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>{t.orderTime}</Text>
-              <Text style={styles.infoValue}>{formatDate(new Date(order.orderTime))}</Text>
-            </View>
-  
-            {order.paymentMethod && (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{t.paymentMethod}</Text>
-                <Text style={styles.infoValue}>{order.paymentMethod}</Text>
-              </View>
+            
+            {restaurant && (
+              <>
+                {renderInfoRow(t.location, restaurant.formatted_address || restaurant.address)}
+                {renderInfoRow(t.timezone, restaurant.timezone)}
+              </>
             )}
           </View>
   
-          {/* 訂單內容 */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="list-outline" size={20} color="#555555" />
@@ -266,33 +392,63 @@ function HistoryDetailScreen() {
             </View>
   
             <View style={styles.itemsContainer}>
-              {order.items && order.items.map((item, index) => (
-                <View key={index} style={styles.foodItem}>
+              {items && items.map((item, index) => (
+                <View key={`${item.id || index}`} style={styles.foodItem}>
                   <View style={styles.foodItemLeft}>
-                    <Text style={styles.foodQuantity}>x{item.quantity || 1}</Text>
-                    <View>
-                      <Text style={styles.foodName}>{item.name}</Text>
-                      {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+                    {renderItemImage(item)}
+                    <View style={styles.foodQuantityContainer}>
+                      <Text style={styles.foodQuantity}>x{item.count || 1}</Text>
+                    </View>
+                    <View style={styles.foodDetails}>
+                      <Text style={styles.foodName} numberOfLines={2} ellipsizeMode="tail">
+                        {item.name}
+                      </Text>
+                      {item.note && item.note.trim() !== "" && (
+                        <Text style={styles.foodNote} numberOfLines={1} ellipsizeMode="tail">
+                          {t.note}: {item.note}
+                        </Text>
+                      )}
+                      {item.modifications && item.modifications.length > 0 && (
                         <View>
-                          {item.selectedModifiers.map((mod, idx) => (
-                            <Text key={idx} style={styles.foodModifier}>
-                              {mod.name} (+${(mod.price || 0).toFixed(2)})
+                          {item.modifications.map((mod, idx) => (
+                            <Text key={`mod-${idx}`} style={styles.foodModifier} numberOfLines={1} ellipsizeMode="tail">
+                              {mod.name} (+${formatPrice(mod.applied_fee_in_cents)})
                             </Text>
                           ))}
                         </View>
                       )}
                     </View>
                   </View>
-                  <Text style={styles.foodPrice}>${(item.price * (item.quantity || 1)).toFixed(2)}</Text>
+                  <Text style={styles.foodPrice}>
+                    ${formatPrice(item.applied_fee_in_cents)}
+                  </Text>
                 </View>
               ))}
             </View>
   
             <View style={styles.orderSummary}>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{t.total}</Text>
-                <Text style={styles.summaryValue}>${order.totalPrice.toFixed(2)}</Text>
+                <Text style={styles.subtotalLabel}>{t.subTotal}</Text>
+                <Text style={styles.subtotalValue}>${formatPrice(subtotalInCents)}</Text>
               </View>
+              
+              <View style={styles.summaryRow}>
+                <Text style={styles.subtotalLabel}>{t.tax}</Text>
+                <Text style={styles.subtotalValue}>${formatPrice(taxInCents)}</Text>
+              </View>
+              
+              {discountInCents > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.subtotalLabel}>{t.discount}</Text>
+                  <Text style={[styles.subtotalValue, styles.discountValue]}>-${formatPrice(discountInCents)}</Text>
+                </View>
+              )}
+              
+              <View style={[styles.summaryRow, styles.totalRow]}>
+                <Text style={styles.summaryLabel}>{t.total}</Text>
+                <Text style={styles.summaryValue}>${formatPrice(totalInCents)}</Text>
+              </View>
+              
               <View style={styles.totalItems}>
                 <Text style={styles.totalItemsText}>
                   {getTotalItems()} {language === 'ZH' ? '項商品' : 'items'}
@@ -318,10 +474,8 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 16,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
+    height: 56,
+    paddingHorizontal: 16,
     backgroundColor: '#FFFFFF',
     ...Platform.select({
       ios: {
@@ -335,18 +489,25 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333333',
+    textAlign: 'center',
   },
   backButton: {
-    position: 'absolute',
-    left: 16,
-    padding: 4,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContainer: {
-    padding: 16,
+    padding: isNarrowDevice ? 12 : 16,
     paddingBottom: 32,
   },
   emptyContainer: {
@@ -381,15 +542,18 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   orderTimeInfo: {
-    fontSize: 14,
+    fontSize: isNarrowDevice ? 12 : 14,
     color: '#666666',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 8,
   },
   restaurantCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
+    padding: isNarrowDevice ? 12 : 16,
     marginBottom: 16,
     ...Platform.select({
       ios: {
@@ -407,14 +571,14 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 8,
-    marginRight: 16,
+    marginRight: isNarrowDevice ? 12 : 16,
     backgroundColor: '#F0F0F0',
   },
   restaurantPlaceholder: {
     width: 70,
     height: 70,
     borderRadius: 8,
-    marginRight: 16,
+    marginRight: isNarrowDevice ? 12 : 16,
     backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
@@ -423,20 +587,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   restaurantName: {
-    fontSize: 18,
+    fontSize: isNarrowDevice ? 16 : 18,
     fontWeight: '600',
     color: '#333333',
     marginBottom: 6,
   },
   restaurantAddress: {
-    fontSize: 14,
+    fontSize: isNarrowDevice ? 13 : 14,
     color: '#666666',
-    lineHeight: 20,
+    lineHeight: isNarrowDevice ? 18 : 20,
+  },
+  restaurantId: {
+    fontSize: isNarrowDevice ? 11 : 12,
+    color: '#888888',
+    marginTop: 2,
   },
   section: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
+    padding: isNarrowDevice ? 12 : 16,
     marginBottom: 16,
     ...Platform.select({
       ios: {
@@ -456,7 +625,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: isNarrowDevice ? 15 : 16,
     fontWeight: '600',
     color: '#333333',
     marginLeft: 8,
@@ -467,18 +636,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    flexWrap: 'wrap',
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: isNarrowDevice ? 13 : 14,
     color: '#666666',
-    flex: 1,
+    flex: isNarrowDevice ? 0.9 : 1,
   },
   infoValue: {
-    fontSize: 14,
+    fontSize: isNarrowDevice ? 13 : 14,
     color: '#333333',
     fontWeight: '500',
     textAlign: 'right',
-    flex: 2,
+    flex: isNarrowDevice ? 1.1 : 2,
   },
   itemsContainer: {
     marginBottom: 16,
@@ -494,31 +664,51 @@ const styles = StyleSheet.create({
   foodItemLeft: {
     flexDirection: 'row',
     flex: 1,
+    alignItems: 'flex-start',
+  },
+  itemImage: {
+    width: 45,
+    height: 45,
+    borderRadius: 6,
+    marginRight: isNarrowDevice ? 6 : 8,
+    backgroundColor: '#F5F5F5',
+  },
+  foodQuantityContainer: {
+    marginRight: isNarrowDevice ? 6 : 8,
+    minWidth: isNarrowDevice ? 20 : 24,
   },
   foodQuantity: {
-    fontSize: 15,
+    fontSize: isNarrowDevice ? 14 : 15,
     fontWeight: '600',
     color: '#555555',
-    marginRight: 12,
-    minWidth: 24,
+  },
+  foodDetails: {
+    flex: 1,
   },
   foodName: {
-    fontSize: 15,
+    fontSize: isNarrowDevice ? 14 : 15,
     color: '#333333',
     marginBottom: 4,
     flex: 1,
   },
+  foodNote: {
+    fontSize: isNarrowDevice ? 12 : 13,
+    fontStyle: 'italic',
+    color: '#666666',
+    marginTop: 2,
+  },
   foodModifier: {
-    fontSize: 13,
+    fontSize: isNarrowDevice ? 12 : 13,
     color: '#777777',
     marginTop: 2,
   },
   foodPrice: {
-    fontSize: 15,
+    fontSize: isNarrowDevice ? 14 : 15,
     fontWeight: '600',
     color: '#333333',
     textAlign: 'right',
-    minWidth: 70,
+    minWidth: isNarrowDevice ? 60 : 70,
+    marginLeft: 4,
   },
   orderSummary: {
     marginTop: 8,
@@ -532,22 +722,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  totalRow: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#EEEEEE',
+  },
   summaryLabel: {
-    fontSize: 16,
+    fontSize: isNarrowDevice ? 15 : 16,
     fontWeight: '600',
     color: '#333333',
   },
   summaryValue: {
-    fontSize: 18,
+    fontSize: isNarrowDevice ? 16 : 18,
     fontWeight: '700',
     color: '#4CAF50',
   },
+  subtotalLabel: {
+    fontSize: isNarrowDevice ? 13 : 14,
+    color: '#666666',
+  },
+  subtotalValue: {
+    fontSize: isNarrowDevice ? 13 : 14,
+    fontWeight: '500',
+    color: '#333333',
+  },
+  discountValue: {
+    color: '#E53935',
+  },
   totalItems: {
     alignItems: 'flex-end',
+    marginTop: 8,
   },
   totalItemsText: {
-    fontSize: 13,
+    fontSize: isNarrowDevice ? 12 : 13,
     color: '#777777',
+  },
+  debugContainer: {
+    padding: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 6,
+  },
+  debugTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 11,
+    color: '#555555',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });
 

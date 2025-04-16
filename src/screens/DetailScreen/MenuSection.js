@@ -20,9 +20,10 @@ import { LanguageContext } from '../../context/LanguageContext';
 import { useLoading } from '../../context/LoadingContext'; 
 
 const { width, height } = Dimensions.get('window');
-const scaleWidth = width / 375;
-const scaleHeight = height / 812;
-const fontScale = Math.min(PixelRatio.getFontScale(), 1.3);
+// Reduced scaling factors for overall smaller UI
+const scaleWidth = width / 400; // Increased base width for smaller elements
+const scaleHeight = height / 850; // Increased base height for smaller elements
+const fontScale = Math.min(PixelRatio.getFontScale(), 1.1); // Reduced max font scale
 
 const MenuSection = ({ restaurantId, restaurants }) => {
 
@@ -58,7 +59,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
       groupedMenu.forEach((category) => {
         const categoryId = category.category_name;
         offsets[categoryId] = currentOffset;
-        currentOffset += (categoryWidths[categoryId] || 100) + 20 * scaleWidth; // 加上margin
+        currentOffset += (categoryWidths[categoryId] || 90) + 16 * scaleWidth; // Reduced margin
       });
       
       // Only update if offsets are actually different
@@ -98,7 +99,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
 
     if (categoryScrollRef.current) {
       const offset = categoryOffsets[categoryId] || 0;
-      const itemWidth = categoryWidths[categoryId] || 100;
+      const itemWidth = categoryWidths[categoryId] || 90;
       const centerPosition = offset - (width / 2) + (itemWidth / 2);
 
       const scrollTo = Math.max(0, centerPosition);
@@ -148,7 +149,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
 
         if (categoryScrollRef.current && categoryOffsets[currentCategoryId] !== undefined) {
           const offset = categoryOffsets[currentCategoryId] || 0;
-          const itemWidth = categoryWidths[currentCategoryId] || 100;
+          const itemWidth = categoryWidths[currentCategoryId] || 90;
           const centerPosition = offset - (width / 2) + (itemWidth / 2);
 
           const scrollTo = Math.max(0, centerPosition);
@@ -527,81 +528,81 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   categoryHeader: {
-    fontSize: 24 * fontScale, 
+    fontSize: 20 * fontScale, // Reduced from 24
     fontFamily: 'Inter-SemiBold', 
     fontWeight: 'bold',
-    marginVertical: 12 * scaleHeight, 
-    paddingHorizontal: 18 * scaleWidth,
+    marginVertical: 10 * scaleHeight, // Reduced from 12
+    paddingHorizontal: 16 * scaleWidth, // Reduced from 18
   },
   separator: {
     height: 1 * scaleHeight,
     backgroundColor: '#ddd',
   },
   name: {
-    fontSize: 24 * fontScale, 
+    fontSize: 20 * fontScale, // Reduced from 24
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 6 * scaleHeight,
-    maxWidth: 260 * scaleWidth,
+    marginBottom: 5 * scaleHeight, // Reduced from 6
+    maxWidth: 230 * scaleWidth, // Reduced from 260
   },
   description: {
-    fontSize: 20 * fontScale,
+    fontSize: 16 * fontScale, // Reduced from 20
     fontFamily: 'Inter-Regular',
     color: '#555',
-    marginBottom: 6 * scaleHeight,
-    lineHeight: 22 * scaleHeight,
-    maxHeight: 50 * scaleHeight,
-    maxWidth: 260 * scaleWidth,
+    marginBottom: 5 * scaleHeight, // Reduced from 6
+    lineHeight: 18 * scaleHeight, // Reduced from 22
+    maxHeight: 40 * scaleHeight, // Reduced from 50
+    maxWidth: 230 * scaleWidth, // Reduced from 260
     overflow: 'hidden',
   },
   price: {
-    fontSize: 24 * fontScale,
+    fontSize: 18 * fontScale, // Reduced from 24
     color: '#000',
   },
   menuItem: {
     flexDirection: 'row',
-    padding: 16 * scaleWidth,
+    padding: 14 * scaleWidth, // Reduced from 16
     backgroundColor: '#fff',
-    borderRadius: 12 * scaleWidth,
+    borderRadius: 10 * scaleWidth, // Reduced from 12
     alignItems: 'center',
     borderBottomWidth: 1 * scaleHeight,
     borderBottomColor: '#ccc',
-    height: 120 * scaleHeight,
+    height: 100 * scaleHeight, // Reduced from 120
     justifyContent: 'space-between',
     width: '100%',
   },
   info: {
     flex: 1,
-    marginRight: 18 * scaleWidth,
+    marginRight: 16 * scaleWidth, // Reduced from 18
     justifyContent: 'center',
   },
   image: {
-    width: 100 * scaleWidth,
-    height: 100 * scaleHeight,
-    borderRadius: 12 * scaleWidth,
+    width: 85 * scaleWidth, // Reduced from 100
+    height: 85 * scaleHeight, // Reduced from 100
+    borderRadius: 10 * scaleWidth, // Reduced from 12
     resizeMode: 'cover',
   },
   categoryList: {
-    paddingHorizontal: 12 * scaleWidth,
-    height: 56,
+    paddingHorizontal: 10 * scaleWidth, // Reduced from 12
+    height: 48, // Reduced from 56
   },
   categoryListContent: {
     alignItems: 'center',
-    paddingRight: 20 * scaleWidth,
+    paddingRight: 16 * scaleWidth, // Reduced from 20
   },
   categoryItem: {
-    marginRight: 20 * scaleWidth,
-    paddingVertical: 12 * scaleHeight,
-    paddingHorizontal: 18 * scaleWidth,
-    height: 56,
+    marginRight: 16 * scaleWidth, // Reduced from 20
+    paddingVertical: 10 * scaleHeight, // Reduced from 12
+    paddingHorizontal: 14 * scaleWidth, // Reduced from 18
+    height: 48, // Reduced from 56
     justifyContent: 'center',
     alignItems: 'center',
   },
   selectedCategory: {
-    borderBottomWidth: 3 * scaleHeight,
+    borderBottomWidth: 2 * scaleHeight, // Reduced from 3
     borderBottomColor: 'black',
   },
   categoryText: {
-    fontSize: 24 * fontScale, 
+    fontSize: 18 * fontScale, // Reduced from 24
     color: '#333',
     textAlignVertical: 'center',
     textAlign: 'center',
@@ -611,37 +612,37 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    width: 34 * scaleWidth,
-    height: 34 * scaleHeight,
+    width: 28 * scaleWidth, // Reduced from 34
+    height: 28 * scaleHeight, // Reduced from 34
     borderRadius: 50,
     position: 'absolute',
-    bottom: 18 * scaleHeight,
-    right: 18 * scaleWidth,
+    bottom: 14 * scaleHeight, // Reduced from 18
+    right: 14 * scaleWidth, // Reduced from 18
     justifyContent: 'center',
     alignItems: 'center',
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 22 * fontScale, 
+    fontSize: 18 * fontScale, // Reduced from 22
     fontWeight: 'bold',
   },
   flatListContent: {
-    paddingBottom: 100 * scaleHeight,
+    paddingBottom: 90 * scaleHeight, // Reduced from 100
   },
   viewCartContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 50 : 30,
+    bottom: Platform.OS === 'ios' ? 40 : 25, // Reduced from 50/30
     left: 0,
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16, // Reduced from 20
   },
   viewCartButton: {
     backgroundColor: '#000',
-    borderRadius: 10,
+    borderRadius: 8, // Reduced from 10
     width: '90%',
-    height: 50,
+    height: 42, // Reduced from 50
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -652,14 +653,14 @@ const styles = StyleSheet.create({
   },
   viewCartButtonText: {
     color: '#fff',
-    fontSize: 20 * fontScale,
+    fontSize: 16 * fontScale, // Reduced from 20
     fontWeight: 'bold',
     textAlign: 'center',
   },
   emptyMessage: {
     textAlign: 'center',
-    marginTop: 20,
-    fontSize: 16 * fontScale,
+    marginTop: 16, // Reduced from 20
+    fontSize: 14 * fontScale, // Reduced from 16
     color: '#666',
   },
   flatList: {

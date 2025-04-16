@@ -171,7 +171,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <View style={styles.backButtonContainer}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={28} color="black" />
+          <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
       </View>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -276,7 +276,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
         />
       </ScrollView>
 
-      <View style={[styles.fixedBottomContainer, { paddingBottom: Platform.OS === 'android' ? 0 : 20 }]}>
+      <View style={[styles.fixedBottomContainer, { paddingBottom: Platform.OS === 'android' ? 0 : 16 }]}>
         <TouchableOpacity 
           style={styles.addToCartButton} 
           onPress={handleAddToCart}
@@ -294,106 +294,112 @@ const ProductDetailScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    padding: 20,
+    padding: 16,
     backgroundColor: "#fff",
-    paddingTop: 50,
+    paddingTop: 40,
   },
   backButton: {
     position: 'absolute',
-    top: 50,
-    left: 20,
+    top: 40,
+    left: 16,
+    zIndex: 10,
+  },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 8, 
+    left: 8,
     zIndex: 10,
   },
   largeImage: {
     width: "100%",
-    height: 300,
-    borderRadius: 10,
-    marginBottom: 30,
-    padding: 20,
+    height: 240,
+    borderRadius: 8,
+    marginBottom: 24,
+    padding: 16,
   },
   name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 16,
-    color: '#555',
-    marginBottom: 20,
-  },
-  price: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 8,
+  },
+  description: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 16,
+  },
+  price: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
   },
   separator: {
     borderBottomWidth: 1,
     borderBottomColor: '#999', 
-    marginBottom: 10
+    marginBottom: 8
   },
   optionsContainer: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
   noteInput: {
-    height: 100,
+    height: 90,
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    marginTop: 12,
-    marginBottom: 120,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+    marginTop: 10,
+    marginBottom: 100,
     backgroundColor: '#fff',
     textAlignVertical: 'top', 
   },  
   optionsTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 14,
     flex: 1, // Ensures text is aligned to the left
-    maxWidth: 350
+    maxWidth: 330
   },
   radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 2,
     borderColor: '#888',
     backgroundColor: 'white',
   },
   selectedRadio: {
-    backgroundColor: '#000', // Green when selected
+    backgroundColor: '#000', // Black when selected
   },
   selectedOption: {
   },
   modifiersContainer: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
   specialInstructionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   addToCartButton: {
-    padding: 15,
+    padding: 12,
     backgroundColor: '#000',
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 20
+    marginBottom: 16
   },
   addToCartButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     color: 'white',
     fontWeight: 'bold',
   },
@@ -403,54 +409,47 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',  
-    paddingVertical: 12, 
-    paddingHorizontal: 20, 
+    paddingVertical: 10, 
+    paddingHorizontal: 16, 
     borderTopWidth: 1,
     borderTopColor: '#ddd', 
-  },
-  backButtonContainer: {
-    position: 'absolute',
-    top: 10, 
-    left: 10,
-    zIndex: 10,
   },
   modifierTitleContainer: {
     flexDirection: 'row',
     justifyContent: 'left', 
     alignItems: 'center', 
-    marginTop: 12,
+    marginTop: 10,
   },
   modifiersTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333', 
-    marginVertical: 12,
+    marginVertical: 10,
   },
   modifierLimitText: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#333', 
     fontWeight: 'bold',
   },
   errorText: {
     color: 'red',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   variantsContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   variantsTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   errorMessage: {
     color: 'red',
-    fontSize: 16,
-    marginVertical: 10,
+    fontSize: 14,
+    marginVertical: 8,
     textAlign: 'center',
   },
-
 });
 
 export default ProductDetailScreen;

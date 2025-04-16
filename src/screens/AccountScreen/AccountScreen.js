@@ -106,9 +106,9 @@ const AccountScreen = ({ setIsAuthenticated }) => {
 
   const getPadding = () => {
     if (isTablet()) {
-      return { horizontal: 24, bottom: 32 };
+      return { horizontal: 20, bottom: 28 }; // 縮小平板的內邊距
     }
-    return { horizontal: 16, bottom: 60 };
+    return { horizontal: 14, bottom: 50 }; // 縮小手機的內邊距
   };
 
   const refreshUserData = useCallback(async () => {
@@ -232,7 +232,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
               >
                 <Ionicons 
                   name="chevron-back" 
-                  size={isTablet() ? 32 : 28} 
+                  size={isTablet() ? 28 : 24} // 縮小返回按鈕圖標
                   color="#000" 
                 />
               </TouchableOpacity>
@@ -266,7 +266,7 @@ const AccountScreen = ({ setIsAuthenticated }) => {
                     <View style={styles.verifiedContainer}>
                       <Text style={[
                         styles.verifiedText,
-                        { fontSize: isTablet() ? 14 : 12 }
+                        { fontSize: isTablet() ? 12 : 10 } // 縮小已驗證標籤的字體大小
                       ]}>
                         {texts.phoneVerified}
                       </Text>
@@ -313,8 +313,8 @@ const AccountScreen = ({ setIsAuthenticated }) => {
               <View style={[
                 styles.bottomSection,
                 { 
-                  marginTop: isTablet() ? 32 : 24,
-                  marginBottom: isTablet() ? 24 : 16
+                  marginTop: isTablet() ? 28 : 20, // 縮小底部區域的上邊距
+                  marginBottom: isTablet() ? 20 : 14 // 縮小底部區域的下邊距
                 }
               ]}>
                 <LogoutButton 
@@ -324,8 +324,8 @@ const AccountScreen = ({ setIsAuthenticated }) => {
                 <Text style={[
                   styles.versionText,
                   { 
-                    marginTop: isTablet() ? 16 : 12,
-                    fontSize: isTablet() ? 16 : 14
+                    marginTop: isTablet() ? 14 : 10, // 縮小版本文字的上邊距
+                    fontSize: isTablet() ? 14 : 12 // 縮小版本文字的字體大小
                   }
                 ]}>
                   {texts.appVersion}
@@ -396,10 +396,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: 14, // 縮小水平內邊距
   },
   backButton: {
-    marginTop: 12, 
-    marginBottom: 6 
+    marginTop: 10, // 縮小返回按鈕的上邊距
+    marginBottom: 4 // 縮小返回按鈕的下邊距
   },
   bottomSection: {
     alignItems: 'center',
@@ -416,9 +417,9 @@ const styles = StyleSheet.create({
   },
   verifiedContainer: {
     backgroundColor: '#f0f0f0',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8, // 縮小已驗證標籤的水平內邊距
+    paddingVertical: 3, // 縮小已驗證標籤的垂直內邊距
+    borderRadius: 10, // 縮小已驗證標籤的圓角
   },
   verifiedText: {
     color: '#666',

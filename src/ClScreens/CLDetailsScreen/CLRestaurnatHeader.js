@@ -38,10 +38,9 @@ function CLRestaurantHeader({ restaurant }) {
             </Text>
           )}
         </View>
-        {/* 訪客模式提示標籤 */}
         <View style={styles.guestModeTag}>
           <Text style={styles.guestModeText}>
-            {Platform.OS === 'ios' ? 'Guest Mode' : '訪客模式'}
+            {Platform.OS === 'ios' ? 'Guest Mode' : 'Guest Mode'}
           </Text>
         </View>
       </View>
@@ -54,7 +53,7 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   headerContainer: {
     alignItems: 'center',
-    marginTop: -20,
+    marginTop: -20, // Updated from -16 to -20 to match non-CL
     width: '100%',
   },
   headerName: {
@@ -68,33 +67,33 @@ const styles = StyleSheet.create({
   },
   restaurantImage: {
     width: '100%',
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 10,
+    height: 200, // Updated from 170 to 200 to match non-CL
+    borderRadius: 10, // Updated from 8 to 10 to match non-CL
+    marginBottom: 10, // Updated from 8 to 10 to match non-CL
   },
   restaurantLogo: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 15,
+    width: 70, // Updated from 60 to 70 to match non-CL
+    height: 70, // Updated from 60 to 70 to match non-CL
+    borderRadius: 35, // Updated from 30 to 35 to match non-CL
+    marginRight: 15, // Updated from 12 to 15 to match non-CL
     borderWidth: 1,
     borderColor: '#fff',
-    marginTop: -50,
+    marginTop: -50, // Updated from -40 to -50 to match non-CL
     backgroundColor: '#fff',
   },
   logoContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: -40,
+    marginTop: -40, // Updated from -35 to -40 to match non-CL
   },
   centerAlignContainer: {
     width: '100%',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 20, // Updated from 16 to 20 to match non-CL
   },
   textContainer: {
     alignItems: 'center',
-    width: '90%', 
+    width: '90%',
   },
   address: {
     fontSize: 16,
@@ -108,10 +107,10 @@ const styles = StyleSheet.create({
   // 訪客模式標籤樣式
   guestModeTag: {
     backgroundColor: 'rgba(247, 247, 247, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },

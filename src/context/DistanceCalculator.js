@@ -1,8 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, Image, StyleSheet } from 'react-native';
+import { Text, View, Image, StyleSheet, Dimensions } from 'react-native';
 import { getDistance } from 'geolib';  
 import axios from 'axios';
 import * as Location from 'expo-location'; 
+
+// Get window dimensions for responsive sizing
+const windowWidth = Dimensions.get('window').width;
+const windowHeight = Dimensions.get('window').height;
+const isTablet = windowWidth >= 768;
+
+// Helper functions for responsive sizing
+const wp = (percentage) => {
+  return windowWidth * (percentage / 100);
+};
+
+const hp = (percentage) => {
+  return windowHeight * (percentage / 100);
+};
 
 const Distance = ({ restaurant }) => {
     const [userLocation, setUserLocation] = useState(null);
@@ -171,18 +185,22 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginVertical: hp(0.5),
   },
   icon: {
-    width: 18,
-    height: 18,
-    marginRight: 5,
+    width: wp(5.5),  // Increased from fixed 18 to responsive size
+    height: wp(5.5),  // Keeping icon square
+    marginRight: wp(1.5),
   },
   tagText: {
-    fontSize: 16,
+    fontSize: wp(4),  // Increased from fixed 16
+    fontWeight: '500',  // Added slight weight
+    color: '#222222',  // Added to match text color from the updated login button
+    fontFamily: 'CustomFont',  // Assuming the app uses this font elsewhere
   },
   errorText: {
     color: 'red',
-    fontSize: 14,
+    fontSize: wp(3.5),
   },
 });
 

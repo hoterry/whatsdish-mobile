@@ -25,23 +25,23 @@ const LoginHeader = ({ isCodeSent, fadeAnim, slideAnim }) => {
 const styles = StyleSheet.create({
   headerSection: {
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 14,
   },
   logo: {
-    width: 70,
-    height: 70,
+    width: 62,
+    height: 62,
     marginBottom: 5,
   },
   header: {
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: 'bold',
     textAlign: 'center',
     color: '#000',
-    marginBottom: 10,
-    letterSpacing: 0.5,
+    marginBottom: 8,
+    letterSpacing: 0.4,
   },
   subHeader: {
-    fontSize: 18,
+    fontSize: 16,
     textAlign: 'center',
     color: '#666',
     marginBottom: 5,
