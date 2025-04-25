@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useContext, useCallback, useMemo, memo } from 'react';
 import { 
   View, 
   Text, 
@@ -10,7 +10,8 @@ import {
   SafeAreaView, 
   Dimensions,
   Platform,
-  PixelRatio
+  PixelRatio,
+  InteractionManager
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LanguageContext } from '../../context/LanguageContext';
@@ -21,7 +22,6 @@ import { useLoading } from '../../context/LoadingContext';
 const { width, height } = Dimensions.get('window');
 const scaleWidth = width / 375;
 const scaleHeight = height / 812;
-// Slightly reduced font scale to make text smaller, but not too small
 const fontScale = Math.min(PixelRatio.getFontScale(), 1.15); 
 
 const translations = {
@@ -37,37 +37,223 @@ const translations = {
   }
 };
 
+const STYLES = {
+  menuItemHeight: 110 * scaleHeight,
+  menuItemFullHeight: 122 * scaleHeight,
+  headerHeight: 42 * scaleHeight,
+  categoryItemWidth: 100 * scaleWidth,
+  categorySpacing: 14 * scaleWidth,
+  imageSize: 100 * scaleWidth,
+};
+
+const CATEGORY_BAR_HEIGHT = 43; 
+
+const MenuItemImage = memo(({ uri, style }) => {
+  const [loaded, setLoaded] = useState(false);
+  const placeholderUri = 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png';
+  
+  return (
+    <View style={styles.imageContainer}>
+      {!loaded && (
+        <View style={[style, { backgroundColor: '#f0f0f0', borderRadius: 10 * scaleWidth }]} />
+      )}
+      <Image
+        source={{ uri: uri || placeholderUri }}
+        style={style}
+        onLoad={() => setLoaded(true)}
+      />
+    </View>
+  );
+});
+
+const MenuItem = memo(({ menuItem, language, goToLogin }) => {
+  if (!menuItem) return null;
+
+  return (
+    <TouchableOpacity
+      key={menuItem.id}
+      style={styles.menuItem}
+      onPress={goToLogin}
+    >
+      <View style={styles.info}>
+        <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
+          {language === 'ZH' ? (menuItem.name_zh || menuItem.name) : menuItem.name}
+        </Text>
+        <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
+          {language === 'ZH' ? (menuItem.description_zh || menuItem.description) : menuItem.description}
+        </Text>
+        
+        {menuItem.min_max_display && menuItem.min && menuItem.max ? (
+          <Text style={styles.price}>
+            ${(menuItem.min.fee_min / 100).toFixed(2)} - ${(menuItem.max.fee_max / 100).toFixed(2)}
+          </Text>
+        ) : (
+          <Text style={styles.price}>${(menuItem.fee_in_cents / 100).toFixed(2)}</Text>
+        )}
+      </View>
+
+      <View style={styles.imageContainer}>
+        <MenuItemImage
+          uri={menuItem.image_url}
+          style={styles.image}
+        />
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={goToLogin}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const CategoryItem = memo(({ category, index, isSelected, onPress, language }) => {
+  return (
+    <TouchableOpacity
+      key={category.category_name}
+      style={[
+        styles.categoryItem, 
+        isSelected && styles.selectedCategory
+      ]}
+      onPress={() => onPress(category.category_name, index)}
+    >
+      <Text 
+        style={[
+          styles.categoryText,
+          isSelected && styles.selectedCategoryText
+        ]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+      >
+        {language === 'ZH' ? category.category_name_zh : category.category_name}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const CategoryList = memo(({ categories, selectedCategory, handleCategoryPress, language }) => {
+  return categories.map((category, index) => (
+    <CategoryItem
+      key={category.category_name}
+      category={category}
+      index={index}
+      isSelected={selectedCategory === category.category_name}
+      onPress={handleCategoryPress}
+      language={language}
+    />
+  ));
+});
+
 const CLMenuSection = ({ restaurantId, restaurants }) => {
   const [menu, setMenu] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [uniqueCategories, setUniqueCategories] = useState([]);
   const [groupedMenu, setGroupedMenu] = useState([]);
-  const [categoryHeights, setCategoryHeights] = useState({});
-  const [categoryWidths, setCategoryWidths] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [menuLoaded, setMenuLoaded] = useState(false);
   const [isManualScroll, setIsManualScroll] = useState(false);
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [categoryOffsets, setCategoryOffsets] = useState({});
+  
+  const categoryHeightsRef = useRef({});
+  const isScrollingRef = useRef(false);
+  const menuPositionsRef = useRef([]);
+  const lockScrollUpdateRef = useRef(false);
+  const menuDataRef = useRef(null);
+  const categoryOffsetsRef = useRef({});
+  const categoryItemsRef = useRef({});
   
   const { setIsLoading } = useLoading();
 
   const menuListRef = useRef(null);
   const categoryScrollRef = useRef(null);
-  const categoryMeasurements = useRef({}).current;
-  const menuMeasurements = useRef({}).current;
   const timeoutRef = useRef(null);
-  const isScrollingRef = useRef(false);
 
   const navigation = useNavigation();
   const { language } = useContext(LanguageContext);
 
-  const t = (key) => translations[language][key] || key;
+  const t = useCallback((key) => translations[language][key] || key, [language]);
 
   const goToLogin = useCallback(() => {
     navigation.navigate('Login');
   }, [navigation]);
+
+  const staticEstimateHeight = useCallback((categoryItems) => {
+    const headerHeight = 19 * fontScale + (11 * 2 * scaleHeight) + 1 * scaleHeight;
+    const itemHeight = 110 * scaleHeight + 8 * scaleHeight;
+    
+    return headerHeight + (categoryItems.length * itemHeight);
+  }, [fontScale, scaleHeight]);
+
+  const transformData = useCallback((data) => {
+    if (!data || !Array.isArray(data.groupedItems) || !data.success) {
+      return {
+        menuItems: [],
+        uniqueCategories: [],
+        groupedMenu: []
+      };
+    }
+
+    const validMenuItems = [];
+    const categorySet = new Set();
+    const categoryMap = new Map();
+    
+    data.groupedItems.forEach(item => {
+      if (!(item.variant_group && item.variant_group.length > 0 && (!item.items || item.items.length === 0))) {
+        const hasValidVariants = item.variant_group && 
+                               item.variant_group.length > 0 && 
+                               item.items && 
+                               item.items.length > 0;
+        
+        const transformedItem = {
+          id: item.id,
+          category: item.categories.join(', '),
+          name: item.name,
+          name_zh: item.name_zh || item.name,
+          description: item.description || 'No description available',
+          description_zh: item.description_zh || item.description || '暫無說明',
+          price: item.fee_in_cents / 100,
+          fee_in_cents: item.fee_in_cents,
+          image_url: item.image_url,
+          modifierGroups: item.modifier_groups || [],
+          modifier_groups: item.modifier_groups || [],
+          variants: hasValidVariants ? [...item.items] : [],
+          isActive: item.is_available,
+          is_available: item.is_available,
+          alternate_name: item.alternate_name || []
+        };
+        
+        validMenuItems.push(transformedItem);
+        
+        const category = transformedItem.category;
+        categorySet.add(category);
+        
+        if (!categoryMap.has(category)) {
+          categoryMap.set(category, []);
+        }
+        categoryMap.get(category).push(transformedItem);
+      }
+    });
+    
+    validMenuItems.sort((a, b) => {
+      if (a.category.toLowerCase() > b.category.toLowerCase()) return 1;
+      if (a.category.toLowerCase() < b.category.toLowerCase()) return -1;
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+    
+    const uniqueCats = [...categorySet].sort();
+    
+    const grouped = uniqueCats.map(category => ({
+      category_name: category,
+      category_name_zh: category,
+      items: categoryMap.get(category) || []
+    }));
+    
+    return {
+      menuItems: validMenuItems,
+      uniqueCategories: uniqueCats,
+      groupedMenu: grouped
+    };
+  }, []);
 
   useEffect(() => {
     const fetchMenuItems = async () => {
@@ -76,84 +262,52 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
       try {
         const API_BASE_URL = Constants.expoConfig.extra.API_URL;
         const currentLanguage = language.toLowerCase() === 'zh' ? 'zh' : 'en';
+        const apiUrl = `https://whatsdish-backend-f1d7ff67f065.herokuapp.com/api/menu/${restaurantId}?language=${currentLanguage}`;
         
-        const response = await fetch(`https://whatsdish-backend-f1d7ff67f065.herokuapp.com/api/menu/${restaurantId}?language=${currentLanguage}`);
-        const data = await response.json();
-
-        if (data.success && Array.isArray(data.groupedItems)) {
-          const validMenuItems = data.groupedItems.filter(item => {
-            if (item.variant_group && item.variant_group.length > 0) {
-              return item.items && item.items.length > 0;
-            }
-            return true;
-          });
+        if (menuDataRef.current && menuDataRef.current.timestamp && 
+            (Date.now() - menuDataRef.current.timestamp < 60000) && 
+            menuDataRef.current.language === currentLanguage) {
+          const cachedData = menuDataRef.current.data;
+          const { menuItems, uniqueCategories, groupedMenu } = transformData(cachedData);
           
-          const transformedData = validMenuItems.map(item => {
-            const hasValidVariants = item.variant_group && 
-                                    item.variant_group.length > 0 && 
-                                    item.items && 
-                                    item.items.length > 0;
-    
-            return {
-              id: item.id,
-              category: item.categories.join(', '),
-              name: item.name,
-              name_zh: item.name_zh || item.name,
-              description: item.description || 'No description available',
-              description_zh: item.description_zh || item.description || '暫無說明',
-              price: item.fee_in_cents / 100,
-              fee_in_cents: item.fee_in_cents,
-              image_url: item.image_url,
-              modifierGroups: item.modifier_groups || [],
-              modifier_groups: item.modifier_groups || [],
-              variants: hasValidVariants ? [...item.items] : [],
-              isActive: item.is_available,
-              is_available: item.is_available,
-              alternate_name: item.alternate_name || []
-            };
-          });
-    
-          transformedData.sort((a, b) => {
-            if (a.category.toLowerCase() > b.category.toLowerCase()) return 1;
-            if (a.category.toLowerCase() < b.category.toLowerCase()) return -1;
-            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-          });
-    
-          setMenuItems(transformedData);
-          const uniqueCats = [...new Set(transformedData.map(item => item.category))].sort();
-          setUniqueCategories(uniqueCats);
-          
-          const grouped = uniqueCats.map(category => ({
-            category_name: category,
-            category_name_zh: category,
-            items: transformedData.filter(item => item.category === category)
-          }));
-          
-          setGroupedMenu(grouped);
-          setMenu(transformedData);
+          setMenuItems(menuItems);
+          setUniqueCategories(uniqueCategories);
+          setGroupedMenu(groupedMenu);
+          setMenu(menuItems);
           setMenuLoaded(true);
           
-          const initialHeights = {};
-          const initialWidths = {};
-          
-          grouped.forEach(cat => {
-            initialHeights[cat.category_name] = 0;
-            initialWidths[cat.category_name] = 0;
-          });
-          
-          setCategoryHeights(initialHeights);
-          setCategoryWidths(initialWidths);
-          
-          if (grouped.length > 0) {
-            setSelectedCategory(grouped[0].category_name);
+          if (groupedMenu.length > 0 && !selectedCategory) {
+            setSelectedCategory(groupedMenu[0].category_name);
           }
+          
+          setIsLoading(false);
+          return;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        menuDataRef.current = {
+          data,
+          timestamp: Date.now(),
+          language: currentLanguage
+        };
+        
+        const { menuItems, uniqueCategories, groupedMenu } = transformData(data);
+        
+        setMenuItems(menuItems);
+        setUniqueCategories(uniqueCategories);
+        setGroupedMenu(groupedMenu);
+        setMenu(menuItems);
+        setMenuLoaded(true);
+        
+        if (groupedMenu.length > 0) {
+          setSelectedCategory(groupedMenu[0].category_name);
         }
       } catch (error) {
         console.error('Failed to fetch menu data', error);
       } finally {
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 1000);
+        setIsLoading(false);
       }
     };
     
@@ -162,159 +316,224 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
     return () => {
       setIsLoading(false);
     };
-  }, [restaurantId, language, setIsLoading]);
+  }, [restaurantId, language, setIsLoading, transformData, selectedCategory]);
 
   useEffect(() => {
-    if (Object.keys(categoryWidths).length > 0 && groupedMenu.length > 0) {
-      const offsets = {};
-      let currentOffset = 0;
+    if (menuLoaded && groupedMenu.length > 0) {
+      InteractionManager.runAfterInteractions(() => {
+        requestAnimationFrame(() => {
+          calculateCategoryLayouts();
+        });
+      });
+    }
+  }, [menuLoaded, groupedMenu]);
+
+  const calculateCategoryLayouts = useCallback(() => {
+    if (!menuListRef.current) return;
+    
+    const positions = [];
+    let currentOffset = 0;
+    
+    groupedMenu.forEach((category, index) => {
+      const categoryId = category.category_name;
+      const estimatedHeight = staticEstimateHeight(category.items);
       
-      groupedMenu.forEach((category) => {
-        const categoryId = category.category_name;
-        offsets[categoryId] = currentOffset;
-        currentOffset += (categoryWidths[categoryId] || 100) + 20 * scaleWidth;
+      positions.push({
+        index,
+        categoryId,
+        offset: currentOffset,
+        height: estimatedHeight
       });
       
-      setCategoryOffsets(offsets);
-    }
-  }, [categoryWidths, groupedMenu]);
+      categoryHeightsRef.current[categoryId] = estimatedHeight;
+      currentOffset += estimatedHeight;
+    });
+    
+    menuPositionsRef.current = positions;
 
-  const handleCategoryPress = (categoryId, index) => {
+    const categoryOffsets = {};
+    let categoryOffset = 0;
+    
+    groupedMenu.forEach((category, index) => {
+      const categoryId = category.category_name;
+      const estimatedWidth = (17 * fontScale * category.category_name.length * 0.6) + (12 * 2 * scaleWidth);
+      
+      categoryOffsets[categoryId] = categoryOffset;
+      categoryItemsRef.current[categoryId] = {
+        width: Math.max(80 * scaleWidth, estimatedWidth),
+        index
+      };
+      
+      categoryOffset += Math.max(80 * scaleWidth, estimatedWidth) + (14 * scaleWidth);
+    });
+    
+    categoryOffsetsRef.current = categoryOffsets;
+  }, [groupedMenu, staticEstimateHeight, fontScale, scaleWidth]);
+
+  const handleCategoryPress = useCallback((categoryId, index) => {
+    lockScrollUpdateRef.current = true;
     setSelectedCategory(categoryId);
     setIsManualScroll(true);
 
     if (menuListRef.current) {
-      try {
-        menuListRef.current.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0,
-        });
-      } catch (error) {
-        console.warn("[CLMenuSection] Scroll to index failed:", error);
-
-        let offset = 0;
-        for (let i = 0; i < index; i++) {
-          const catId = groupedMenu[i]?.category_name;
-          offset += categoryHeights[catId] || 0;
-        }
-        
+      const position = menuPositionsRef.current.find(p => p.categoryId === categoryId);
+      
+      if (position) {
         menuListRef.current.scrollToOffset({
-          offset,
+          offset: position.offset,
           animated: true,
         });
+      } else {
+        try {
+          menuListRef.current.scrollToIndex({
+            index,
+            animated: true,
+            viewPosition: 0,
+          });
+        } catch (error) {
+          console.warn("[CLMenuSection] Scroll to index failed:", error);
+        }
       }
     }
 
     if (categoryScrollRef.current) {
-      const offset = categoryOffsets[categoryId] || 0;
-      const itemWidth = categoryWidths[categoryId] || 100;
-      const centerPosition = offset - (width / 2) + (itemWidth / 2);
-
-      const scrollTo = Math.max(0, centerPosition);
-      
-      categoryScrollRef.current.scrollTo({
-        x: scrollTo,
-        animated: true,
-      });
+      updateCategoryScroll(index);
     }
 
     clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
+      lockScrollUpdateRef.current = false;
       setIsManualScroll(false);
-    }, 800);
-  };
+    }, 1200);
+  }, []);
 
-  const handleMenuScroll = (event) => {
-    if (isManualScroll || !groupedMenu.length) return;
+  const updateCategoryScroll = useCallback((index) => {
+    if (!categoryScrollRef.current) return;
+    
+    const categoryId = groupedMenu[index]?.category_name;
+    if (!categoryId) return;
+    
+    const categoryInfo = categoryItemsRef.current[categoryId];
+    const itemWidth = categoryInfo ? categoryInfo.width : STYLES.categoryItemWidth;
+    
+    const offset = categoryOffsetsRef.current[categoryId] || 0;
+    const centerPosition = offset - (width / 2) + (itemWidth / 2);
+    
+    const scrollTo = Math.max(0, centerPosition);
+    
+    categoryScrollRef.current.scrollTo({
+      x: scrollTo,
+      animated: true,
+    });
+  }, [groupedMenu, width]);
+
+  const handleMenuScroll = useCallback((event) => {
+    if (isManualScroll || lockScrollUpdateRef.current || !groupedMenu.length) return;
     
     const yOffset = event.nativeEvent.contentOffset.y;
-    setScrollPosition(yOffset);
-
-    if (isScrollingRef.current) return;
-    isScrollingRef.current = true;
-
-    requestAnimationFrame(() => {
-      let accumulatedHeight = 0;
-      let currentCategoryIndex = 0;
+    
+    if (!isScrollingRef.current) {
+      isScrollingRef.current = true;
       
-      for (let i = 0; i < groupedMenu.length; i++) {
-        const categoryId = groupedMenu[i].category_name;
-        const categoryHeight = categoryHeights[categoryId] || 0;
+      requestAnimationFrame(() => {
+
+        const topOffset = yOffset + CATEGORY_BAR_HEIGHT;
         
-        if (yOffset < accumulatedHeight + categoryHeight) {
-          currentCategoryIndex = i;
-          break;
+        let foundCategory = null;
+        let foundIndex = 0;
+
+        for (let i = 0; i < menuPositionsRef.current.length; i++) {
+          const position = menuPositionsRef.current[i];
+          const nextPosition = menuPositionsRef.current[i + 1];
+
+          if (topOffset >= position.offset && 
+              (!nextPosition || topOffset < nextPosition.offset)) {
+            foundCategory = position.categoryId;
+            foundIndex = i;
+            break;
+          }
+        }
+
+        if (!foundCategory && menuPositionsRef.current.length > 0) {
+          const lastPosition = menuPositionsRef.current[menuPositionsRef.current.length - 1];
+          foundCategory = lastPosition.categoryId;
+          foundIndex = menuPositionsRef.current.length - 1;
+        }
+
+        if (foundCategory && foundCategory !== selectedCategory) {
+          setSelectedCategory(foundCategory);
+          updateCategoryScroll(foundIndex);
         }
         
-        accumulatedHeight += categoryHeight;
-      }
-      
-      const currentCategoryId = groupedMenu[currentCategoryIndex]?.category_name;
+        isScrollingRef.current = false;
+      });
+    }
+  }, [isManualScroll, groupedMenu, selectedCategory, updateCategoryScroll]);
 
-      if (currentCategoryId && currentCategoryId !== selectedCategory) {
-        setSelectedCategory(currentCategoryId);
-
-        if (categoryScrollRef.current && categoryOffsets[currentCategoryId] !== undefined) {
-          const offset = categoryOffsets[currentCategoryId] || 0;
-          const itemWidth = categoryWidths[currentCategoryId] || 100;
-          const centerPosition = offset - (width / 2) + (itemWidth / 2);
-
-          const scrollTo = Math.max(0, centerPosition);
-          
-          categoryScrollRef.current.scrollTo({
-            x: scrollTo,
-            animated: true,
-          });
-        }
-      }
-      
-      isScrollingRef.current = false;
-    });
-  };
-
-  const handleCategoryLayout = (event, categoryId) => {
+  const handleCategoryLayout = useCallback((event, categoryId, index) => {
     const { height } = event.nativeEvent.layout;
-    
-    setCategoryHeights(prev => ({
-      ...prev,
-      [categoryId]: height
-    }));
-    
-    menuMeasurements[categoryId] = { height };
-  };
 
-  const handleCategoryItemLayout = (event, categoryId) => {
+    categoryHeightsRef.current[categoryId] = height;
+
+    if (menuPositionsRef.current.length > 0) {
+      const position = menuPositionsRef.current.find(p => p.categoryId === categoryId);
+      if (position) {
+        position.height = height;
+
+        let currentOffset = 0;
+        menuPositionsRef.current.forEach(pos => {
+          pos.offset = currentOffset;
+          currentOffset += pos.height;
+        });
+      }
+    }
+  }, []);
+
+  const handleCategoryItemLayout = useCallback((event, categoryId, index) => {
     const { width } = event.nativeEvent.layout;
-    
-    setCategoryWidths(prev => ({
-      ...prev,
-      [categoryId]: width
-    }));
-    
-    categoryMeasurements[categoryId] = { width };
-  };
 
-  const getItemLayout = (data, index) => {
-    if (!data || !groupedMenu[index]) return { length: 0, offset: 0, index };
+    if (categoryItemsRef.current[categoryId]) {
+      categoryItemsRef.current[categoryId].width = width;
+    } else {
+      categoryItemsRef.current[categoryId] = { width, index };
+    }
+
+    let currentOffset = 0;
+    const offsets = {};
     
-    const categoryId = groupedMenu[index].category_name;
-    const height = categoryHeights[categoryId] || 0;
-    
-    let offset = 0;
-    for (let i = 0; i < index; i++) {
-      const catId = groupedMenu[i]?.category_name;
-      offset += categoryHeights[catId] || 0;
+    for (let i = 0; i < groupedMenu.length; i++) {
+      const catId = groupedMenu[i].category_name;
+      offsets[catId] = currentOffset;
+      
+      const itemInfo = categoryItemsRef.current[catId];
+      const itemWidth = itemInfo ? itemInfo.width : 80 * scaleWidth;
+      
+      currentOffset += itemWidth + (14 * scaleWidth);
     }
     
+    categoryOffsetsRef.current = offsets;
+  }, [groupedMenu, scaleWidth]);
+
+  const getItemLayout = useCallback((data, index) => {
+    if (!data || !menuPositionsRef.current[index]) {
+      const defaultHeight = 200 * scaleHeight;
+      return { 
+        length: defaultHeight, 
+        offset: defaultHeight * index, 
+        index 
+      };
+    }
+    
+    const position = menuPositionsRef.current[index];
+    
     return {
-      length: height,
-      offset,
+      length: position.height,
+      offset: position.offset,
       index,
     };
-  };
+  }, [scaleHeight]);
 
-  const renderCategory = ({ item: category, index }) => {
+  const renderCategory = useCallback(({ item: category, index }) => {
     if (!category) return null;
     
     const categoryId = category.category_name;
@@ -323,64 +542,26 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
       <View
         style={styles.categorySection}
         key={categoryId}
-        onLayout={(event) => handleCategoryLayout(event, categoryId)}
+        onLayout={(event) => handleCategoryLayout(event, categoryId, index)}
       >
         <Text style={styles.categoryHeader} numberOfLines={1} ellipsizeMode="tail">
           {language === 'ZH' ? category.category_name_zh : category.category_name}
         </Text>
         <View style={styles.separator} />
 
-        {category.items.map((menuItem) => {
-          if (!menuItem) return null;
-
-          const hasOptions =
-            (menuItem.modifierGroups && menuItem.modifierGroups.length > 0) ||
-            (menuItem.option_groups && menuItem.option_groups.length > 0) ||
-            (menuItem.variants && menuItem.variants.length > 0) ||
-            menuItem.variant_group ||
-            menuItem.min_max_display;
-
-          return (
-            <TouchableOpacity
-              key={menuItem.id}
-              style={styles.menuItem}
-              onPress={goToLogin}
-            >
-              <View style={styles.info}>
-                <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
-                  {language === 'ZH' ? (menuItem.name_zh || menuItem.name) : menuItem.name}
-                </Text>
-                <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
-                  {language === 'ZH' ? (menuItem.description_zh || menuItem.description) : menuItem.description}
-                </Text>
-                
-                {menuItem.min_max_display && menuItem.min && menuItem.max ? (
-                  <Text style={styles.price}>
-                    ${(menuItem.min.fee_min / 100).toFixed(2)} - ${(menuItem.max.fee_max / 100).toFixed(2)}
-                  </Text>
-                ) : (
-                  <Text style={styles.price}>${(menuItem.fee_in_cents / 100).toFixed(2)}</Text>
-                )}
-              </View>
-
-              <Image
-                source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }}
-                style={styles.image}
-              />
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={goToLogin}
-              >
-                <Text style={styles.addButtonText}>+</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          );
-        })}
+        {category.items.map((menuItem) => (
+          <MenuItem 
+            key={menuItem.id}
+            menuItem={menuItem}
+            language={language}
+            goToLogin={goToLogin}
+          />
+        ))}
       </View>
     );
-  };
+  }, [language, handleCategoryLayout, goToLogin]);
 
-  const renderCategoryItem = (category, index) => {
+  const renderCategoryItem = useCallback((category, index) => {
     const categoryId = category.category_name;
     const isSelected = selectedCategory === categoryId;
     
@@ -392,7 +573,7 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
           isSelected && styles.selectedCategory
         ]}
         onPress={() => handleCategoryPress(categoryId, index)}
-        onLayout={(event) => handleCategoryItemLayout(event, categoryId)}
+        onLayout={(event) => handleCategoryItemLayout(event, categoryId, index)}
       >
         <Text 
           style={[
@@ -406,9 +587,9 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
         </Text>
       </TouchableOpacity>
     );
-  };
+  }, [selectedCategory, handleCategoryPress, handleCategoryItemLayout, language]);
 
-  const renderLoginButton = () => {
+  const renderLoginButton = useCallback(() => {
     return (
       <View style={styles.loginButtonContainer}>
         <TouchableOpacity 
@@ -421,7 +602,7 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
         </TouchableOpacity>
       </View>
     );
-  };
+  }, [goToLogin, t]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -448,18 +629,26 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
           <FlatList
             ref={menuListRef}
             data={groupedMenu}
+            showsVerticalScrollIndicator={false}
             keyExtractor={(item) => item.category_name}
             renderItem={renderCategory}
             style={styles.flatList}
             onScroll={handleMenuScroll}
-            scrollEventThrottle={16}
+            scrollEventThrottle={16}  
             contentContainerStyle={styles.flatListContent}
-            initialNumToRender={5}
-            maxToRenderPerBatch={5}
+            initialNumToRender={3}
+            maxToRenderPerBatch={3}
             windowSize={5}
-            removeClippedSubviews={Platform.OS === 'android'}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews={true}
             getItemLayout={getItemLayout}
-            onMomentumScrollEnd={() => setIsManualScroll(false)}
+            onMomentumScrollEnd={() => {
+
+              setTimeout(() => {
+                lockScrollUpdateRef.current = false;
+                setIsManualScroll(false);
+              }, 200);
+            }}
             keyboardShouldPersistTaps="handled"
           />
         </>
@@ -487,111 +676,122 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   categoryHeader: {
-    fontSize: 19 * fontScale, // Made slightly larger than previous version
+    fontSize: 19 * fontScale,
     fontFamily: 'Inter-SemiBold', 
     fontWeight: 'bold',
-    marginVertical: 10 * scaleHeight,
-    paddingHorizontal: 16 * scaleWidth,
+    marginVertical: 11 * scaleHeight,
+    paddingHorizontal: 15 * scaleWidth,
   },
   separator: {
     height: 1 * scaleHeight,
     backgroundColor: '#ddd',
   },
   name: {
-    fontSize: 17 * fontScale, // Made slightly larger
+    fontSize: 17 * fontScale,
     fontFamily: 'Inter-SemiBold',
     marginBottom: 4 * scaleHeight,
     maxWidth: 240 * scaleWidth,
   },
   description: {
-    fontSize: 15 * fontScale, // Made slightly larger
+    fontSize: 15 * fontScale,
     fontFamily: 'Inter-Regular',
     color: '#555',
     marginBottom: 4 * scaleHeight,
-    lineHeight: 19 * scaleHeight, // Made slightly larger
-    maxHeight: 42 * scaleHeight, // Made slightly larger
+    lineHeight: 18 * scaleHeight,
+    maxHeight: 36 * scaleHeight,
     maxWidth: 240 * scaleWidth,
     overflow: 'hidden',
   },
   price: {
-    fontSize: 17 * fontScale, // Made slightly larger
+    fontSize: 17 * fontScale,
     color: '#000',
+    marginTop: 2 * scaleHeight,
   },
   menuItem: {
     flexDirection: 'row',
-    padding: 12 * scaleWidth, // Reduced from 14
+    paddingHorizontal: 16 * scaleWidth,
     backgroundColor: '#fff',
-    borderRadius: 10 * scaleWidth, // Reduced from 11
+    borderRadius: 8 * scaleWidth,
     alignItems: 'center',
     borderBottomWidth: 1 * scaleHeight,
-    borderBottomColor: '#ccc',
-    height: 100 * scaleHeight, // Reduced from 110
+    borderBottomColor: '#eee',
+    height: 110 * scaleHeight,
     justifyContent: 'space-between',
     width: '100%',
+    marginTop: 4 * scaleHeight,
+    marginBottom: 4 * scaleHeight,
   },
   info: {
     flex: 1,
-    marginRight: 16 * scaleWidth,
+    marginRight: 18 * scaleWidth,
     justifyContent: 'center',
+    paddingVertical: 5 * scaleHeight,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: 100 * scaleWidth,
+    height: 100 * scaleHeight,
+    marginVertical: 5 * scaleHeight,
   },
   image: {
-    width: 80 * scaleWidth, // Reduced from 90
-    height: 80 * scaleHeight, // Reduced from 90
-    borderRadius: 10 * scaleWidth, // Reduced from 11
+    width: 100 * scaleWidth,
+    height: 100 * scaleHeight,
+    borderRadius: 10 * scaleWidth,
     resizeMode: 'cover',
   },
   categoryList: {
-    paddingHorizontal: 12 * scaleWidth,
-    height: 45, // Reduced from 50
+    paddingHorizontal: 10 * scaleWidth,
+    height: 42,
   },
   categoryListContent: {
     alignItems: 'center',
-    paddingRight: 18 * scaleWidth,
+    paddingRight: 16 * scaleWidth,
   },
   categoryItem: {
-    marginRight: 16 * scaleWidth, // Reduced from 18
-    paddingVertical: 10 * scaleHeight, // Reduced from 11
-    paddingHorizontal: 14 * scaleWidth, // Reduced from 16
-    height: 45, // Reduced from 50
+    marginRight: 14 * scaleWidth,
+    paddingVertical: 8 * scaleHeight,
+    paddingHorizontal: 12 * scaleWidth,
+    height: 42,
     justifyContent: 'center',
     alignItems: 'center',
   },
   selectedCategory: {
-    borderBottomWidth: 2 * scaleHeight, // Reduced from 2.5
-    borderBottomColor: 'black',
+    borderBottomWidth: 2,
+    borderBottomColor: '#000',
   },
   categoryText: {
-    fontSize: 17 * fontScale, // Made slightly larger
+    fontSize: 17 * fontScale,
     color: '#333',
     textAlignVertical: 'center',
     textAlign: 'center',
   },
   selectedCategoryText: {
     fontWeight: 'bold',
+    color: '#000',
   },
   addButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    width: 28 * scaleWidth, // Reduced from 30
-    height: 28 * scaleHeight, // Reduced from 30
-    borderRadius: 38, // Reduced from 40
+    width: 32 * scaleWidth,
+    height: 32 * scaleHeight,
+    borderRadius: 40,
     position: 'absolute',
-    bottom: 14 * scaleHeight, // Reduced from 16
-    right: 14 * scaleWidth, // Reduced from 16
+    bottom: -5 * scaleHeight,
+    right: -5 * scaleWidth,
     justifyContent: 'center',
     alignItems: 'center',
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 18 * fontScale, // Reduced from 20
+    fontSize: 18 * fontScale,
     fontWeight: 'bold',
   },
   flatListContent: {
-    paddingBottom: 80 * scaleHeight, // Reduced from 90
+    paddingBottom: 120 * scaleHeight, 
   },
   emptyMessage: {
     textAlign: 'center',
-    marginTop: 16, // Reduced from 18
-    fontSize: 14 * fontScale, // Reduced from 15
+    marginTop: 15,
+    fontSize: 14 * fontScale,
     color: '#666',
   },
   flatList: {
@@ -602,29 +802,29 @@ const styles = StyleSheet.create({
   },
   loginButtonContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 40 : 26, // Reduced from 45/28
+    bottom: Platform.OS === 'ios' ? 36 : 24,
     left: 0,
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16, // Reduced from 18
+    paddingHorizontal: 15,
   },
   loginButton: {
     backgroundColor: '#000',
-    borderRadius: 8, // Reduced from 9
+    borderRadius: 7,
     width: '90%',
-    height: 42, // Reduced from 46
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.28,
-    shadowRadius: 3,
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 2.5,
+    elevation: 3,
   },
   loginButtonText: {
     color: '#fff',
-    fontSize: 17 * fontScale, // Made slightly larger
+    fontSize: 17 * fontScale,
     fontWeight: 'bold',
     textAlign: 'center',
   }

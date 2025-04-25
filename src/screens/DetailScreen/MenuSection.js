@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useContext, useCallback, useMemo, memo } from 'react';
 import { 
   View, 
   Text, 
@@ -10,7 +10,8 @@ import {
   SafeAreaView, 
   Dimensions,
   Platform,
-  PixelRatio 
+  PixelRatio,
+  InteractionManager
 } from 'react-native';
 import { useCart } from '../../context/CartContext';
 import { useNavigation } from '@react-navigation/native';
@@ -20,180 +21,401 @@ import { LanguageContext } from '../../context/LanguageContext';
 import { useLoading } from '../../context/LoadingContext'; 
 
 const { width, height } = Dimensions.get('window');
-// Reduced scaling factors for overall smaller UI
-const scaleWidth = width / 400; // Increased base width for smaller elements
-const scaleHeight = height / 850; // Increased base height for smaller elements
-const fontScale = Math.min(PixelRatio.getFontScale(), 1.1); // Reduced max font scale
+const scaleWidth = width / 375;
+const scaleHeight = height / 812;
+const fontScale = Math.min(PixelRatio.getFontScale(), 1.15); 
+
+const CATEGORY_BAR_HEIGHT = 43; 
+
+const STYLES = {
+  menuItemHeight: 110 * scaleHeight,
+  menuItemFullHeight: 122 * scaleHeight,
+  headerHeight: 41 * scaleHeight,
+  categoryItemWidth: 100 * scaleWidth,
+  categorySpacing: 14 * scaleWidth,
+  imageSize: 100 * scaleWidth,
+};
+
+const MenuItemImage = memo(({ uri, style }) => {
+  const [loaded, setLoaded] = useState(false);
+  const placeholderUri = 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png';
+  
+  return (
+    <View style={styles.imageContainer}>
+      {!loaded && (
+        <View style={[style, { backgroundColor: '#f0f0f0', borderRadius: 10 * scaleWidth }]} />
+      )}
+      <Image
+        source={{ uri: uri || placeholderUri }}
+        style={style}
+        onLoad={() => setLoaded(true)}
+      />
+    </View>
+  );
+});
+
+const MenuItem = memo(({ menuItem, language, handleProductPress, handleAddToCart }) => {
+  if (!menuItem) return null;
+
+  const hasOptions =
+    (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) ||
+    (menuItem.option_groups && menuItem.option_groups.length > 0) ||
+    (menuItem.items && menuItem.items.length > 0) ||
+    menuItem.variant_group ||
+    menuItem.min_max_display;
+
+  return (
+    <TouchableOpacity
+      key={menuItem.id}
+      style={styles.menuItem}
+      onPress={() => handleProductPress(menuItem)}
+    >
+      <View style={styles.info}>
+        <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
+          {language === 'ZH' ? menuItem.name_zh || menuItem.name : menuItem.name}
+        </Text>
+        <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
+          {language === 'ZH' ? menuItem.description_zh || menuItem.description : menuItem.description}
+        </Text>
+        
+        {menuItem.min_max_display && menuItem.min && menuItem.max ? (
+          <Text style={styles.price}>
+            ${(menuItem.min.fee_min / 100).toFixed(2)} - ${(menuItem.max.fee_max / 100).toFixed(2)}
+          </Text>
+        ) : (
+          <Text style={styles.price}>${(menuItem.fee_in_cents / 100).toFixed(2)}</Text>
+        )}
+      </View>
+
+      <View style={styles.imageContainer}>
+        <MenuItemImage
+          uri={menuItem.image_url}
+          style={styles.image}
+        />
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => {
+            if (hasOptions) {
+              handleProductPress(menuItem);
+            } else {
+              handleAddToCart(menuItem);
+            }
+          }}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const CategoryItem = memo(({ category, index, isSelected, onPress, language }) => {
+  return (
+    <TouchableOpacity
+      key={category.category_name}
+      style={[
+        styles.categoryItem, 
+        isSelected && styles.selectedCategory
+      ]}
+      onPress={() => onPress(category.category_name, index)}
+    >
+      <Text 
+        style={[
+          styles.categoryText,
+          isSelected && styles.selectedCategoryText
+        ]}
+        numberOfLines={1}
+        ellipsizeMode="tail"
+      >
+        {language === 'ZH' ? category.category_name_zh : category.category_name}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const CategoryList = memo(({ categories, selectedCategory, handleCategoryPress, language }) => {
+  return categories.map((category, index) => (
+    <CategoryItem
+      key={category.category_name}
+      category={category}
+      index={index}
+      isSelected={selectedCategory === category.category_name}
+      onPress={handleCategoryPress}
+      language={language}
+    />
+  ));
+});
 
 const MenuSection = ({ restaurantId, restaurants }) => {
-
   const [menu, setMenu] = useState([]);
   const [groupedMenu, setGroupedMenu] = useState([]);
-  const [categoryHeights, setCategoryHeights] = useState({});
-  const [categoryWidths, setCategoryWidths] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [menuLoaded, setMenuLoaded] = useState(false);
   const [isManualScroll, setIsManualScroll] = useState(false);
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [categoryOffsets, setCategoryOffsets] = useState({});
-
-  // 使用全局的加載狀態控制
+  
+  const categoryHeightsRef = useRef({});
+  const isScrollingRef = useRef(false);
+  const menuPositionsRef = useRef([]);
+  const lockScrollUpdateRef = useRef(false);
+  const menuDataRef = useRef(null);
+  const categoryOffsetsRef = useRef({});
+  const categoryItemsRef = useRef({});
+  
   const { setIsLoading } = useLoading();
 
   const menuListRef = useRef(null);
   const categoryScrollRef = useRef(null);
-  const categoryMeasurements = useRef({}).current;
-  const menuMeasurements = useRef({}).current;
   const timeoutRef = useRef(null);
-  const isScrollingRef = useRef(false);
 
   const navigation = useNavigation();
   const { addToCart, getTotalItems, syncCartToContext } = useCart();
   const { language } = useContext(LanguageContext);
 
-  useEffect(() => {
-    if (Object.keys(categoryWidths).length > 0 && groupedMenu.length > 0) {
-      const offsets = {};
-      let currentOffset = 0;
+  const staticEstimateHeight = useCallback((categoryItems) => {
+    const headerHeight = 19 * fontScale + (11 * 2 * scaleHeight) + 1 * scaleHeight;
+    const itemHeight = 110 * scaleHeight + 8 * scaleHeight;
+    
+    return headerHeight + (categoryItems.length * itemHeight);
+  }, [fontScale, scaleHeight]);
+  
+  const calculateCategoryLayouts = useCallback(() => {
+    if (!menuListRef.current) return;
+    
+    const positions = [];
+    let currentOffset = 0;
+    
+    groupedMenu.forEach((category, index) => {
+      const categoryId = category.category_name;
+      const estimatedHeight = staticEstimateHeight(category.items);
       
-      groupedMenu.forEach((category) => {
-        const categoryId = category.category_name;
-        offsets[categoryId] = currentOffset;
-        currentOffset += (categoryWidths[categoryId] || 90) + 16 * scaleWidth; // Reduced margin
+      positions.push({
+        index,
+        categoryId,
+        offset: currentOffset,
+        height: estimatedHeight
       });
       
-      // Only update if offsets are actually different
-      if (JSON.stringify(offsets) !== JSON.stringify(categoryOffsets)) {
-        setCategoryOffsets(offsets);
-      }
-    }
-  }, [categoryWidths, groupedMenu, categoryOffsets]);
+      categoryHeightsRef.current[categoryId] = estimatedHeight;
+      currentOffset += estimatedHeight;
+    });
+    
+    menuPositionsRef.current = positions;
 
+    const categoryOffsets = {};
+    let categoryOffset = 0;
+    
+    groupedMenu.forEach((category, index) => {
+      const categoryId = category.category_name;
+      const estimatedWidth = (17 * fontScale * category.category_name.length * 0.6) + (12 * 2 * scaleWidth);
+      
+      categoryOffsets[categoryId] = categoryOffset;
+      categoryItemsRef.current[categoryId] = {
+        width: Math.max(80 * scaleWidth, estimatedWidth),
+        index
+      };
+      
+      categoryOffset += Math.max(80 * scaleWidth, estimatedWidth) + (14 * scaleWidth);
+    });
+    
+    categoryOffsetsRef.current = categoryOffsets;
+  }, [groupedMenu, staticEstimateHeight, fontScale, scaleWidth]);
+
+  useEffect(() => {
+    if (menuLoaded && groupedMenu.length > 0) {
+      InteractionManager.runAfterInteractions(() => {
+        requestAnimationFrame(() => {
+          calculateCategoryLayouts();
+        });
+      });
+    }
+  }, [menuLoaded, groupedMenu, calculateCategoryLayouts]);
 
   const handleCategoryPress = useCallback((categoryId, index) => {
+    lockScrollUpdateRef.current = true;
     setSelectedCategory(categoryId);
     setIsManualScroll(true);
 
     if (menuListRef.current) {
-      try {
-        menuListRef.current.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0,
-        });
-      } catch (error) {
-        console.warn("[MenuSection] Scroll to index failed:", error);
-
-        let offset = 0;
-        for (let i = 0; i < index; i++) {
-          const catId = groupedMenu[i]?.category_name;
-          offset += categoryHeights[catId] || 0;
-        }
-        
+      const position = menuPositionsRef.current.find(p => p.categoryId === categoryId);
+      
+      if (position) {
         menuListRef.current.scrollToOffset({
-          offset,
+          offset: position.offset,
           animated: true,
         });
+      } else {
+        try {
+          menuListRef.current.scrollToIndex({
+            index,
+            animated: true,
+            viewPosition: 0,
+          });
+        } catch (error) {
+          console.warn("[MenuSection] Scroll to index failed:", error);
+        }
       }
     }
 
     if (categoryScrollRef.current) {
-      const offset = categoryOffsets[categoryId] || 0;
-      const itemWidth = categoryWidths[categoryId] || 90;
-      const centerPosition = offset - (width / 2) + (itemWidth / 2);
-
-      const scrollTo = Math.max(0, centerPosition);
-      
-      categoryScrollRef.current.scrollTo({
-        x: scrollTo,
-        animated: true,
-      });
+      updateCategoryScroll(index);
     }
 
     clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
+      lockScrollUpdateRef.current = false;
       setIsManualScroll(false);
-    }, 800);
-  }, [groupedMenu, categoryHeights, categoryWidths, categoryOffsets]);
+    }, 1200);
+  }, []);
+
+  const updateCategoryScroll = useCallback((index) => {
+    if (!categoryScrollRef.current) return;
+    
+    const categoryId = groupedMenu[index]?.category_name;
+    if (!categoryId) return;
+    
+    const categoryInfo = categoryItemsRef.current[categoryId];
+    const itemWidth = categoryInfo ? categoryInfo.width : STYLES.categoryItemWidth;
+    
+    const offset = categoryOffsetsRef.current[categoryId] || 0;
+    const centerPosition = offset - (width / 2) + (itemWidth / 2);
+    
+    const scrollTo = Math.max(0, centerPosition);
+    
+    categoryScrollRef.current.scrollTo({
+      x: scrollTo,
+      animated: true,
+    });
+  }, [groupedMenu, width]);
 
   const handleMenuScroll = useCallback((event) => {
-    if (isManualScroll || !groupedMenu.length) return;
+    if (isManualScroll || lockScrollUpdateRef.current || !groupedMenu.length) return;
     
     const yOffset = event.nativeEvent.contentOffset.y;
-    setScrollPosition(yOffset);
-
-    if (isScrollingRef.current) return;
-    isScrollingRef.current = true;
-
-    requestAnimationFrame(() => {
-
-      let accumulatedHeight = 0;
-      let currentCategoryIndex = 0;
+    
+    if (!isScrollingRef.current) {
+      isScrollingRef.current = true;
       
-      for (let i = 0; i < groupedMenu.length; i++) {
-        const categoryId = groupedMenu[i].category_name;
-        const categoryHeight = categoryHeights[categoryId] || 0;
+      requestAnimationFrame(() => {
+
+        const topOffset = yOffset + CATEGORY_BAR_HEIGHT;
         
-        if (yOffset < accumulatedHeight + categoryHeight) {
-          currentCategoryIndex = i;
-          break;
+        let foundCategory = null;
+        let foundIndex = 0;
+
+        for (let i = 0; i < menuPositionsRef.current.length; i++) {
+          const position = menuPositionsRef.current[i];
+          const nextPosition = menuPositionsRef.current[i + 1];
+
+          if (topOffset >= position.offset && 
+              (!nextPosition || topOffset < nextPosition.offset)) {
+            foundCategory = position.categoryId;
+            foundIndex = i;
+            break;
+          }
+        }
+
+        if (!foundCategory && menuPositionsRef.current.length > 0) {
+          const lastPosition = menuPositionsRef.current[menuPositionsRef.current.length - 1];
+          foundCategory = lastPosition.categoryId;
+          foundIndex = menuPositionsRef.current.length - 1;
+        }
+
+        if (foundCategory && foundCategory !== selectedCategory) {
+          setSelectedCategory(foundCategory);
+          updateCategoryScroll(foundIndex);
         }
         
-        accumulatedHeight += categoryHeight;
+        isScrollingRef.current = false;
+      });
+    }
+  }, [isManualScroll, groupedMenu, selectedCategory, updateCategoryScroll]);
+
+  const handleCategoryLayout = useCallback((event, categoryId, index) => {
+    const { height } = event.nativeEvent.layout;
+    
+    categoryHeightsRef.current[categoryId] = height;
+    
+    if (menuPositionsRef.current.length > 0) {
+      const position = menuPositionsRef.current.find(p => p.categoryId === categoryId);
+      if (position) {
+        position.height = height;
+        
+        let currentOffset = 0;
+        menuPositionsRef.current.forEach(pos => {
+          pos.offset = currentOffset;
+          currentOffset += pos.height;
+        });
       }
+    }
+  }, []);
+
+  const handleCategoryItemLayout = useCallback((event, categoryId, index) => {
+    const { width } = event.nativeEvent.layout;
+    
+    if (categoryItemsRef.current[categoryId]) {
+      categoryItemsRef.current[categoryId].width = width;
+    } else {
+      categoryItemsRef.current[categoryId] = { width, index };
+    }
+    
+    let currentOffset = 0;
+    const offsets = {};
+    
+    for (let i = 0; i < groupedMenu.length; i++) {
+      const catId = groupedMenu[i].category_name;
+      offsets[catId] = currentOffset;
       
-      const currentCategoryId = groupedMenu[currentCategoryIndex]?.category_name;
-
-      if (currentCategoryId && currentCategoryId !== selectedCategory) {
-        setSelectedCategory(currentCategoryId);
-
-        if (categoryScrollRef.current && categoryOffsets[currentCategoryId] !== undefined) {
-          const offset = categoryOffsets[currentCategoryId] || 0;
-          const itemWidth = categoryWidths[currentCategoryId] || 90;
-          const centerPosition = offset - (width / 2) + (itemWidth / 2);
-
-          const scrollTo = Math.max(0, centerPosition);
-          
-          categoryScrollRef.current.scrollTo({
-            x: scrollTo,
-            animated: true,
-          });
-        }
-      }
+      const itemInfo = categoryItemsRef.current[catId];
+      const itemWidth = itemInfo ? itemInfo.width : 80 * scaleWidth;
       
-      isScrollingRef.current = false;
-    });
-  }, [isManualScroll, groupedMenu, categoryHeights, selectedCategory, categoryOffsets, categoryWidths]);
+      currentOffset += itemWidth + (14 * scaleWidth);
+    }
+    
+    categoryOffsetsRef.current = offsets;
+  }, [groupedMenu, scaleWidth]);
 
+  const getItemLayout = useCallback((data, index) => {
+    if (!data || !menuPositionsRef.current[index]) {
+      const defaultHeight = 200 * scaleHeight;
+      return { 
+        length: defaultHeight, 
+        offset: defaultHeight * index, 
+        index 
+      };
+    }
+    
+    const position = menuPositionsRef.current[index];
+    
+    return {
+      length: position.height,
+      offset: position.offset,
+      index,
+    };
+  }, [scaleHeight]);
 
-const handleDataFetched = useCallback((data) => {
-  if (!data || !data.categories || !data.groupedItems) {
-    console.error('[Menu Section Error] Invalid data received:', data);
-    return;
-  }
+  const handleDataFetched = useCallback((data) => {
+    if (!data || !data.categories || !data.groupedItems) {
+      console.error('[Menu Section Error] Invalid data received:', data);
+      return;
+    }
 
     const categories = data.categories;
     const groupedItems = data.groupedItems;
 
-    const variantGroups = new Map();
-    
-    groupedItems.forEach(item => {
-      if (item.variant_group && item.variant_group !== '') {
-        if (!variantGroups.has(item.variant_group)) {
-          variantGroups.set(item.variant_group, []);
-        }
-        variantGroups.get(item.variant_group).push(item);
-      }
-    });
-
+    const variantGroupsMap = new Map();
     const dedupedItemsMap = new Map();
     
     groupedItems.forEach(item => {
-      if (item.variant_group && item.variant_group !== '' && item.is_variant) {
-        return;
+      if (item.variant_group && item.variant_group !== '') {
+        if (!variantGroupsMap.has(item.variant_group)) {
+          variantGroupsMap.set(item.variant_group, []);
+        }
+        variantGroupsMap.get(item.variant_group).push(item);
       }
       
-      dedupedItemsMap.set(item.id, item);
+      if (!(item.variant_group && item.variant_group !== '' && item.is_variant)) {
+        dedupedItemsMap.set(item.id, item);
+      }
     });
 
     const grouped = categories.map(category => ({
@@ -201,69 +423,32 @@ const handleDataFetched = useCallback((data) => {
       category_name_zh: category.name || category.name,
       items: category.items
         .map(item => dedupedItemsMap.get(item.id))
-        .filter(item => item),
+        .filter(Boolean),
     }));
 
     setGroupedMenu(grouped);
     setMenu(data.groupedItems);
 
-
     if (!menuLoaded) {
-      const initialHeights = {};
-      const initialWidths = {};
-      
-      grouped.forEach(category => {
-        initialHeights[category.category_name] = 0;
-        initialWidths[category.category_name] = 0;
-      });
-      
-      setCategoryHeights(initialHeights);
-      setCategoryWidths(initialWidths);
-  
       if (grouped.length > 0) {
         setSelectedCategory(grouped[0].category_name);
       }
       
       setMenuLoaded(true);
+      setIsLoading(false);
     }
-  }, [menuLoaded]);
+  }, [menuLoaded, setIsLoading]);
 
   const handleCartFetched = useCallback((fetchedCartItems) => {
     syncCartToContext(restaurantId, fetchedCartItems);
-    
-    // 在所有數據加載完成後關閉加載狀態，並添加1秒延遲確保動畫顯示足夠時間
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+    setIsLoading(false);
   }, [restaurantId, syncCartToContext, setIsLoading]);
 
   const handleLoading = useCallback((isLoading) => {
-    // 透過全局 LoadingContext 控制加載狀態
-    setIsLoading(isLoading);
-  }, [setIsLoading]);
-
-  const handleCategoryLayout = useCallback((event, categoryId) => {
-    const { height } = event.nativeEvent.layout;
-    
-    setCategoryHeights(prev => ({
-      ...prev,
-      [categoryId]: height
-    }));
-    
-    menuMeasurements[categoryId] = { height };
-  }, [menuMeasurements]);
-
-
-  const handleCategoryItemLayout = useCallback((event, categoryId) => {
-    const { width } = event.nativeEvent.layout;
-    
-    setCategoryWidths(prev => ({
-      ...prev,
-      [categoryId]: width
-    }));
-    
-    categoryMeasurements[categoryId] = { width };
-  }, [categoryMeasurements]);
+    if (!menuLoaded) {
+      setIsLoading(isLoading);
+    }
+  }, [setIsLoading, menuLoaded]);
 
   const handleAddToCart = useCallback((item) => {
     const price = item.price || 
@@ -298,25 +483,6 @@ const handleDataFetched = useCallback((data) => {
     });
   }, [restaurantId, restaurants, navigation]);
 
-  const getItemLayout = useCallback((data, index) => {
-    if (!data || !groupedMenu[index]) return { length: 0, offset: 0, index };
-    
-    const categoryId = groupedMenu[index].category_name;
-    const height = categoryHeights[categoryId] || 0;
-    
-    let offset = 0;
-    for (let i = 0; i < index; i++) {
-      const catId = groupedMenu[i]?.category_name;
-      offset += categoryHeights[catId] || 0;
-    }
-    
-    return {
-      length: height,
-      offset,
-      index,
-    };
-  }, [groupedMenu, categoryHeights]);
-
   const getViewCartText = useCallback(() => {
     const cartItemCount = getTotalItems(restaurantId);
     return language === 'ZH' 
@@ -333,97 +499,25 @@ const handleDataFetched = useCallback((data) => {
       <View
         style={styles.categorySection}
         key={categoryId}
-        onLayout={(event) => handleCategoryLayout(event, categoryId)}
+        onLayout={(event) => handleCategoryLayout(event, categoryId, index)}
       >
         <Text style={styles.categoryHeader} numberOfLines={1} ellipsizeMode="tail">
           {language === 'ZH' ? category.category_name_zh : category.category_name}
         </Text>
         <View style={styles.separator} />
 
-        {category.items.map((menuItem) => {
-          if (!menuItem) return null;
-
-          const hasOptions =
-            (menuItem.modifier_groups && menuItem.modifier_groups.length > 0) ||
-            (menuItem.option_groups && menuItem.option_groups.length > 0) ||
-            (menuItem.items && menuItem.items.length > 0) ||
-            menuItem.variant_group ||
-            menuItem.min_max_display;
-
-          return (
-            <TouchableOpacity
-              key={menuItem.id}
-              style={styles.menuItem}
-              onPress={() => handleProductPress(menuItem)}
-            >
-              <View style={styles.info}>
-                <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
-                  {language === 'ZH' ? menuItem.name_zh || menuItem.name : menuItem.name}
-                </Text>
-                <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
-                  {language === 'ZH' ? menuItem.description_zh || menuItem.description : menuItem.description}
-                </Text>
-                
-                {menuItem.min_max_display && menuItem.min && menuItem.max ? (
-                  <Text style={styles.price}>
-                    ${(menuItem.min.fee_min / 100).toFixed(2)} - ${(menuItem.max.fee_max / 100).toFixed(2)}
-                  </Text>
-                ) : (
-                  <Text style={styles.price}>${(menuItem.fee_in_cents / 100).toFixed(2)}</Text>
-                )}
-              </View>
-
-              <Image
-                source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }}
-                style={styles.image}
-              />
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => {
-                  if (hasOptions) {
-                    handleProductPress(menuItem);
-                  } else {
-                    handleAddToCart(menuItem);
-                  }
-                }}
-              >
-                <Text style={styles.addButtonText}>+</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          );
-        })}
+        {category.items.map((menuItem) => (
+          <MenuItem 
+            key={menuItem.id}
+            menuItem={menuItem}
+            language={language}
+            handleProductPress={handleProductPress}
+            handleAddToCart={handleAddToCart}
+          />
+        ))}
       </View>
     );
   }, [language, handleCategoryLayout, handleProductPress, handleAddToCart]);
-
-
-  const renderCategoryItem = useCallback((category, index) => {
-    const categoryId = category.category_name;
-    const isSelected = selectedCategory === categoryId;
-    
-    return (
-      <TouchableOpacity
-        key={categoryId}
-        style={[
-          styles.categoryItem, 
-          isSelected && styles.selectedCategory
-        ]}
-        onPress={() => handleCategoryPress(categoryId, index)}
-        onLayout={(event) => handleCategoryItemLayout(event, categoryId)}
-      >
-        <Text 
-          style={[
-            styles.categoryText,
-            isSelected && styles.selectedCategoryText
-          ]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {language === 'ZH' ? category.category_name_zh : category.category_name}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [selectedCategory, handleCategoryPress, handleCategoryItemLayout, language]);
 
   const renderCartButton = useCallback(() => {
     const cartItemCount = getTotalItems(restaurantId);
@@ -441,7 +535,6 @@ const handleDataFetched = useCallback((data) => {
     return null;
   }, [menuLoaded, getTotalItems, restaurantId, handleViewCart, getViewCartText]);
 
-  // 在組件卸載時清除加載狀態
   useEffect(() => {
     return () => {
       setIsLoading(false);
@@ -450,7 +543,6 @@ const handleDataFetched = useCallback((data) => {
 
   return (
     <SafeAreaView style={styles.container}>
-
       <MenuFetcher
         restaurantId={restaurantId}
         onDataFetched={handleDataFetched}
@@ -465,7 +557,6 @@ const handleDataFetched = useCallback((data) => {
       )}
 
       {!menuLoaded ? (
-        // 載入中顯示空白，實際載入畫面由 LoadingContext 處理
         <View style={styles.emptyContainer} />
       ) : groupedMenu.length > 0 ? (
         <>
@@ -479,33 +570,42 @@ const handleDataFetched = useCallback((data) => {
               contentContainerStyle={styles.categoryListContent}
               keyboardShouldPersistTaps="handled"
             >
-              {groupedMenu.map((category, index) => (
-                renderCategoryItem(category, index)
-              ))}
+              <CategoryList 
+                categories={groupedMenu}
+                selectedCategory={selectedCategory}
+                handleCategoryPress={handleCategoryPress}
+                language={language}
+              />
             </ScrollView>
           </View>
 
           <FlatList
             ref={menuListRef}
             data={groupedMenu}
+            showsVerticalScrollIndicator={false}
             keyExtractor={(item) => item.category_name}
             renderItem={renderCategory}
             style={styles.flatList}
             onScroll={handleMenuScroll}
             scrollEventThrottle={16}
             contentContainerStyle={styles.flatListContent}
-            initialNumToRender={5}
-            maxToRenderPerBatch={5}
+            initialNumToRender={3}
+            maxToRenderPerBatch={3}
             windowSize={5}
-            removeClippedSubviews={Platform.OS === 'android'}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews={true}
             getItemLayout={getItemLayout}
-            onMomentumScrollEnd={() => setIsManualScroll(false)}
+            onMomentumScrollEnd={() => {
+              setTimeout(() => {
+                lockScrollUpdateRef.current = false;
+                setIsManualScroll(false);
+              }, 200);
+            }}
             keyboardShouldPersistTaps="handled"
           />
         </>
       ) : (
-        <Text style={styles.emptyMessage}>
-        </Text>
+        <Text style={styles.emptyMessage}></Text>
       )}
 
       {renderCartButton()}
@@ -528,139 +628,122 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   categoryHeader: {
-    fontSize: 20 * fontScale, // Reduced from 24
+    fontSize: 19 * fontScale,
     fontFamily: 'Inter-SemiBold', 
     fontWeight: 'bold',
-    marginVertical: 10 * scaleHeight, // Reduced from 12
-    paddingHorizontal: 16 * scaleWidth, // Reduced from 18
+    marginVertical: 11 * scaleHeight,
+    paddingHorizontal: 15 * scaleWidth,
   },
   separator: {
     height: 1 * scaleHeight,
     backgroundColor: '#ddd',
   },
   name: {
-    fontSize: 20 * fontScale, // Reduced from 24
+    fontSize: 17 * fontScale,
     fontFamily: 'Inter-SemiBold',
-    marginBottom: 5 * scaleHeight, // Reduced from 6
-    maxWidth: 230 * scaleWidth, // Reduced from 260
+    marginBottom: 4 * scaleHeight,
+    maxWidth: 240 * scaleWidth,
   },
   description: {
-    fontSize: 16 * fontScale, // Reduced from 20
+    fontSize: 15 * fontScale,
     fontFamily: 'Inter-Regular',
     color: '#555',
-    marginBottom: 5 * scaleHeight, // Reduced from 6
-    lineHeight: 18 * scaleHeight, // Reduced from 22
-    maxHeight: 40 * scaleHeight, // Reduced from 50
-    maxWidth: 230 * scaleWidth, // Reduced from 260
+    marginBottom: 4 * scaleHeight,
+    lineHeight: 18 * scaleHeight,
+    maxHeight: 36 * scaleHeight,
+    maxWidth: 240 * scaleWidth,
     overflow: 'hidden',
   },
   price: {
-    fontSize: 18 * fontScale, // Reduced from 24
+    fontSize: 17 * fontScale,
     color: '#000',
+    marginTop: 2 * scaleHeight,
   },
   menuItem: {
     flexDirection: 'row',
-    padding: 14 * scaleWidth, // Reduced from 16
+    paddingHorizontal: 16 * scaleWidth,
     backgroundColor: '#fff',
-    borderRadius: 10 * scaleWidth, // Reduced from 12
+    borderRadius: 8 * scaleWidth,
     alignItems: 'center',
     borderBottomWidth: 1 * scaleHeight,
-    borderBottomColor: '#ccc',
-    height: 100 * scaleHeight, // Reduced from 120
+    borderBottomColor: '#eee',
+    height: 110 * scaleHeight,
     justifyContent: 'space-between',
     width: '100%',
+    marginTop: 4 * scaleHeight,
+    marginBottom: 4 * scaleHeight,
   },
   info: {
     flex: 1,
-    marginRight: 16 * scaleWidth, // Reduced from 18
+    marginRight: 18 * scaleWidth,
     justifyContent: 'center',
+    paddingVertical: 5 * scaleHeight,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: 100 * scaleWidth,
+    height: 100 * scaleHeight,
+    marginVertical: 5 * scaleHeight,
   },
   image: {
-    width: 85 * scaleWidth, // Reduced from 100
-    height: 85 * scaleHeight, // Reduced from 100
-    borderRadius: 10 * scaleWidth, // Reduced from 12
+    width: 100 * scaleWidth,
+    height: 100 * scaleHeight,
+    borderRadius: 10 * scaleWidth,
     resizeMode: 'cover',
   },
   categoryList: {
-    paddingHorizontal: 10 * scaleWidth, // Reduced from 12
-    height: 48, // Reduced from 56
+    paddingHorizontal: 10 * scaleWidth,
+    height: 42,
   },
   categoryListContent: {
     alignItems: 'center',
-    paddingRight: 16 * scaleWidth, // Reduced from 20
+    paddingRight: 16 * scaleWidth,
   },
   categoryItem: {
-    marginRight: 16 * scaleWidth, // Reduced from 20
-    paddingVertical: 10 * scaleHeight, // Reduced from 12
-    paddingHorizontal: 14 * scaleWidth, // Reduced from 18
-    height: 48, // Reduced from 56
+    marginRight: 14 * scaleWidth,
+    paddingVertical: 8 * scaleHeight,
+    paddingHorizontal: 12 * scaleWidth,
+    height: 42,
     justifyContent: 'center',
     alignItems: 'center',
   },
   selectedCategory: {
-    borderBottomWidth: 2 * scaleHeight, // Reduced from 3
-    borderBottomColor: 'black',
+    borderBottomWidth: 2,
+    borderBottomColor: '#000',
   },
   categoryText: {
-    fontSize: 18 * fontScale, // Reduced from 24
+    fontSize: 17 * fontScale,
     color: '#333',
     textAlignVertical: 'center',
     textAlign: 'center',
   },
   selectedCategoryText: {
     fontWeight: 'bold',
+    color: '#000',
   },
   addButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    width: 28 * scaleWidth, // Reduced from 34
-    height: 28 * scaleHeight, // Reduced from 34
-    borderRadius: 50,
+    width: 32 * scaleWidth,
+    height: 32 * scaleHeight,
+    borderRadius: 40,
     position: 'absolute',
-    bottom: 14 * scaleHeight, // Reduced from 18
-    right: 14 * scaleWidth, // Reduced from 18
+    bottom: -5 * scaleHeight,
+    right: -5 * scaleWidth,
     justifyContent: 'center',
     alignItems: 'center',
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 18 * fontScale, // Reduced from 22
+    fontSize: 18 * fontScale,
     fontWeight: 'bold',
   },
   flatListContent: {
-    paddingBottom: 90 * scaleHeight, // Reduced from 100
-  },
-  viewCartContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 40 : 25, // Reduced from 50/30
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16, // Reduced from 20
-  },
-  viewCartButton: {
-    backgroundColor: '#000',
-    borderRadius: 8, // Reduced from 10
-    width: '90%',
-    height: 42, // Reduced from 50
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  viewCartButtonText: {
-    color: '#fff',
-    fontSize: 16 * fontScale, // Reduced from 20
-    fontWeight: 'bold',
-    textAlign: 'center',
+    paddingBottom: 120 * scaleHeight, 
   },
   emptyMessage: {
     textAlign: 'center',
-    marginTop: 16, // Reduced from 20
-    fontSize: 14 * fontScale, // Reduced from 16
+    marginTop: 15,
+    fontSize: 14 * fontScale,
     color: '#666',
   },
   flatList: {
@@ -668,6 +751,34 @@ const styles = StyleSheet.create({
   },
   categorySection: {
     backgroundColor: '#fff',
+  },
+  viewCartContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 36 : 24,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 15,
+  },
+  viewCartButton: {
+    backgroundColor: '#000',
+    borderRadius: 7,
+    width: '90%',
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2.5,
+    elevation: 3,
+  },
+  viewCartButtonText: {
+    color: '#fff',
+    fontSize: 17 * fontScale,
+    fontWeight: 'bold',
+    textAlign: 'center',
   }
 });
   

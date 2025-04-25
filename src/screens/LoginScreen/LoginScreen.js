@@ -427,6 +427,9 @@ export default function LoginScreen({ setIsAuthenticated }) {
               ]} 
               onPress={!isCodeSent ? handleSendCode : handleVerifyCode} 
               disabled={buttonDisabled}
+              activeOpacity={0.6}
+              // Added hitSlop to make the button easier to press
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <LinearGradient
                 colors={buttonDisabled ? ['#e0e0e0', '#d5d5d5'] : ['#2E8B57', '#3CB371']}
@@ -469,9 +472,9 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14, // Reduced horizontal padding
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 14,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 12, // Slightly reduced padding
   },
   backgroundGradient: {
     position: 'absolute',
@@ -482,36 +485,37 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 340, // Reduced max width from 360 to 340
     alignSelf: 'center',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,77,77,0.07)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 5, // Reduced padding
+    paddingHorizontal: 10, // Reduced padding
     borderRadius: 6,
-    marginBottom: 6,
+    marginBottom: 5, // Reduced margin
     borderWidth: 1,
     borderColor: 'rgba(255,77,77,0.2)',
   },
   errorText: {
     color: '#ff4d4d',
-    fontSize: 11,
+    fontSize: 10, // Reduced font size from 11 to 10
     marginLeft: 5,
     flex: 1,
   },
   button: {
-    height: 42,
+    height: 52, // Increased height for better tap target
     borderRadius: 8,
-    marginBottom: 6,
+    marginBottom: 8, // Increased margin for better visual spacing
+    marginTop: 4, // Added top margin
     overflow: 'hidden',
     shadowColor: '#2E8B57',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   buttonGradient: {
     width: '100%',
@@ -525,17 +529,17 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 15, // Increased from 13 to 15
     fontWeight: 'bold',
     letterSpacing: 0.2,
   },
   footerTextContainer: {
-    marginTop: 14,
+    marginTop: 12, // Reduced from 14
     alignItems: 'center', 
   },
   footerText: {
     color: '#777',
-    fontSize: 10,
+    fontSize: 9, // Reduced from 10 to 9
     textAlign: 'center',
   },
   linkText: {

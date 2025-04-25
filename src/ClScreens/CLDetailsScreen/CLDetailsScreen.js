@@ -1,4 +1,4 @@
-// 1. 首先移除不必要的導入
+
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,8 +7,6 @@ import { LanguageContext } from '../../context/LanguageContext';
 import CLRestaurantHeader from './CLRestaurnatHeader';
 import CLMenuSection from './CLMenuSection';
 import Constants from 'expo-constants';
-// 移除 LottieView 導入
-// import LottieView from 'lottie-react-native';
 
 const { API_URL } = Constants.expoConfig.extra;
 
@@ -29,20 +27,16 @@ const translations = {
   }
 };
 
-// 自定義返回按鈕組件
 const CustomBackButton = ({ navigation }) => {
   const handleBackPress = () => {
-    // 檢查導航堆疊中是否有上一頁可返回
     if (navigation.canGoBack()) {
       try {
         navigation.goBack();
       } catch (error) {
-        // 如果返回失敗，則導航到訪客模式首頁
         console.error('[Navigation] Go back failed:', error);
         navigation.navigate('CLHome');
       }
     } else {
-      // 如果沒有上一頁，則直接導航到訪客模式首頁
       navigation.navigate('CLHome');
     }
   };
@@ -60,13 +54,9 @@ const CustomBackButton = ({ navigation }) => {
 function CLDetailsScreen({ route, navigation }) {
   const { restaurant, restaurants } = route.params;
   const { language } = useContext(LanguageContext);
-  // 由於不再需要加載狀態，可以直接設為 false 或完全移除
   const [isLoading, setIsLoading] = useState(false);
-
-  // 翻譯函數
   const t = (key) => translations[language][key] || key;
 
-  // 提示登入對話框
   const promptLogin = () => {
     Alert.alert(
       language === 'EN' ? "Login Required" : "登入提示",
@@ -78,22 +68,10 @@ function CLDetailsScreen({ route, navigation }) {
     );
   };
 
-  // 可以完全移除這個 useEffect，因為不再需要模擬加載
-  // useEffect(() => {
-  //   const timer = setTimeout(() => {
-  //     setIsLoading(false);
-  //   }, 1000);
-  //   return () => clearTimeout(timer);
-  // }, []);
-
-  
   return (
     <View style={styles.container}>
       <CustomBackButton navigation={navigation} />
-
       <CLRestaurantHeader restaurant={restaurant} />
-
-      {/* 直接顯示 CLMenuSection，移除加載動畫的條件渲染 */}
       <CLMenuSection
         restaurantId={restaurant.gid}
         restaurants={restaurants}
@@ -116,22 +94,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.8)',
     borderRadius: 20,
   },
-  // 移除不再需要的樣式
-  // loadingContainer: {
-  //   flex: 1,
-  //   justifyContent: 'center',
-  //   alignItems: 'center',
-  //   marginVertical: 250
-  // },
-  // loadingAnimation: {
-  //   width: 100,
-  //   height: 100,
-  // },
-  // loadingText: {
-  //   marginTop: 16,
-  //   fontSize: 16,
-  //   color: '#000',
-  // },
   guestModeContainer: {
     position: 'absolute',
     bottom: 0,

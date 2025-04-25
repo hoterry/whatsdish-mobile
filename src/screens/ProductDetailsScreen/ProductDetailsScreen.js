@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../context/CartContext';
@@ -13,70 +13,62 @@ const ProductDetailScreen = ({ route, navigation }) => {
   const { language } = useContext(LanguageContext);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const variants = menuItem.items || [];
-  const hasVariants = variants.length > 0 && menuItem.variant_group;
-
-  useEffect(() => {
-    if (__DEV__) {
-      console.log("[VARIANT DEBUG] variant_group:", menuItem.variant_group);
-      if (menuItem.variant_group) {
-        console.log("[VARIANT DEBUG] variant_group.id:", menuItem.variant_group.id);
-      }
-      console.log("[VARIANT DEBUG] variants:", variants);
-
-      if (variants.length > 0) {
-        console.log("[VARIANT DEBUG] First variant:", variants[0]);
-        console.log("[VARIANT DEBUG] First variant id:", variants[0].id);
-        console.log("[VARIANT DEBUG] First variant gid (if exists):", variants[0].gid);
-      }
-    }
-  }, [menuItem]);
-
-  const modifiers = (menuItem.modifier_groups || []).flatMap(group =>
-    group.modifiers
-      ? group.modifiers.map(item => {
-          const name = language === 'ZH' && item.name_zh ? item.name : item.name;
-          return {
-            id: item.id,
-            name: name,
-            price: item.price,
-            groupName: group.name,
-            groupId: group.id 
-          };
-        })
-      : []
+  // 使用 useMemo 避免不必要的重新計算
+  const variants = useMemo(() => menuItem.items || [], [menuItem.items]);
+  const hasVariants = useMemo(() => 
+    variants.length > 0 && menuItem.variant_group, 
+    [variants.length, menuItem.variant_group]
   );
 
-  useEffect(() => {
-    if (__DEV__) {
-      console.log("[Product Detail Screen Log] Modifiers available:", modifiers);
-      console.log("[Product Detail Screen Log] Variants available:", variants);
-    }
+  // 使用 useMemo 減少重新計算修飾器
+  const modifiers = useMemo(() => 
+    (menuItem.modifier_groups || []).flatMap(group =>
+      group.modifiers
+        ? group.modifiers.map(item => {
+            const name = language === 'ZH' && item.name_zh ? item.name : item.name;
+            return {
+              id: item.id,
+              name: name,
+              price: item.price,
+              groupName: group.name,
+              groupId: group.id 
+            };
+          })
+        : []
+    ),
+    [menuItem.modifier_groups, language]
+  );
 
+  // 初始化選擇的變體
+  useEffect(() => {
     if (hasVariants && variants.length > 0 && !selectedVariant) {
       setSelectedVariant(variants[0]);
     }
-  }, [menuItem]); 
+  }, [hasVariants, variants, selectedVariant]);
 
-  const getBasePrice = () => {
+  // 使用 useMemo 優化價格計算
+  const basePrice = useMemo(() => {
     if (selectedVariant) {
       return selectedVariant.fee_in_cents / 100;
     }
     return menuItem.fee_in_cents ? menuItem.fee_in_cents / 100 : 0;
-  };
+  }, [selectedVariant, menuItem.fee_in_cents]);
 
-  const basePrice = getBasePrice();
-  const totalModifiersPrice = selectedModifiers.reduce(
-    (total, modifier) => total + (modifier.price / 100),
-    0
+  const totalModifiersPrice = useMemo(() => 
+    selectedModifiers.reduce(
+      (total, modifier) => total + (modifier.price / 100),
+      0
+    ),
+    [selectedModifiers]
   );
-  const currentPrice = basePrice + totalModifiersPrice;
 
-  const handleAddToCart = () => {
-    if (__DEV__) {
-      console.log("[Product Detail Screen Log] Handling Add to Cart...");
-    }
-  
+  const currentPrice = useMemo(() => 
+    basePrice + totalModifiersPrice,
+    [basePrice, totalModifiersPrice]
+  );
+
+  // 使用 useCallback 優化事件處理器
+  const handleAddToCart = useCallback(() => {
     if (hasVariants && !selectedVariant) {
       setErrorMessage(language === 'ZH' ? '請選擇規格' : 'Please select a size');
       Alert.alert(
@@ -131,20 +123,24 @@ const ProductDetailScreen = ({ route, navigation }) => {
       uniqueId: `${(selectedVariant || menuItem).id}-${selectedModifiersIds}-${Date.now()}`,
       note: note,
     };
-
-    console.log("[DEBUG] gid:", itemWithOptionsAndVariants.gid);
-    console.log("[DEBUG] Complete Item Data:", itemWithOptionsAndVariants);
   
     addToCart(restaurantId, itemWithOptionsAndVariants, 1);
     navigation.goBack();
-  };
+  }, [
+    hasVariants, 
+    selectedVariant, 
+    menuItem, 
+    selectedModifiers, 
+    language,
+    basePrice, 
+    note, 
+    restaurantId, 
+    addToCart,
+    navigation
+  ]);
   
-
-  const toggleModifier = (modifier, group) => {
-    if (__DEV__) {
-      console.log("[Product Detail Screen Log] Toggling modifier:", modifier);
-    }
-
+  // 使用 useCallback 優化 toggleModifier
+  const toggleModifier = useCallback((modifier, group) => {
     setSelectedModifiers((prevModifiers) => {
       const isAlreadySelected = prevModifiers.some(m => m.id === modifier.id);
 
@@ -165,7 +161,10 @@ const ProductDetailScreen = ({ route, navigation }) => {
         return [...prevModifiers, {...modifier, groupId: group.id}];
       }
     });
-  };
+  }, []);
+
+  // 預加載圖像
+  const imageUrl = (selectedVariant || menuItem).image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png';
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -176,8 +175,10 @@ const ProductDetailScreen = ({ route, navigation }) => {
       </View>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Image 
-          source={{ uri: (selectedVariant || menuItem).image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }} 
-          style={styles.largeImage} 
+          source={{ uri: imageUrl }} 
+          style={styles.largeImage}
+          progressiveRenderingEnabled={true}
+          fadeDuration={300}
         />
         <Text style={styles.name}>{language === 'ZH' ? (selectedVariant || menuItem).name : (selectedVariant || menuItem).name}</Text>
         <Text style={styles.description}>{language === 'ZH' ? (selectedVariant || menuItem).description : (selectedVariant || menuItem).description}</Text>
@@ -282,7 +283,7 @@ const ProductDetailScreen = ({ route, navigation }) => {
           onPress={handleAddToCart}
         >
           <Text style={styles.addToCartButtonText}>
-            {language === 'ZH' ? '加入购物车' : 'Add to Cart'}
+            {language === 'ZH' ? '加入購物車' : 'Add to Cart'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -312,10 +313,11 @@ const styles = StyleSheet.create({
   },
   largeImage: {
     width: "100%",
-    height: 240,
+    height: 320,
     borderRadius: 8,
-    marginBottom: 24,
-    padding: 16,
+    marginTop: 24,
+    marginBottom: 36,
+    resizeMode: 'contain',
   },
   name: {
     fontSize: 20,
@@ -391,18 +393,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
   },
-  addToCartButton: {
-    padding: 12,
-    backgroundColor: '#000',
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 16
-  },
-  addToCartButtonText: {
-    fontSize: 16,
-    color: 'white',
-    fontWeight: 'bold',
-  },
+addToCartButton: {
+  padding: 16,
+  backgroundColor: '#000',
+  borderRadius: 8,
+  alignItems: 'center',
+  marginBottom: 16,
+  height: 50  
+},
+addToCartButtonText: {
+  fontSize: 16,
+  color: 'white',
+  fontWeight: 'bold',
+},
   fixedBottomContainer: {
     position: 'absolute',
     bottom: 0,
@@ -452,4 +455,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProductDetailScreen;
+export default React.memo(ProductDetailScreen);

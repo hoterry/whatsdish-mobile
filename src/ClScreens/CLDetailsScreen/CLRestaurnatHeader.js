@@ -53,64 +53,63 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   headerContainer: {
     alignItems: 'center',
-    marginTop: -20, // Updated from -16 to -20 to match non-CL
+    marginTop: -18,
     width: '100%',
   },
   headerName: {
-    fontSize: 24,
+    fontSize: 22,
     fontFamily: 'Inter-SemiBold', 
     marginTop: 5,
     textAlign: 'center',
     paddingHorizontal: 10,
-    width: width * 0.9,
+    width: width * 0.88,
     color: '#333',
   },
   restaurantImage: {
     width: '100%',
-    height: 200, // Updated from 170 to 200 to match non-CL
-    borderRadius: 10, // Updated from 8 to 10 to match non-CL
-    marginBottom: 10, // Updated from 8 to 10 to match non-CL
+    height: 180,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   restaurantLogo: {
-    width: 70, // Updated from 60 to 70 to match non-CL
-    height: 70, // Updated from 60 to 70 to match non-CL
-    borderRadius: 35, // Updated from 30 to 35 to match non-CL
-    marginRight: 15, // Updated from 12 to 15 to match non-CL
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    marginRight: 14,
     borderWidth: 1,
     borderColor: '#fff',
-    marginTop: -50, // Updated from -40 to -50 to match non-CL
+    marginTop: -45,
     backgroundColor: '#fff',
   },
   logoContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: -40, // Updated from -35 to -40 to match non-CL
+    marginTop: -35,
   },
   centerAlignContainer: {
     width: '100%',
     alignItems: 'center',
-    marginTop: 20, // Updated from 16 to 20 to match non-CL
+    marginTop: 18,
   },
   textContainer: {
     alignItems: 'center',
-    width: '90%',
+    width: '88%',
   },
   address: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: 'Montserrat',
     color: '#666',
-    marginTop: 8,
+    marginTop: 7,
     textAlign: 'center',
     paddingHorizontal: 10,
-    width: width * 0.9,
+    width: width * 0.88,
   },
-  // 訪客模式標籤樣式
   guestModeTag: {
     backgroundColor: 'rgba(247, 247, 247, 0.9)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 16,
-    marginTop: 8,
+    borderRadius: 15,
+    marginTop: 7,
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
