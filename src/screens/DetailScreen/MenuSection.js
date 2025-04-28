@@ -41,7 +41,7 @@ const MenuItemImage = memo(({ uri, style }) => {
   const placeholderUri = 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png';
   
   return (
-    <View style={styles.imageContainer}>
+    <View style={styles.imageWrapper}>
       {!loaded && (
         <View style={[style, { backgroundColor: '#f0f0f0', borderRadius: 10 * scaleWidth }]} />
       )}
@@ -319,7 +319,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
           foundCategory = lastPosition.categoryId;
           foundIndex = menuPositionsRef.current.length - 1;
         }
-
+        
         if (foundCategory && foundCategory !== selectedCategory) {
           setSelectedCategory(foundCategory);
           updateCategoryScroll(foundIndex);
@@ -662,16 +662,17 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     paddingHorizontal: 16 * scaleWidth,
+    paddingVertical: 10 * scaleHeight,
     backgroundColor: '#fff',
     borderRadius: 8 * scaleWidth,
     alignItems: 'center',
     borderBottomWidth: 1 * scaleHeight,
-    borderBottomColor: '#eee',
-    height: 110 * scaleHeight,
+    borderBottomColor: '#f6f6f6',
+    minHeight: 110 * scaleHeight,
     justifyContent: 'space-between',
     width: '100%',
-    marginTop: 4 * scaleHeight,
-    marginBottom: 4 * scaleHeight,
+
+    marginBottom: 6 * scaleHeight,
   },
   info: {
     flex: 1,
@@ -683,7 +684,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 100 * scaleWidth,
     height: 100 * scaleHeight,
-    marginVertical: 5 * scaleHeight,
+    marginBottom: 12 * scaleHeight,
+    marginTop: 5 * scaleHeight,
+  },
+  imageWrapper: {
+    width: 100 * scaleWidth,
+    height: 100 * scaleHeight,
+    borderRadius: 10 * scaleWidth,
+    overflow: 'hidden',
   },
   image: {
     width: 100 * scaleWidth,
@@ -727,10 +735,11 @@ const styles = StyleSheet.create({
     height: 32 * scaleHeight,
     borderRadius: 40,
     position: 'absolute',
-    bottom: -5 * scaleHeight,
+    bottom: 4 * scaleHeight,
     right: -5 * scaleWidth,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
   },
   addButtonText: {
     color: '#fff',

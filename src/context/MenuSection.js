@@ -415,7 +415,7 @@ const MenuSection = ({ restaurantId, restaurants }) => {
         </Text>
         <View style={styles.separator} />
 
-        {category.items.map((menuItem) => {
+        {category.items.map((menuItem, itemIndex) => {
           if (!menuItem) return null;
 
           const hasOptions =
@@ -426,45 +426,50 @@ const MenuSection = ({ restaurantId, restaurants }) => {
             menuItem.min_max_display;
 
           return (
-            <TouchableOpacity
-              key={menuItem.id}
-              style={styles.menuItem}
-              onPress={() => handleProductPress(menuItem)}
-            >
-              <View style={styles.info}>
-                <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
-                  {language === 'ZH' ? menuItem.name_zh || menuItem.name : menuItem.name}
-                </Text>
-                <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
-                  {language === 'ZH' ? menuItem.description_zh || menuItem.description : menuItem.description}
-                </Text>
-                
-                {menuItem.min_max_display && menuItem.min && menuItem.max ? (
-                  <Text style={styles.price}>
-                    ${(menuItem.min.fee_min / 100).toFixed(2)} - ${(menuItem.max.fee_max / 100).toFixed(2)}
-                  </Text>
-                ) : (
-                  <Text style={styles.price}>${(menuItem.fee_in_cents / 100).toFixed(2)}</Text>
-                )}
-              </View>
-
-              <Image
-                source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }}
-                style={styles.image}
-              />
+            <View key={menuItem.id} style={styles.menuItemContainer}>
               <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => {
-                  if (hasOptions) {
-                    handleProductPress(menuItem);
-                  } else {
-                    handleAddToCart(menuItem);
-                  }
-                }}
+                style={styles.menuItem}
+                onPress={() => handleProductPress(menuItem)}
               >
-                <Text style={styles.addButtonText}>+</Text>
+                <View style={styles.info}>
+                  <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
+                    {language === 'ZH' ? menuItem.name_zh || menuItem.name : menuItem.name}
+                  </Text>
+                  <Text style={styles.description} numberOfLines={1} ellipsizeMode="tail">
+                    {language === 'ZH' ? menuItem.description_zh || menuItem.description : menuItem.description}
+                  </Text>
+                  
+                  {menuItem.min_max_display && menuItem.min && menuItem.max ? (
+                    <Text style={styles.price}>
+                      ${(menuItem.min.fee_min / 100).toFixed(2)} - ${(menuItem.max.fee_max / 100).toFixed(2)}
+                    </Text>
+                  ) : (
+                    <Text style={styles.price}>${(menuItem.fee_in_cents / 100).toFixed(2)}</Text>
+                  )}
+                </View>
+
+                <Image
+                  source={{ uri: menuItem.image_url || 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png' }}
+                  style={styles.image}
+                />
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => {
+                    if (hasOptions) {
+                      handleProductPress(menuItem);
+                    } else {
+                      handleAddToCart(menuItem);
+                    }
+                  }}
+                >
+                  <Text style={styles.addButtonText}>+</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
+              
+              {itemIndex < category.items.length - 1 && (
+                <View style={styles.itemSpacer} />
+              )}
+            </View>
           );
         })}
       </View>
@@ -606,6 +611,24 @@ const styles = StyleSheet.create({
     height: 1 * scaleHeight,
     backgroundColor: '#ddd',
   },
+  menuItemContainer: {
+    marginBottom: 16 * scaleHeight,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    padding: 16 * scaleWidth,
+    backgroundColor: '#fff',
+    borderRadius: 12 * scaleWidth,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  itemSpacer: {
+    height: 1 * scaleHeight,
+    backgroundColor: '#f0f0f0',
+    marginTop: 8 * scaleHeight,
+    marginHorizontal: 16 * scaleWidth,
+  },
   name: {
     fontSize: 24 * fontScale, 
     fontFamily: 'Inter-SemiBold',
@@ -626,18 +649,6 @@ const styles = StyleSheet.create({
     fontSize: 24 * fontScale,
     color: '#000',
   },
-  menuItem: {
-    flexDirection: 'row',
-    padding: 16 * scaleWidth,
-    backgroundColor: '#fff',
-    borderRadius: 12 * scaleWidth,
-    alignItems: 'center',
-    borderBottomWidth: 1 * scaleHeight,
-    borderBottomColor: '#ccc',
-    height: 120 * scaleHeight,
-    justifyContent: 'space-between',
-    width: '100%',
-  },
   info: {
     flex: 1,
     marginRight: 18 * scaleWidth,
@@ -648,6 +659,7 @@ const styles = StyleSheet.create({
     height: 100 * scaleHeight,
     borderRadius: 12 * scaleWidth,
     resizeMode: 'cover',
+    marginBottom: 8 * scaleHeight,
   },
   categoryList: {
     paddingHorizontal: 12 * scaleWidth,

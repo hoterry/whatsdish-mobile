@@ -40,7 +40,7 @@ const translations = {
 const STYLES = {
   menuItemHeight: 110 * scaleHeight,
   menuItemFullHeight: 122 * scaleHeight,
-  headerHeight: 42 * scaleHeight,
+  headerHeight: 41 * scaleHeight,
   categoryItemWidth: 100 * scaleWidth,
   categorySpacing: 14 * scaleWidth,
   imageSize: 100 * scaleWidth,
@@ -53,7 +53,7 @@ const MenuItemImage = memo(({ uri, style }) => {
   const placeholderUri = 'https://res.cloudinary.com/dfbpwowvb/image/upload/v1740026601/WeChat_Screenshot_20250219204307_juhsxp.png';
   
   return (
-    <View style={styles.imageContainer}>
+    <View style={styles.imageWrapper}>
       {!loaded && (
         <View style={[style, { backgroundColor: '#f0f0f0', borderRadius: 10 * scaleWidth }]} />
       )}
@@ -561,34 +561,6 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
     );
   }, [language, handleCategoryLayout, goToLogin]);
 
-  const renderCategoryItem = useCallback((category, index) => {
-    const categoryId = category.category_name;
-    const isSelected = selectedCategory === categoryId;
-    
-    return (
-      <TouchableOpacity
-        key={categoryId}
-        style={[
-          styles.categoryItem, 
-          isSelected && styles.selectedCategory
-        ]}
-        onPress={() => handleCategoryPress(categoryId, index)}
-        onLayout={(event) => handleCategoryItemLayout(event, categoryId, index)}
-      >
-        <Text 
-          style={[
-            styles.categoryText,
-            isSelected && styles.selectedCategoryText
-          ]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {language === 'ZH' ? category.category_name_zh : category.category_name}
-        </Text>
-      </TouchableOpacity>
-    );
-  }, [selectedCategory, handleCategoryPress, handleCategoryItemLayout, language]);
-
   const renderLoginButton = useCallback(() => {
     return (
       <View style={styles.loginButtonContainer}>
@@ -620,9 +592,12 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
               contentContainerStyle={styles.categoryListContent}
               keyboardShouldPersistTaps="handled"
             >
-              {groupedMenu.map((category, index) => (
-                renderCategoryItem(category, index)
-              ))}
+              <CategoryList 
+                categories={groupedMenu}
+                selectedCategory={selectedCategory}
+                handleCategoryPress={handleCategoryPress}
+                language={language}
+              />
             </ScrollView>
           </View>
 
@@ -643,7 +618,6 @@ const CLMenuSection = ({ restaurantId, restaurants }) => {
             removeClippedSubviews={true}
             getItemLayout={getItemLayout}
             onMomentumScrollEnd={() => {
-
               setTimeout(() => {
                 lockScrollUpdateRef.current = false;
                 setIsManualScroll(false);
@@ -710,16 +684,16 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     paddingHorizontal: 16 * scaleWidth,
+    paddingVertical: 10 * scaleHeight,
     backgroundColor: '#fff',
     borderRadius: 8 * scaleWidth,
     alignItems: 'center',
     borderBottomWidth: 1 * scaleHeight,
-    borderBottomColor: '#eee',
-    height: 110 * scaleHeight,
+    borderBottomColor: '#f6f6f6',
+    minHeight: 110 * scaleHeight,
     justifyContent: 'space-between',
     width: '100%',
-    marginTop: 4 * scaleHeight,
-    marginBottom: 4 * scaleHeight,
+    marginBottom: 6 * scaleHeight,
   },
   info: {
     flex: 1,
@@ -731,7 +705,14 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 100 * scaleWidth,
     height: 100 * scaleHeight,
-    marginVertical: 5 * scaleHeight,
+    marginBottom: 12 * scaleHeight,
+    marginTop: 5 * scaleHeight,
+  },
+  imageWrapper: {
+    width: 100 * scaleWidth,
+    height: 100 * scaleHeight,
+    borderRadius: 10 * scaleWidth,
+    overflow: 'hidden',
   },
   image: {
     width: 100 * scaleWidth,
@@ -775,10 +756,11 @@ const styles = StyleSheet.create({
     height: 32 * scaleHeight,
     borderRadius: 40,
     position: 'absolute',
-    bottom: -5 * scaleHeight,
+    bottom: 4 * scaleHeight,
     right: -5 * scaleWidth,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 10,
   },
   addButtonText: {
     color: '#fff',
